@@ -604,40 +604,7 @@ const showReceiveModalHandler = () => {
         </a-list>
       </a-tab-pane>
 
-      <a-tab-pane key="security" tab="安全">
-        <div class="space-y-4">
-          <a-card :bordered="false">
-            <h3 class="font-medium mb-3 flex items-center">
-              <KeyOutlined class="mr-2" />私钥备份
-            </h3>
-            <p class="text-gray-500 mb-4">确保您的私钥安全存储。丢失私钥将导致资金永久丢失。</p>
-            <a-button type="primary" danger ghost @click="showBackupModal = true">备份私钥</a-button>
-          </a-card>
-          
-          <a-card :bordered="false">
-            <h3 class="font-medium mb-3">账户信息</h3>
-            <div class="space-y-2">
-              <div class="flex justify-between">
-                <span class="text-gray-500">账户名称</span>
-                <span>{{ walletAccountName }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500">钱包地址</span>
-                <div class="flex items-center">
-                  <span class="mr-1">{{ formatAddress(walletAddress) }}</span>
-                  <a-button type="text" size="small" @click="copyToClipboard(walletAddress)">
-                    <CopyOutlined />
-                  </a-button>
-                </div>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500">网络</span>
-                <span>DFS主网</span>
-              </div>
-            </div>
-          </a-card>
-        </div>
-      </a-tab-pane>
+  
     </a-tabs>
 
     <!-- 自定义发送模态框 -->
@@ -711,117 +678,146 @@ const showReceiveModalHandler = () => {
     </div>
 
     <!-- 创建钱包模态框 -->
-    <a-modal
-      v-model:visible="showCreateWalletModal"
-      title="创建新钱包"
-      :okText="newWalletForm.isCreating ? '创建中...' : '创建'"
-      cancelText="取消"
-      :confirmLoading="newWalletForm.isCreating"
-      @ok="handleCreateWallet"
-      class="create-wallet-modal"
-      destroyOnClose
-    >
-      <a-form :model="newWalletForm" layout="vertical">
-        <a-form-item label="账户名称 (可选)" extra="账户名必须是12个字符，只能包含a-z、1-5和点号">
-          <a-input v-model:value="newWalletForm.accountName" placeholder="输入账户名或留空生成随机名称" />
-        </a-form-item>
-
-        <a-alert type="warning" show-icon class="mb-4">
-          <template #message>
-            <div>
-              <p class="font-bold">重要提示</p>
-              <p>创建后，您将收到私钥，请务必安全保存。丢失私钥将无法恢复您的资产！</p>
+    <div v-if="showCreateWalletModal" class="custom-modal">
+      <div class="modal-backdrop" @click="showCreateWalletModal = false"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>创建新钱包</h3>
+          <button class="close-btn" @click="showCreateWalletModal = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>账户名称 (可选)</label>
+            <input v-model="newWalletForm.accountName" placeholder="输入账户名或留空生成随机名称" class="form-input" />
+            <div class="form-help">账户名必须是12个字符，只能包含a-z、1-5和点号</div>
+          </div>
+          
+          <div class="warning-box">
+            <div class="warning-title">重要提示</div>
+            <div class="warning-content">
+              创建后，您将收到私钥，请务必安全保存。丢失私钥将无法恢复您的资产！
             </div>
-          </template>
-        </a-alert>  
-      </a-form>
-    </a-modal>
-
-    <!-- 导入钱包模态框 -->
-    <a-modal
-      v-model:visible="showImportWalletModal"
-      title="导入钱包"
-      @ok="handleImportWallet"
-      okText="导入"
-      cancelText="取消"
-      :confirmLoading="importWalletForm.isImporting"
-    >
-      <a-form :model="importWalletForm" layout="vertical">
-        <a-form-item label="私钥" required>
-          <a-input-password v-model:value="importWalletForm.privateKey" placeholder="输入您的私钥" />
-        </a-form-item>
-        
-        <a-alert type="info" show-icon class="mb-4">
-          <template #message>
-            私钥将只在本地使用，不会上传至任何服务器
-          </template>
-        </a-alert>
-      </a-form>
-    </a-modal>
-
-    <!-- 备份私钥模态框 -->
-    <a-modal
-      v-model:visible="showBackupModal"
-      title="备份私钥"
-      :closable="false"
-      :maskClosable="false"
-      :keyboard="false"
-      @ok="completeBackup"
-      okText="我已安全备份私钥"
-    >
-      <div class="space-y-4">
-        <a-alert type="warning" show-icon banner>
-          <template #message>
-            <span class="font-bold">重要提示：任何人获得您的私钥将可以完全控制您的资产！</span>
-          </template>
-        </a-alert>
-        
-        <div class="p-4 bg-gray-50 rounded-lg">
-          <div class="flex justify-between items-center mb-2">
-            <span class="font-bold">您的私钥</span>
-            <a-button type="text" @click="togglePrivateKeyVisibility">
-              <template v-if="backupInfo.showPrivateKey">
-                <LockOutlined /> 隐藏
-              </template>
-              <template v-else>
-                <EyeOutlined /> 显示
-              </template>
-            </a-button>
-          </div>
-          
-          <div class="bg-white p-3 border rounded relative">
-            <template v-if="backupInfo.showPrivateKey">
-              <div class="font-mono break-all">{{ backupInfo.privateKey }}</div>
-            </template>
-            <template v-else>
-              <div class="font-mono text-center">***** 点击"显示"查看私钥 *****</div>
-            </template>
-          </div>
-          
-          <div class="flex justify-end mt-2">
-            <a-button type="primary" size="small" @click="copyToClipboard(backupInfo.privateKey)">
-              <CopyOutlined /> 复制
-            </a-button>
           </div>
         </div>
-        
-        <div class="p-4 border-l-4 border-yellow-500 bg-yellow-50">
-          <h4 class="font-bold mb-2">安全提示：</h4>
-          <ul class="list-disc pl-5 space-y-1 text-sm">
-            <li>将私钥保存在安全的离线位置</li>
-            <li>永远不要分享私钥</li>
-            <li>任何人获得您的私钥都能控制您的资产</li>
-            <li>丢失私钥将导致资产永久丢失</li>
-          </ul>
-        </div>
-        
-        <div class="pt-4">
-          <a-checkbox>
-            我了解私钥的重要性，并已安全备份
-          </a-checkbox>
+        <div class="modal-footer">
+          <button class="cancel-btn" @click="showCreateWalletModal = false">取消</button>
+          <button 
+            class="submit-btn" 
+            @click="handleCreateWallet"
+            :disabled="newWalletForm.isCreating"
+          >
+            {{ newWalletForm.isCreating ? '创建中...' : '创建' }}
+          </button>
         </div>
       </div>
-    </a-modal>
+    </div>
+
+    <!-- 导入钱包模态框 -->
+    <div v-if="showImportWalletModal" class="custom-modal">
+      <div class="modal-backdrop" @click="showImportWalletModal = false"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>导入钱包</h3>
+          <button class="close-btn" @click="showImportWalletModal = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>私钥</label>
+            <input 
+              v-model="importWalletForm.privateKey" 
+              type="password" 
+              placeholder="输入您的私钥" 
+              class="form-input" 
+            />
+          </div>
+          
+          <div class="info-box">
+            <div class="info-title">安全提示</div>
+            <div class="info-text">
+              <p>• 私钥将只在本地使用，不会上传至任何服务器</p>
+              <p>• 请确保在安全的环境中导入私钥</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel-btn" @click="showImportWalletModal = false">取消</button>
+          <button 
+            class="submit-btn" 
+            @click="handleImportWallet"
+            :disabled="importWalletForm.isImporting"
+          >
+            {{ importWalletForm.isImporting ? '导入中...' : '导入' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 备份私钥模态框 -->
+    <div v-if="showBackupModal" class="custom-modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>备份私钥</h3>
+        </div>
+        <div class="modal-body">
+          <div class="warning-box">
+            <div class="warning-title">重要提示</div>
+            <div class="warning-content">
+              <strong>任何人获得您的私钥将可以完全控制您的资产！</strong>
+            </div>
+          </div>
+          
+          <div class="key-container">
+            <div class="key-header">
+              <span class="key-title">您的私钥</span>
+              <button class="toggle-btn" @click="togglePrivateKeyVisibility">
+                <span v-if="backupInfo.showPrivateKey">
+                  <LockOutlined /> 隐藏
+                </span>
+                <span v-else>
+                  <EyeOutlined /> 显示
+                </span>
+              </button>
+            </div>
+            
+            <div class="key-value">
+              <div v-if="backupInfo.showPrivateKey" class="key-text">
+                {{ backupInfo.privateKey }}
+              </div>
+              <div v-else class="key-masked">
+                ***** 点击"显示"查看私钥 *****
+              </div>
+            </div>
+            
+            <div class="key-actions">
+              <button class="copy-btn" @click="copyToClipboard(backupInfo.privateKey)">
+                <CopyOutlined /> 复制
+              </button>
+            </div>
+          </div>
+          
+          <div class="security-tips">
+            <h4>安全提示：</h4>
+            <ul>
+              <li>将私钥保存在安全的离线位置</li>
+              <li>永远不要分享私钥</li>
+              <li>任何人获得您的私钥都能控制您的资产</li>
+              <li>丢失私钥将导致资产永久丢失</li>
+            </ul>
+          </div>
+          
+          <div class="checkbox-container">
+            <label class="checkbox-label">
+              <input type="checkbox" class="checkbox-input" />
+              我了解私钥的重要性，并已安全备份
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="submit-btn" @click="completeBackup">我已安全备份私钥</button>
+        </div>
+      </div>
+    </div>
 
   
   </div>
@@ -976,6 +972,20 @@ const showReceiveModalHandler = () => {
   color: white;
   border-radius: 4px;
   cursor: pointer;
+  transition: all 0.3s;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #40a9ff;
+  border-color: #40a9ff;
+}
+
+.submit-btn:disabled {
+  background: #bae7ff;
+  border-color: #bae7ff;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .qr-header {
@@ -1132,6 +1142,125 @@ const showReceiveModalHandler = () => {
 
 .qr-download-btn > span {
   margin-right: 6px;
+}
+
+.warning-box {
+  padding: 16px;
+  background-color: #fff7e6;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  text-align: left;
+  border-left: 4px solid #faad14;
+}
+
+.warning-title {
+  color: #fa8c16;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.warning-content {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.key-container {
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.key-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.key-title {
+  font-weight: 500;
+  color: #333;
+}
+
+.toggle-btn {
+  padding: 4px 8px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toggle-btn:hover {
+  color: #1890ff;
+  border-color: #1890ff;
+}
+
+.key-value {
+  background-color: #fff;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.key-text {
+  font-family: monospace;
+  word-break: break-all;
+  color: #333;
+}
+
+.key-masked {
+  text-align: center;
+  color: #999;
+}
+
+.key-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.security-tips {
+  margin-bottom: 16px;
+}
+
+.security-tips h4 {
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.security-tips ul {
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.security-tips li {
+  margin-bottom: 6px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.checkbox-container {
+  margin-bottom: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  color: #333;
+}
+
+.checkbox-input {
+  margin-right: 8px;
 }
 </style>
 
