@@ -1,6 +1,13 @@
 import { Api, JsonRpc, Serialize } from 'eosjs';
 import { JsSignatureProvider } from 'eosjs/dist/eosjs-jssig';
+import { message } from 'ant-design-vue';
+import { PushTransactionArgs } from 'eosjs/dist/eosjs-rpc-interfaces';
+// import * as eosEcc from 'eosjs-ecc';
 
+import {
+  SignatureProviderArgs,
+  // Transaction,
+} from 'eosjs/dist/eosjs-api-interfaces';
 const CHAINID = '000d9cae502dd1cc895745e204f83cc892bc4c450f92a03ecd4fe057709853cc';
 
 // 定义账户配置接口
@@ -154,7 +161,7 @@ export class DfsWallet {
   async init(appName: string, private_key: string | null = null): Promise<void> {
     this.appName = appName;
     const network = { chainId: this.chainId };
-    this.rpc=new JsonRpc('http://server.manjia.net');
+    this.rpc = new JsonRpc('http://server.manjia.net');
 
 
     console.log('init', appName, this.rpc.endpoint, network);
@@ -203,70 +210,30 @@ export class DfsWallet {
     // }
   }
 
-  async transact(transaction: Transaction, opts: TransactionOptions = {}): Promise<any> {
-    let resp;
+  async transact(transaction: Transaction, opts: any = {}) {
+    if (opts.useFreeCpu) {
+      delete opts.useFreeCpu;
+      return await this.transactByFreeCpu(transaction, opts);
+    }
+
     try {
-      console.log('开始执行交易...');
-      console.log('交易类型:', transaction.actions[0].name);
-      console.log('交易选项:', JSON.stringify(opts));
-      
-      if (opts.useFreeCpu) {
-        console.log("使用免CPU服务");
-        return await this.transactByFreeCpu(transaction, opts);
-      }
-      console.log("普通交易");
-      if (!this.api) {
-        console.error("API未初始化");
-        throw new Error("API not initialized");
-      }
-      
-      try {
-        resp = await this.api.transact(transaction, {
-          blocksBehind: 3,
-          expireSeconds: 3600,
-          ...opts,
-        });
-        console.log('交易执行成功:', resp);
-        return resp;
-      } catch (err) {
-        console.error('API交易执行失败:', err);
-        throw err;
-      }
+      let resp = await this.api?.transact(
+        transaction,
+        Object.assign(
+          {
+            blocksBehind: 3,
+            expireSeconds: 3600,
+          },
+          opts
+        )
+      );
+      return resp;
     } catch (error) {
-      console.error('处理交易异常:', error);
-      
-      // 特殊处理:如果是newaccount操作，返回模拟成功结果
-      // 这仅用于开发和测试环境！
-      if (transaction.actions.some(action => action.name === 'newaccount')) {
-        console.log('检测到newaccount操作，返回模拟成功结果');
-        
-        // 生成模拟的交易ID
-        const txId = Array(64).fill(0).map(() => 
-          '0123456789abcdef'[Math.floor(Math.random() * 16)]
-        ).join('');
-        
-        // 返回模拟成功结果
-        return {
-          transaction_id: txId,
-          processed: {
-            id: txId,
-            block_num: 12345678,
-            block_time: new Date().toISOString(),
-            receipt: { status: 'executed' }
-          }
-        };
-      }
-      
       const eMsg = this.dealError(error);
       throw eMsg;
     }
   }
-
-  async transactByFreeCpu(transaction: Transaction, opts: TransactionOptions = {}): Promise<any> {
-    if (!this.api || !this.freeCpuApi) {
-      throw new Error("API not initialized");
-    }
-    
+  async transactByFreeCpu(transaction: Transaction, opts: any = {}) {
     const accAuth = transaction.actions[0].authorization[0];
     transaction.actions.unshift({
       account: FREECPU.contract,
@@ -282,48 +249,49 @@ export class DfsWallet {
         user: accAuth.actor,
       },
     });
-
     try {
       // 当前账户签名
-      let _PushTransactionArgs = await this.api.transact(transaction, {
+      let _PushTransactionArgs = (await this.api?.transact(transaction, {
         blocksBehind: 3,
         expireSeconds: 3600,
+        ...opts,
         sign: false,
         broadcast: false,
-      });
-      const availableKeys = await this.api.signatureProvider.getAvailableKeys();
-
-      // 使用类型断言处理类型错误
-      const serializedTx = (_PushTransactionArgs as any).serializedTransaction;
-
+      })) as PushTransactionArgs;
+      const availableKeys =
+        await this.api?.signatureProvider.getAvailableKeys();
+      const serializedTx = _PushTransactionArgs?.serializedTransaction;
       const signArgs = {
         chainId: this.chainId,
         requiredKeys: availableKeys,
         serializedTransaction: serializedTx,
         abis: [],
-      };
-      let pushTransactionArgs = await this.api.signatureProvider.sign(signArgs);
+      } as SignatureProviderArgs;
+      let pushTransactionArgs = await this.api?.signatureProvider.sign(
+        signArgs
+      );
 
       // 免CPU签名
-      const freeCpuRequiredKeys = await this.freeCpuApi.signatureProvider.getAvailableKeys();
+      const freeCpuRequiredKeys =
+        await this.freeCpuApi?.signatureProvider.getAvailableKeys();
       const signArgsFreeCpu = {
         chainId: this.chainId,
         requiredKeys: freeCpuRequiredKeys,
         serializedTransaction: serializedTx,
         abis: [],
       };
-      let pushTransactionArgsFreeCpu = await this.freeCpuApi.signatureProvider.sign(signArgsFreeCpu);
-      pushTransactionArgs.signatures.unshift(pushTransactionArgsFreeCpu.signatures[0]);
-
-
+      let pushTransactionArgsFreeCpu =
+        await this.freeCpuApi?.signatureProvider.sign(
+          signArgsFreeCpu as SignatureProviderArgs
+        );
+      pushTransactionArgs?.signatures.unshift(
+        pushTransactionArgsFreeCpu?.signatures[0] as string
+      );
       // 将操作广播出去
-      let push_result = await this.api.pushSignedTransaction(pushTransactionArgs);
-
-      // 使用类型断言处理类型错误
-      console.log('push_result', (push_result as any).transaction_id);
-
+      let push_result = await this.api?.pushSignedTransaction(
+        pushTransactionArgs as PushTransactionArgs
+      );
       return push_result;
-
     } catch (error) {
       const eMsg = this.dealError(error);
       throw eMsg;
@@ -451,7 +419,7 @@ export class DfsWallet {
     if (!this.rpc) {
       throw new Error("RPC not initialized");
     }
-    
+
     const resp = await this.rpc.get_table_rows({
       json: true,              // Get the response as json
       code: 'eosio.token',     // Contract that we target
@@ -530,7 +498,7 @@ export class DfsWallet {
     if (!this.rpc) {
       throw new Error("RPC not initialized");
     }
-    
+
     try {
       const response = await this.rpc.get_currency_balance(code, account, symbol);
       console.log(response);
@@ -546,7 +514,7 @@ export class DfsWallet {
     if (!this.rpc) {
       throw new Error("RPC not initialized");
     }
-    
+
     try {
       const response = await this.rpc.history_get_transaction(id);
       console.log("history_get_transaction");
@@ -560,35 +528,67 @@ export class DfsWallet {
 
   // 生成密钥对 - 改为同步方式
   generateKeyPair(): { privateKey: string, publicKey: string } {
-    // 由于环境限制，可能无法使用ecc库正常工作
-    // 使用开发测试的固定密钥对
-    console.log('生成新的密钥对...');
-    
-    // 返回测试密钥对，仅用于开发/测试
-    const privateKey = '5JStZPTsfXMc1xA7VasgqNmHvAGBh8eHJ2kpEhvFUYMzjRYmeG5';
-    const publicKey = 'EOS7ent7keWbVgvptfYaMYeF2cenMBiwYKcwEuc11uCbStsFKsrmV';
-    
-    console.log('使用测试密钥对:');
-    console.log('公钥:', publicKey);
-    
-    return { privateKey, publicKey };
+
+    try {
+      console.log('正在生成密钥对...');
+
+      // 使用eosjs-ecc库生成密钥对
+      const eosEcc = require('eosjs-ecc');
+      
+
+      // 生成随机私钥
+      const privateKey = eosEcc.randomKey();
+      console.log('私钥已生成');
+
+      // 从私钥派生公钥
+      const publicKey = eosEcc.privateToPublic(privateKey);
+      console.log('公钥已生成');
+
+      // 确保publicKey是EOS开头的格式
+      let formattedPublicKey = publicKey;
+      if (!formattedPublicKey.startsWith('EOS')) {
+        formattedPublicKey = 'EOS' + publicKey.substring(publicKey.indexOf('_') + 1);
+      }
+
+      console.log('密钥对生成完成');
+      return { privateKey, publicKey: formattedPublicKey };
+    } catch (error) {
+      console.error('生成密钥对失败:', error);
+      throw new Error(`生成密钥对失败: ${error || '未知错误'}`);
+    }
+
+
+
+    // // 由于环境限制，可能无法使用ecc库正常工作
+    // // 使用开发测试的固定密钥对
+    // console.log('生成新的密钥对...');
+
+    // // 返回测试密钥对，仅用于开发/测试
+    // const privateKey = '5JStZPTsfXMc1xA7VasgqNmHvAGBh8eHJ2kpEhvFUYMzjRYmeG5';
+    // const publicKey = 'EOS7ent7keWbVgvptfYaMYeF2cenMBiwYKcwEuc11uCbStsFKsrmV';
+
+    // console.log('使用测试密钥对:');
+    // console.log('公钥:', publicKey);
+
+    // return { privateKey, publicKey };
   }
 
   // 创建新钱包和账户
   async createNewWallet(
-    accountName: string | null = null, 
-    ramBytes: number = 1024, 
-    netAmount: string = '0.00000001', 
+    accountName: string | null = null,
+    ramBytes: number = 1024,
+    netAmount: string = '0.00000001',
     cpuAmount: string = '0.00000001'
   ): Promise<WalletCreationResult> {
     try {
       console.log('开始创建新钱包...');
 
+      message.info('开始创建新钱包...');
       // 1. 生成或验证账户名
       if (!accountName) {
         // 生成随机账户名
-        // accountName = this.generateAccountName();
-        accountName = 'bongo1234567890';
+        accountName = this.generateAccountName();
+        // accountName = 'bongo1234567890';
         console.log(`已生成随机账户名: ${accountName}`);
       } else if (accountName.length !== 12 || !/^[a-z1-5.]+$/.test(accountName)) {
         console.error('账户名验证失败:', accountName);
@@ -602,7 +602,72 @@ export class DfsWallet {
 
       // 3. 使用账号创建新账户 - 使用模拟模式，便于开发测试
       console.log('使用开发测试模式返回钱包信息');
-      
+      const creatorAccount = my.account ? my : FREECPU;
+      // 构建创建账户交易
+      const createAccountAction = {
+        actions: [{
+          account: 'eosio',
+          name: 'newaccount',
+          authorization: [{
+            actor: creatorAccount.account,
+            permission: creatorAccount.authority,
+          }],
+          data: {
+            creator: creatorAccount.account,
+            name: accountName,
+            owner: {
+              threshold: 1,
+              keys: [{
+                key: publicKey,
+                weight: 1
+              }],
+              accounts: [],
+              waits: []
+            },
+            active: {
+              threshold: 1,
+              keys: [{
+                key: publicKey,
+                weight: 1
+              }],
+              accounts: [],
+              waits: []
+            }
+          }
+        },
+        {
+          account: 'eosio',
+          name: 'buyrambytes',
+          authorization: [{
+            actor: creatorAccount.account,
+            permission: creatorAccount.authority,
+          }],
+          data: {
+            payer: creatorAccount.account,
+            receiver: accountName,
+            bytes: ramBytes
+          }
+        },
+        {
+          account: 'eosio',
+          name: 'delegatebw',
+          authorization: [{
+            actor: creatorAccount.account,
+            permission: creatorAccount.authority,
+          }],
+          data: {
+            from: creatorAccount.account,
+            receiver: accountName,
+            stake_net_quantity: `${netAmount} DFS`,
+            stake_cpu_quantity: `${cpuAmount} DFS`,
+            transfer: true
+          }
+        }]
+      };
+      const opts = { useFreeCpu: true, blocksBehind: 3, expireSeconds: 3600 };
+      message.info('开始创建钱包:' + createAccountAction);
+      const result = await this.transact(createAccountAction, opts);
+      message.info('创建钱包成功:' + result);
       // 返回模拟结果
       return {
         accountName: accountName,

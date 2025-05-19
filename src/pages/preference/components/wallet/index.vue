@@ -457,23 +457,11 @@ const showReceiveModalHandler = () => {
 <template>
   <div class="wallet-container p-4">
 
-      <!-- 添加调试面板 -->
-      <a-collapse v-if="debugLogs.length > 0" class="mt-4">
-      <a-collapse-panel key="1" header="调试日志">
-        <div class="bg-gray-100 p-2 rounded overflow-auto" style="max-height: 200px;">
-          <div v-for="(log, index) in debugLogs" :key="index" class="mb-1 text-xs font-mono">
-            {{ log }}
-          </div>
-        </div>
-        <div class="mt-2">
-          <a-button size="small" @click="debugLogs = []">清除日志</a-button>
-        </div>
-      </a-collapse-panel>
-    </a-collapse>
+
     <!-- 钱包头部 -->
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-xl font-bold flex items-center">
-        <WalletOutlined class="mr-2" />DFS区块链钱包
+        <WalletOutlined class="mr-2" />钱包
       </h2>
       <div class="flex gap-2">
         <template v-if="isWalletConnected">
@@ -562,7 +550,29 @@ const showReceiveModalHandler = () => {
           
           <a-card class="wallet-actions bg-gray-50" :bordered="false">
             <div class="grid grid-cols-3 gap-4">
-                            <div class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"                   @click="showSendModalHandler">                <SendOutlined style="font-size: 24px;" class="mb-2" />                <span>发送</span>              </div>              <div class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"                   @click="showReceiveModalHandler">                <ScanOutlined style="font-size: 24px;" class="mb-2" />                <span>接收</span>              </div>              <div class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"                   @click="addDebugLog('切换到历史标签页'); activeTab = 'activity'">                <HistoryOutlined style="font-size: 24px;" class="mb-2" />                <span>历史</span>              </div>
+              <div 
+                class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"     
+                @click="showSendModalHandler"
+              >
+                <SendOutlined style="font-size: 24px;" class="mb-2" />
+                <span>发送</span>
+              </div>
+              
+              <div 
+                class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"
+                @click="showReceiveModalHandler"
+              >
+                <ScanOutlined style="font-size: 24px;" class="mb-2" />
+                <span>接收</span>
+              </div>
+              
+              <div 
+                class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"
+                @click="activeTab = 'activity'"
+              >
+                <HistoryOutlined style="font-size: 24px;" class="mb-2" />
+                <span>历史</span>
+              </div>
             </div>
           </a-card>
         </div>
@@ -603,10 +613,9 @@ const showReceiveModalHandler = () => {
           <a-empty v-if="walletTransactions.length === 0" description="暂无交易记录" />
         </a-list>
       </a-tab-pane>
-
-  
     </a-tabs>
 
+     
     <!-- 自定义发送模态框 -->
     <div v-if="showSendModal" class="custom-modal">
       <div class="modal-backdrop" @click="showSendModal = false"></div>
@@ -672,6 +681,10 @@ const showReceiveModalHandler = () => {
             </div>
           </div>
           
+          <div class="qr-instructions">
+            <p>扫描上方二维码向此钱包发送DFS</p>
+            <p>或复制地址手动添加收款人</p>
+          </div>
          
         </div>
       </div>
@@ -1065,6 +1078,18 @@ const showReceiveModalHandler = () => {
   color: #1890ff;
   border-color: #91d5ff;
   transform: scale(0.95);
+}
+
+.qr-instructions {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+}
+
+.qr-instructions p {
+  margin: 4px 0;
+  line-height: 1.4;
 }
 
 .info-box {
