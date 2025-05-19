@@ -162,10 +162,28 @@ export function useWallet() {
         // 2. 从私钥派生公钥
         const publicKey = privateToPublic(privateKey);
         
-        // 3. 生成或获取账户名 (简单实现，实际中应通过链上查询)
-        // 这里使用时间戳生成一个假名称，实际应用中应通过公钥查询关联账户
-        const timestamp = Date.now().toString().substring(7);
-        const accountName = `bongo${timestamp}`;
+        // 3. 通过公钥查询关联账户
+        let accountName: string;
+        try {
+          // 尝试从链上查询关联账户
+          const accounts = await dfsWallet.getAccountsByPublicKey(publicKey);
+          
+          if (accounts && accounts.length > 0) {
+            // 使用找到的第一个账户
+            accountName = accounts[0];
+            console.log(`找到与公钥关联的账户: ${accountName}`);
+          } else {
+            // 如果没有找到关联账户，使用时间戳生成一个假名称
+            const timestamp = Date.now().toString().substring(7);
+            accountName = `bongo${timestamp}`;
+            console.log(`未找到关联账户，使用生成的名称: ${accountName}`);
+          }
+        } catch (err) {
+          // 如果查询失败，使用时间戳生成一个假名称
+          const timestamp = Date.now().toString().substring(7);
+          accountName = `bongo${timestamp}`;
+          console.error('查询关联账户失败，使用生成的名称:', err);
+        }
         
         // 4. 构建新的钱包信息
         walletInfo = {
