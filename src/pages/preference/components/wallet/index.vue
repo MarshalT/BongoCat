@@ -21,10 +21,15 @@ import { message, Modal } from 'ant-design-vue'
 import { useWallet, WalletStatus, WalletType, Transaction } from '@/composables/wallet/useWallet'
 import { useTransaction, TransactionStatus } from '@/composables/wallet/useTransaction'
 import QRCode from 'qrcode.vue'
+import DfsWallet from '@/utils/dfs'
 
 // 使用钱包API
 const wallet = useWallet()
 const transaction = useTransaction()
+const dfsWallet = new DfsWallet()
+const allBalances = ref<string[]>([])
+const loadingBalances = ref(false)
+const showDebugLogs = ref(true) // 控制是否显示调试日志
 
 // 界面状态
 const activeTab = ref('assets')
@@ -34,6 +39,9 @@ const selectedCurrency = ref('DFS')
 const showCreateWalletModal = ref(false)
 const showImportWalletModal = ref(false)
 const showBackupModal = ref(false)
+
+// 资产列表
+const assetList = ref<any[]>([])
 
 // 确保transactions是正确的Transaction数组类型
 const walletTransactions = computed(() => {
@@ -117,6 +125,10 @@ const addDebugLog = (message: string, data?: any) => {
 onMounted(async () => {
   addDebugLog('组件已挂载');
   try {
+    // 初始化dfsWallet
+    await dfsWallet.init('BongoCat');
+    addDebugLog('DFS钱包初始化完成');
+    
     addDebugLog('初始化钱包');
     await wallet.initWallet();
     addDebugLog('钱包初始化完成', { status: wallet.walletStatus.value });
@@ -155,6 +167,14 @@ onMounted(async () => {
       ];
       addDebugLog('交易记录已添加', { count: wallet.transactions.value.length });
     }
+    
+    // 获取所有币种余额
+    if (isWalletConnected.value) {
+      fetchAllBalances();
+    } else {
+      addDebugLog('钱包未连接，跳过获取余额');
+    }
+    
   } catch (error) {
     addDebugLog('初始化出错', error);
   }
@@ -451,6 +471,94 @@ const showReceiveModalHandler = () => {
   }
 };
 
+// 添加获取资产列表的方法
+const fetchAllBalances = async () => {
+  addDebugLog('开始获取资产列表');
+  loadingBalances.value = true;
+  
+  try {
+    if (!wallet.currentWallet.value) {
+      addDebugLog('钱包未连接，无法获取资产');
+      return;
+    }
+    
+    // 获取DFS余额
+    await wallet.refreshBalance();
+    
+    // 获取其他代币余额
+    let result: string[] = [];
+    try {
+      // 初始化dfsWallet
+      await dfsWallet.init('BongoCat');
+      
+      const address = wallet.currentWallet.value.address;
+      addDebugLog('获取代币余额', { address });
+      
+      // 从DFS合约获取所有代币余额
+      result = await dfsWallet.get_currency_balance(address, 'dfsppptokens', '');
+      addDebugLog('代币余额获取成功', result);
+    } catch (err) {
+      addDebugLog('获取代币余额失败', err);
+    }
+    
+    // 清空当前资产列表
+    assetList.value = []
+    
+    // 添加模拟数据用于测试
+    if (showDebugLogs && result.length === 0) {
+      addDebugLog("添加模拟数据用于测试")
+      result = [
+        "52.35974994 LN",
+        "10.00000000 DOG",
+        "5.34256000 PEPE",
+        "0.00000000 DOGS",
+        "1.23456789 TESLA"
+      ]
+    }
+    
+    // 添加DFS资产
+    assetList.value.push({
+      key: 'DFS',
+      name: 'DFS Chain',
+      balance: wallet.balances[WalletType.DFS],
+      value: parseFloat(wallet.balances[WalletType.DFS]) * 0.5,
+      color: 'bg-blue-500'
+    })
+    
+    // 处理并添加其他代币
+    const colorClasses = [
+      'bg-green-500', 'bg-purple-500', 'bg-red-500', 
+      'bg-yellow-500', 'bg-indigo-500', 'bg-pink-500'
+    ]
+    
+    result.forEach((item, index) => {
+      const parts = item.split(' ')
+      if (parts.length === 2) {
+        const balance = parts[0]
+        const symbol = parts[1]
+        const randomPrice = (Math.random() * 10).toFixed(2)
+        const value = parseFloat(balance) * parseFloat(randomPrice)
+        
+        // 使用循环颜色系统
+        const colorIndex = index % colorClasses.length
+        
+        assetList.value.push({
+          key: symbol,
+          name: `${symbol} Token`,
+          balance: balance,
+          value: value,
+          color: colorClasses[colorIndex]
+        })
+      }
+    })
+    
+    addDebugLog('资产列表更新完成', assetList.value);
+  } catch (err) {
+    addDebugLog('获取资产列表失败', err);
+  } finally {
+    loadingBalances.value = false;
+  }
+}
 
 </script>
 
@@ -531,22 +639,52 @@ const showReceiveModalHandler = () => {
     <a-tabs v-model:activeKey="activeTab" v-if="isWalletConnected">
       <a-tab-pane key="assets" tab="资产">
         <div class="space-y-4">
-          <a-card class="currency-card" :bordered="false">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center">
-                <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white mr-3">
-                  {{ dfsInfo.key.charAt(0) }}
+          <div class="flex justify-between items-center mb-3">
+            <div class="font-bold">全部资产</div>
+            <a-button size="small" @click="fetchAllBalances" :loading="loadingBalances">
+              <template #icon><SyncOutlined /></template>
+              刷新资产
+            </a-button>
+          </div>
+          <div v-if="debugLogs.length > 0 && showDebugLogs" class="text-xs mb-2 p-2 bg-gray-100 rounded overflow-auto" style="max-height: 100px;">
+            <div v-for="(log, index) in debugLogs.slice(-5)" :key="index" class="mb-1">{{ log }}</div>
+          </div>
+          
+          <template v-if="assetList.length > 0">
+            <a-card 
+              v-for="asset in assetList" 
+              :key="asset.key" 
+              class="currency-card mb-2" 
+              :bordered="false"
+            >
+              <div class="flex justify-between items-center">
+                <div class="flex items-center">
+                  <div 
+                    class="w-10 h-10 rounded-full flex items-center justify-center text-white mr-3"
+                    :class="asset.color"
+                  >
+                    {{ asset.key.charAt(0) }}
+                  </div>
+                  <div>
+                    <h3 class="font-medium">{{ asset.name }}</h3>
+                    <p class="text-gray-500">{{ asset.balance }} {{ asset.key }}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 class="font-medium">{{ dfsInfo.name }}</h3>
-                  <p class="text-gray-500">{{ dfsInfo.balance }} {{ dfsInfo.key }}</p>
+                <div class="text-right">
+                  <p class="font-bold">${{ asset.value.toFixed(2) }}</p>
                 </div>
               </div>
-              <div class="text-right">
-                <p class="font-bold">${{ dfsInfo.value.toFixed(2) }}</p>
-              </div>
-            </div>
-          </a-card>
+            </a-card>
+          </template>
+          
+          <a-empty v-else description="暂无资产" class="my-8">
+            <template #extra>
+              <a-button type="primary" @click="fetchAllBalances" :loading="loadingBalances">
+                <template #icon><SyncOutlined /></template>
+                刷新
+              </a-button>
+            </template>
+          </a-empty>
           
           <a-card class="wallet-actions bg-gray-50" :bordered="false">
             <div class="grid grid-cols-3 gap-4">

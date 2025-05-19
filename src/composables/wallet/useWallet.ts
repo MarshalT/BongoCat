@@ -414,7 +414,15 @@ export function useWallet() {
       
       // 使用DfsWallet获取真实余额
       const balance = await dfsWallet.getbalance('eosio.token', currentWallet.value.address, 'DFS');
-      
+      const allBalance = await dfsWallet.get_currency_balance(currentWallet.value.address, 'dfsppptokens', '');
+      // [
+      //   "52.35974994 LN",
+      //   "0.00000000 DOG",
+      //   "0.00000000 PEPE",
+      //   "0.00000000 DOGS",
+      //   "0.00000000 TESLA"
+      // ]
+      //合并 然后显示到界面
       if (balance) {
         // 更新余额数据
         const balanceAmount = balance.split(' ')[0]; // 例如 "10.0000 DFS" -> "10.0000"
