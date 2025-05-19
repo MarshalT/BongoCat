@@ -425,6 +425,7 @@ const debugCreateWallet = async () => {
 const showSendModalHandler = () => {
   addDebugLog("显示发送模态框");
   showSendModal.value = true;
+  
 };
 
 // 显示接收模态框
