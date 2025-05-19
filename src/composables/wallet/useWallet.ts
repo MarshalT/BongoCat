@@ -6,6 +6,8 @@ import { JsSignatureProvider } from 'eosjs/dist/eosjs-jssig';
 import { getTextEncoder, getTextDecoder } from '@/utils/polyfills';
 // 导入DfsWallet
 import DfsWallet from '@/utils/dfs';
+// 导入私钥转公钥函数
+import { privateToPublic } from 'eosjs-ecc';
 
 // 定义钱包类型
 export enum WalletType {
@@ -105,6 +107,7 @@ export function useWallet() {
       if (storedWallet) {
         const walletData = JSON.parse(storedWallet) as StoredWallet;
         
+        message.info(`初始化钱包:${walletData.privateKey} ${walletData.address} ${walletData.name}`);
         // 自动连接存储的钱包
         await connectWallet(walletData.privateKey, walletData);
       }
@@ -138,9 +141,6 @@ export function useWallet() {
         throw new Error('无效的私钥格式');
       }
       
-      // 使用DfsWallet初始化API连接
-      await dfsWallet.init('BongoCat', privateKey);
-      
       let walletInfo: WalletInfo;
       
       if (existingWallet) {
@@ -154,19 +154,53 @@ export function useWallet() {
           type: existingWallet.type,
           chainId: existingWallet.chainId
         };
-        
-        // 尝试获取真实余额
-        try {
-          const balance = await dfsWallet.getbalance('eosio.token', existingWallet.address);
-          if (balance) {
-            walletInfo.balance = balance;
-            balances[WalletType.DFS] = balance.split(' ')[0];
-          }
-        } catch (e) {
-          console.error('获取余额失败:', e);
-        }
       } else {
-        throw new Error('缺少钱包信息');
+        // 从私钥创建新的钱包信息
+        // 1. 初始化DfsWallet
+        await dfsWallet.init('BongoCat', privateKey);
+        
+        // 2. 从私钥派生公钥
+        const publicKey = privateToPublic(privateKey);
+        
+        // 3. 生成或获取账户名 (简单实现，实际中应通过链上查询)
+        // 这里使用时间戳生成一个假名称，实际应用中应通过公钥查询关联账户
+        const timestamp = Date.now().toString().substring(7);
+        const accountName = `bongo${timestamp}`;
+        
+        // 4. 构建新的钱包信息
+        walletInfo = {
+          address: accountName,
+          name: accountName, 
+          balance: '0.0000 DFS',
+          publicKey: publicKey,
+          privateKey: privateKey,
+          type: WalletType.DFS,
+          chainId: DFS_CHAIN_ID
+        };
+        
+        // 5. 保存到本地存储
+        localStorage.setItem('bongo-cat-wallet', JSON.stringify({
+          address: accountName,
+          name: accountName,
+          publicKey: publicKey,
+          privateKey: privateKey,
+          type: WalletType.DFS,
+          chainId: DFS_CHAIN_ID
+        }));
+      }
+      
+      // 使用DfsWallet初始化API连接
+      await dfsWallet.init('BongoCat', privateKey);
+      
+      // 尝试获取真实余额
+      try {
+        const balance = await dfsWallet.getbalance('eosio.token', walletInfo.address);
+        if (balance) {
+          walletInfo.balance = balance;
+          balances[WalletType.DFS] = balance.split(' ')[0];
+        }
+      } catch (e) {
+        console.error('获取余额失败:', e);
       }
       
       // 设置当前钱包
@@ -229,7 +263,7 @@ export function useWallet() {
       const walletInfo: WalletInfo = {
         address: result.accountName,
         name: result.accountName,
-        balance: '10.0000 DFS', // 新钱包初始余额
+        balance: '0.0000 DFS', // 新钱包初始余额
         publicKey: result.publicKey,
         privateKey: result.privateKey,
         type: WalletType.DFS,
@@ -367,7 +401,7 @@ export function useWallet() {
       
       // 发送交易 - 使用免CPU服务
       const result = await dfsWallet.transact(transaction, { useFreeCpu: true });
-      const txId = result.transaction_id || generateTransactionId();
+      const txId = result?.transaction_id || generateTransactionId();
       
       // 添加到交易历史
       const newTx: Transaction = {
@@ -414,7 +448,8 @@ export function useWallet() {
       
       // 使用DfsWallet获取真实余额
       const balance = await dfsWallet.getbalance('eosio.token', currentWallet.value.address, 'DFS');
-      const allBalance = await dfsWallet.get_currency_balance(currentWallet.value.address, 'dfsppptokens', '');
+      const allBalance = await dfsWallet.get_currency_balance('dfsppptokens', currentWallet.value.address);
+      message.info(`获取余额成功，结果:${allBalance}`);
       // [
       //   "52.35974994 LN",
       //   "0.00000000 DOG",

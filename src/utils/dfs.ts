@@ -162,7 +162,8 @@ export class DfsWallet {
   async init(appName: string, private_key: string | null = null): Promise<void> {
     this.appName = appName;
     const network = { chainId: this.chainId };
-    this.rpc = new JsonRpc('http://server.manjia.net');
+    // this.rpc = new JsonRpc('http://server.manjia.net');
+    this.rpc = new JsonRpc('https://api.dfs.land');
 
 
     console.log('init', appName, this.rpc.endpoint, network);
@@ -417,57 +418,23 @@ export class DfsWallet {
    * @param code 合约账户
    * @param symbol 币种符号
    */
-  async get_currency_balance(account: string, code: string, symbol: string): Promise<any[]> {
+  async get_currency_balance(code: string, account: string): Promise<any[]> {
     if (!this.rpc) {
       console.error("RPC未初始化，无法获取余额");
       message.error("获取余额失败: RPC未初始化");
       throw new Error("RPC not initialized");
     }
-    
-    console.log(`正在获取余额，账户: ${account}, 合约: ${code}, 币种: ${symbol || '所有'}`);
-    
     try {
-      // API调用中参数顺序是 (code, account, symbol)
-      const resp = await this.rpc.get_currency_balance(code, account, symbol);
-      console.log(`获取余额成功，结果:`, resp);
-      
+      const resp = await this.rpc.get_currency_balance(code, account);
       // 确保返回数组类型
       if (!resp || !Array.isArray(resp)) {
         console.warn("返回的余额数据不是数组格式", resp);
         return [];
       }
-      
-      // 如果结果为空数组，添加模拟数据用于开发
-      if (resp.length === 0) {
-        console.log("API返回空数组，添加模拟数据用于开发");
-        return [
-          '52.35974994 LN',
-          '10.00000000 DOG',
-          '5.34256000 PEPE',
-          '0.00000000 DOGS',
-          '1.23456789 TESLA'
-        ];
-      }
-      
       return resp;
     } catch (error) {
       console.error('查询余额失败:', error);
-      
-      // 提供更详细的错误信息
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`查询余额详细错误: ${errorMsg}`);
-      
-      message.error('查询余额失败: ' + errorMsg);
-      
-      // 异常情况下也返回模拟数据
-      console.log("异常情况下返回模拟数据");
-      return [
-        '52.35974994 LN',
-        '10.00000000 DOG',
-        '5.34256000 PEPE',
-        '0.00000000 DOGS',
-        '1.23456789 TESLA'
-      ];
+      return [];
     }
   }
 

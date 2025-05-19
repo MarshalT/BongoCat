@@ -495,7 +495,7 @@ const fetchAllBalances = async () => {
       addDebugLog('获取代币余额', { address });
       
       // 从DFS合约获取所有代币余额
-      result = await dfsWallet.get_currency_balance(address, 'dfsppptokens', '');
+      result = await dfsWallet.get_currency_balance('dfsppptokens', address);
       addDebugLog('代币余额获取成功', result);
     } catch (err) {
       addDebugLog('获取代币余额失败', err);
@@ -504,17 +504,7 @@ const fetchAllBalances = async () => {
     // 清空当前资产列表
     assetList.value = []
     
-    // 添加模拟数据用于测试
-    if (showDebugLogs && result.length === 0) {
-      addDebugLog("添加模拟数据用于测试")
-      result = [
-        "52.35974994 LN",
-        "10.00000000 DOG",
-        "5.34256000 PEPE",
-        "0.00000000 DOGS",
-        "1.23456789 TESLA"
-      ]
-    }
+ 
     
     // 添加DFS资产
     assetList.value.push({
