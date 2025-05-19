@@ -256,7 +256,7 @@ export function useWallet() {
       
       walletStatus.value = WalletStatus.CONNECTED;
       console.log('useWallet.createWallet: 钱包创建成功');
-      message.success('钱包创建成功，请务必备份您的私钥！');
+
       
       return {
         address: result.accountName,
@@ -302,7 +302,7 @@ export function useWallet() {
         console.error('登出钱包失败:', e);
       }
       
-      message.success('钱包已断开连接');
+      // message.success('钱包已断开连接');
     } catch (err: any) {
       console.error('断开钱包失败:', err);
       error.value = `断开钱包失败: ${err.message || '未知错误'}`;

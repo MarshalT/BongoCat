@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, nextTick } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
 import { 
   WalletOutlined, 
   SendOutlined, 
@@ -14,11 +14,13 @@ import {
   SyncOutlined,
   EyeOutlined,
   DeleteOutlined,
-  EditOutlined
+  EditOutlined,
+  DownloadOutlined
 } from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { useWallet, WalletStatus, WalletType, Transaction } from '@/composables/wallet/useWallet'
 import { useTransaction, TransactionStatus } from '@/composables/wallet/useTransaction'
+import QRCode from 'qrcode.vue'
 
 // 使用钱包API
 const wallet = useWallet()
@@ -70,9 +72,13 @@ const isWalletConnected = computed(() => {
   console.log("[DEBUG] 钱包状态:", wallet.walletStatus.value);
   console.log("[DEBUG] 当前钱包:", wallet.currentWallet.value);
   
-  // 强制返回true，确保UI显示已连接状态
-  return true; // 临时修改为true，以便显示UI元素
-  // return wallet.walletStatus.value === WalletStatus.CONNECTED;
+  // 检查真实的钱包状态
+  const connected = wallet.walletStatus.value === WalletStatus.CONNECTED && wallet.currentWallet.value !== null;
+  addDebugLog("钱包连接状态计算: " + connected);
+  
+  return connected;
+  // 不再强制返回true，使用实际状态
+  // return true;
 })
 const walletAddress = computed(() => wallet.currentWallet.value?.address || 'bongo1234567890')
 const walletAccountName = computed(() => wallet.currentWallet.value?.address || 'bongo1234567890')
@@ -115,6 +121,11 @@ onMounted(async () => {
     await wallet.initWallet();
     addDebugLog('钱包初始化完成', { status: wallet.walletStatus.value });
     
+    // 添加钱包状态变化监听
+    watch(wallet.walletStatus, (newStatus) => {
+      addDebugLog(`钱包状态变化: ${newStatus}`);
+    });
+    
     // 如果没有交易历史，添加一些模拟的交易记录
     if (!wallet.transactions.value || wallet.transactions.value.length === 0) {
       addDebugLog('初始化模拟交易记录');
@@ -151,8 +162,17 @@ onMounted(async () => {
 
 // 复制到剪贴板
 const copyToClipboard = (text: string) => {
-  navigator.clipboard.writeText(text)
-  message.success('已复制到剪贴板')
+  navigator.clipboard.writeText(text);
+  message.success('已复制到剪贴板');
+  
+  // 添加按钮动画效果
+  const copyBtn = document.querySelector('.qr-copy-btn');
+  if (copyBtn) {
+    copyBtn.classList.add('qr-copy-active');
+    setTimeout(() => {
+      copyBtn.classList.remove('qr-copy-active');
+    }, 500);
+  }
 }
 
 // 格式化地址
@@ -252,7 +272,6 @@ const validateSendForm = () => {
 // 新增函数: 打开创建钱包对话框
 const handleStartCreateWallet = async () => {
   addDebugLog("正在准备创建钱包");
-  message.info("正在准备创建钱包...");
   handleCreateWallet();
 };
 
@@ -274,8 +293,8 @@ const handleCreateWallet = async () => {
     console.log("[DEBUG] 钱包正在创建中，返回");
     return;
   }
-  message.info("正在创建钱包...");  
-  
+ 
+
   try {
     console.log("[DEBUG] 开始创建钱包流程");
     
@@ -292,7 +311,7 @@ const handleCreateWallet = async () => {
     newWalletForm.isCreating = true;
     console.log("[DEBUG] 设置isCreating为true");
     
-    message.loading('正在创建钱包，请稍候...', 3);
+    // message.loading('正在创建钱包，请稍候...', 3);
     console.log("[DEBUG] 准备调用wallet.createWallet");
     
     // 检查wallet对象
@@ -349,7 +368,26 @@ const handleImportWallet = async () => {
 
 // 断开钱包连接
 const handleDisconnectWallet = async () => {
-  await wallet.disconnectWallet()
+  addDebugLog('尝试断开钱包连接');
+  try {
+    await wallet.disconnectWallet();
+    addDebugLog('钱包断开成功');
+    message.success('钱包已断开连接');
+    
+    // 确保UI正确反映断开状态
+    nextTick(() => {
+      // 强制重新计算连接状态
+      if (isWalletConnected.value) {
+        addDebugLog('钱包状态未正确更新，强制断开');
+        // 强制修改状态
+        wallet.walletStatus.value = WalletStatus.DISCONNECTED;
+      }
+    });
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    addDebugLog('断开钱包失败: ' + errorMsg);
+    message.error('断开钱包失败: ' + errorMsg);
+  }
 }
 
 // 切换私钥显示状态
@@ -360,7 +398,7 @@ const togglePrivateKeyVisibility = () => {
 // 完成备份
 const completeBackup = () => {
   showBackupModal.value = false
-  message.success('钱包创建完成，请安全保管您的私钥！')
+  // message.success('钱包创建完成，请安全保管您的私钥！')
 }
 
 // 格式化交易时间
@@ -391,48 +429,29 @@ const refreshWalletBalance = async () => {
     message.error('刷新余额失败')
   }
 }
-
-// 调试用-直接创建钱包
-const debugCreateWallet = async () => {
-  console.log("[DEBUG] 开始调试创建钱包");
-  try {
-    console.log("[DEBUG] 检查wallet对象:", wallet);
-    console.log("[DEBUG] 检查createWallet方法:", typeof wallet?.createWallet);
-    
-    newWalletForm.isCreating = true;
-    message.info('正在测试创建...');
-    
-    const result = await wallet.createWallet();
-    console.log("[DEBUG] 调试创建结果:", result);
-    
-    if (result) {
-      backupInfo.privateKey = result.privateKey;
-      showCreateWalletModal.value = false;
-      showBackupModal.value = true;
-      message.success('测试创建成功！');
-    } else {
-      throw new Error('创建返回空结果');
-    }
-  } catch (err) {
-    console.error("[DEBUG] 调试创建失败:", err);
-    message.error(`调试创建失败: ${err instanceof Error ? err.message : '未知错误'}`);
-  } finally {
-    newWalletForm.isCreating = false;
-  }
-}
-
 // 显示发送模态框
 const showSendModalHandler = () => {
-  addDebugLog("显示发送模态框");
-  showSendModal.value = true;
-  
+  addDebugLog("尝试显示发送模态框");
+  try {
+    showSendModal.value = true;
+    addDebugLog("发送模态框状态已设为: " + showSendModal.value);
+  } catch (err) {
+    addDebugLog("显示模态框错误: " + (err instanceof Error ? err.message : String(err)));
+  }
 };
 
 // 显示接收模态框
 const showReceiveModalHandler = () => {
-  addDebugLog("显示接收模态框");
-  showReceiveModal.value = true;
+  addDebugLog("尝试显示接收模态框");
+  try {
+    showReceiveModal.value = true;
+    addDebugLog("接收模态框状态已设为: " + showReceiveModal.value);
+  } catch (err) {
+    addDebugLog("显示模态框错误: " + (err instanceof Error ? err.message : String(err)));
+  }
 };
+
+
 </script>
 
 <template>
@@ -621,90 +640,75 @@ const showReceiveModalHandler = () => {
       </a-tab-pane>
     </a-tabs>
 
-    <!-- 发送模态框 -->
-    <a-modal
-      v-model:visible="showSendModal"
-      title="发送DFS"
-      @ok="handleSend"
-      okText="发送"
-      cancelText="取消"
-      :confirmLoading="transaction.isLoading"
-    >
-      <a-form :model="formState" layout="vertical">
-        <a-form-item label="接收地址" required>
-          <a-input v-model:value="formState.recipient" placeholder="输入DFS接收地址" />
-          <div class="text-xs text-gray-500">
-            DFS地址格式: dfs.accountname (12个字符，仅支持a-z、1-5和点号)
+    <!-- 自定义发送模态框 -->
+    <div v-if="showSendModal" class="custom-modal">
+      <div class="modal-backdrop" @click="showSendModal = false"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>发送DFS</h3>
+          <button class="close-btn" @click="showSendModal = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>接收地址</label>
+            <input v-model="formState.recipient" placeholder="输入DFS接收地址" class="form-input" />
+            <div class="form-help">DFS地址格式: dfs.accountname (12个字符，仅支持a-z、1-5和点号)</div>
           </div>
-        </a-form-item>
-        
-        <a-form-item label="数量" required class="flex-1">
-          <a-input v-model:value="formState.amount" placeholder="0.0000" />
-          <div class="flex justify-between text-sm text-gray-500 mt-1">
-            <span>可用: {{ wallet.balances[WalletType.DFS] }} DFS</span>
-            <a class="text-blue-500 cursor-pointer" @click="formState.amount = wallet.balances[WalletType.DFS]">
-              最大
-            </a>
+          
+          <div class="form-group">
+            <label>数量</label>
+            <input v-model="formState.amount" placeholder="0.0000" class="form-input" />
+            <div class="form-help-row">
+              <span>可用: {{ wallet.balances[WalletType.DFS] }} DFS</span>
+              <a class="link" @click="formState.amount = wallet.balances[WalletType.DFS]">最大</a>
+            </div>
           </div>
-        </a-form-item>
-        
-        <a-form-item label="备注 (可选)">
-          <a-input v-model:value="formState.memo" placeholder="交易备注信息" />
-        </a-form-item>
-        
-      
-      </a-form>
-    </a-modal>
-
-    <!-- 接收模态框 -->
-    <a-modal
-      v-model:visible="showReceiveModal"
-      title="接收DFS"
-      footer=""
-    >
-      <div class="text-center">
-        <div class="qr-code bg-white p-4 inline-block mb-4">
-          <!-- 二维码图像（可用实际QR库生成） -->
-          <div class="w-52 h-52 mx-auto bg-gray-100 flex items-center justify-center border">
-            <svg viewBox="0 0 100 100" class="w-full h-full p-4">
-              <!-- 模拟QR码 -->
-              <rect x="10" y="10" width="80" height="80" fill="#fff" stroke="#000" />
-              <rect x="20" y="20" width="20" height="20" fill="#000" />
-              <rect x="60" y="20" width="20" height="20" fill="#000" />
-              <rect x="20" y="60" width="20" height="20" fill="#000" />
-              <rect x="40" y="40" width="20" height="20" fill="#000" />
-              <rect x="65" y="65" width="10" height="10" fill="#000" />
-            </svg>
+          
+          <div class="form-group">
+            <label>备注 (可选)</label>
+            <input v-model="formState.memo" placeholder="交易备注信息" class="form-input" />
           </div>
         </div>
-        
-        <div class="mb-4">
-          <p class="text-gray-500 mb-2">您的钱包地址</p>
-          <a-input-group compact>
-            <a-input
-              style="width: calc(100% - 40px)"
-              :value="walletAddress"
-              readonly
-            />
-            <a-button @click="copyToClipboard(walletAddress)">
-              <CopyOutlined />
-            </a-button>
-          </a-input-group>
+        <div class="modal-footer">
+          <button class="cancel-btn" @click="showSendModal = false">取消</button>
+          <button class="submit-btn" @click="handleSend">发送</button>
         </div>
-        
-        <div class="p-4 bg-blue-50 rounded-lg mb-4 text-left">
-          <p class="text-blue-500 font-medium mb-1">接收说明</p>
-          <p class="text-sm text-gray-600">
-            将此地址提供给发送方，您将收到发送到此地址的DFS代币。
-            交易通常在1分钟内确认。
-          </p>
-        </div>
-        
-        <a-button type="primary" block @click="showReceiveModal = false">
-          完成
-        </a-button>
       </div>
-    </a-modal>
+    </div>
+
+    <!-- 自定义接收模态框 -->
+    <div v-if="showReceiveModal" class="custom-modal">
+      <div class="modal-backdrop" @click="showReceiveModal = false"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>接收DFS</h3>
+          <button class="close-btn" @click="showReceiveModal = false">&times;</button>
+        </div>
+        <div class="modal-body text-center">
+          <div class="qr-code">
+            <div class="qr-header">扫描二维码接收DFS</div>
+            <div class="qr-box">
+              <QRCode 
+                :value="walletAddress" 
+                :size="200" 
+                level="M" 
+                render-as="svg"
+                :margin="0"
+                class="qr-svg"
+              />
+            </div>
+            <div class="qr-address-container">
+              <div class="qr-address-preview">{{ walletAddress }}</div>
+              <button class="qr-copy-btn" @click="copyToClipboard(walletAddress)">
+                <CopyOutlined />
+              </button>
+            </div>
+          </div>
+          
+         
+        </div>
+      </div>
+    </div>
 
     <!-- 创建钱包模态框 -->
     <a-modal
@@ -729,12 +733,7 @@ const showReceiveModalHandler = () => {
               <p>创建后，您将收到私钥，请务必安全保存。丢失私钥将无法恢复您的资产！</p>
             </div>
           </template>
-        </a-alert>
-        
-        <!-- 添加直接调试按钮，便于测试 -->
-        <div class="flex justify-between mt-4">
-          <a-button @click="debugCreateWallet" danger>强制创建测试钱包</a-button>
-        </div>
+        </a-alert>  
       </a-form>
     </a-modal>
 
@@ -854,5 +853,298 @@ const showReceiveModalHandler = () => {
 .transaction-list {
   max-height: 400px;
   overflow-y: auto;
+}
+
+/* 自定义模态框样式 */
+.custom-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+}
+
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 500px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 100001;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+}
+
+.modal-body {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 20px;
+  border-top: 1px solid #f0f0f0;
+  gap: 8px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-help {
+  margin-top: 4px;
+  color: #999;
+  font-size: 12px;
+}
+
+.form-help-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: #999;
+  font-size: 12px;
+}
+
+.link {
+  color: #1890ff;
+  cursor: pointer;
+}
+
+.cancel-btn {
+  padding: 6px 15px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.submit-btn {
+  padding: 6px 15px;
+  background: #1890ff;
+  border: 1px solid #1890ff;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.qr-header {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.qr-code {
+  display: inline-block;
+  background: white;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.qr-box {
+  width: 200px;
+  height: 200px;
+  margin: 0 auto;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.qr-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.qr-address-container {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  background-color: #f9f9f9;
+  padding: 6px 8px;
+  border-radius: 4px;
+  gap: 8px;
+}
+
+.qr-address-preview {
+  flex: 1;
+  font-size: 12px;
+  color: #666;
+  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qr-copy-btn {
+  padding: 4px 8px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-copy-btn:hover {
+  background: #f0f0f0;
+  color: #1890ff;
+}
+
+.qr-copy-btn:active,
+.qr-copy-active {
+  background: #e6f7ff;
+  color: #1890ff;
+  border-color: #91d5ff;
+  transform: scale(0.95);
+}
+
+.info-box {
+  padding: 16px;
+  background-color: #f0f7ff;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  text-align: left;
+  border-left: 4px solid #1890ff;
+}
+
+.info-title {
+  color: #1890ff;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.info-text {
+  color: #666;
+  font-size: 14px;
+}
+
+.info-text p {
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.info-text p:last-child {
+  margin-bottom: 0;
+}
+
+.done-btn {
+  padding: 8px 20px;
+  background: #1890ff;
+  border: 1px solid #1890ff;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.debug-info {
+  background-color: #ffff99;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  text-align: center;
+  font-weight: bold;
+  border: 1px dashed #f5a623;
+}
+
+.qr-download-btn {
+  margin-top: 12px;
+  padding: 6px 12px;
+  background: #f0f0f0;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  transition: all 0.3s;
+}
+
+.qr-download-btn:hover {
+  background: #e6e6e6;
+  border-color: #c9c9c9;
+}
+
+.qr-download-btn > span {
+  margin-right: 6px;
+}
+</style>
+
+<style lang="scss" scoped>
+:deep(.ant-modal-root .ant-modal-wrap) {
+  z-index: 9999 !important;
+}
+
+:deep(.ant-modal-mask) {
+  z-index: 9998 !important;
+}
+
+.create-wallet-modal {
+  z-index: 10000 !important;
 }
 </style>
