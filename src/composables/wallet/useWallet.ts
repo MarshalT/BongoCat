@@ -369,41 +369,78 @@ export function useWallet() {
       if (!to || !amount) {
         throw new Error('接收地址和金额不能为空');
       }
-       //需要处理小数点后8位
+      
       // 验证金额格式
       const amountNum = parseFloat(amount);
       if (isNaN(amountNum) || amountNum <= 0) {
         throw new Error('无效的金额');
       }
 
-      // 验证余额充足
-      const currentBalance = parseFloat(balances[WalletType.DFS]);
-      if (amountNum > currentBalance) {
-        throw new Error('余额不足');
+      // 验证余额充足 - 根据选择的货币类型
+      if (currency === 'DFS') {
+        const currentBalance = parseFloat(balances[WalletType.DFS]);
+        if (amountNum > currentBalance) {
+          throw new Error('余额不足');
+        }
+      } else {
+        // 为其他代币类型检查余额
+        const assetBalance = await dfsWallet.get_currency_balance('dfsppptokens', currentWallet.value.address);
+        const token = assetBalance.find(item => item.includes(currency));
+        if (!token) {
+          throw new Error(`找不到${currency}代币余额`);
+        }
+        
+        const tokenBalance = parseFloat(token.split(' ')[0]);
+        if (amountNum > tokenBalance) {
+          throw new Error('余额不足');
+        }
       }
 
       // 验证接收地址格式（DFS地址格式）
       if (!/^[a-z1-5.]{1,12}$/.test(to)) {
-        throw new Error('无效的DFS接收地址');
+        throw new Error('无效的接收地址');
       }
 
       // 构建发送代币的交易
-      const transaction = {
-        actions: [{
-          account: 'eosio.token',
-          name: 'transfer',
-          authorization: [{
-            actor: currentWallet.value.address,
-            permission: 'active',
-          }],
-          data: {
-            from: currentWallet.value.address,
-            to: to,
-            quantity: `${parseFloat(amount).toFixed(8)} DFS`,
-            memo: memo || '',
-          },
-        }]
-      };
+      let transaction;
+      
+      if (currency === 'DFS') {
+        // 发送DFS代币
+        transaction = {
+          actions: [{
+            account: 'eosio.token',
+            name: 'transfer',
+            authorization: [{
+              actor: currentWallet.value.address,
+              permission: 'active',
+            }],
+            data: {
+              from: currentWallet.value.address,
+              to: to,
+              quantity: `${parseFloat(amount).toFixed(8)} DFS`,
+              memo: memo || '',
+            },
+          }]
+        };
+      } else {
+        // 发送其他代币
+        transaction = {
+          actions: [{
+            account: 'dfsppptokens',
+            name: 'transfer',
+            authorization: [{
+              actor: currentWallet.value.address,
+              permission: 'active',
+            }],
+            data: {
+              from: currentWallet.value.address,
+              to: to,
+              quantity: `${parseFloat(amount).toFixed(8)} ${currency}`,
+              memo: memo || '',
+            },
+          }]
+        };
+      }
 
       // 发送交易 - 使用免CPU服务
       const result = await dfsWallet.transact(transaction, { useFreeCpu: true });

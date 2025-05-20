@@ -526,8 +526,6 @@ export class DfsWallet {
     try {
       const response = await this.rpc.get_currency_balance(code, account, symbol);
       console.log(response);
-
-      message.info('getbalance:成功' + response[0]);
       return response[0] || '';
     } catch (error) {
       console.error(`Error fetching balance for ${account}:`, error);

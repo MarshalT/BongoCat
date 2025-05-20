@@ -117,9 +117,9 @@ onMounted(async () => {
           <a-button @click="ui.modals.receive = true">
             <ScanOutlined />接收
           </a-button>
-          <a-button @click="ui.refreshWalletBalance" :loading="loadingBalances">
+          <!-- <a-button @click="ui.refreshWalletBalance" :loading="loadingBalances">
             <SyncOutlined />刷新
-          </a-button>
+          </a-button> -->
           <a-button danger @click="ui.handleDisconnectWallet">
             断开
           </a-button>
@@ -217,13 +217,14 @@ onMounted(async () => {
     <!-- 发送模态框 -->
     <WalletModal
       v-model:visible="ui.modals.send"
-      title="发送DFS"
+      :title="`发送${ui.forms.send.currency || 'DFS'}`"
       confirm-text="发送"
       @confirm="handleSend"
     >
       <SendTokenForm 
         ref="sendFormRef"
         :available-balance="ui.wallet.balances[WalletType.DFS]"
+        :assets="assetList"
       />
     </WalletModal>
 

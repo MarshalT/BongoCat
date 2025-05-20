@@ -142,12 +142,8 @@ export function useWalletUI() {
         assetList.value = result.assetsList;
         addDebugLog('余额更新成功', assetList.value);
       }
-      
-      message.success('余额已更新');
     } catch (err) {
-      console.error('刷新余额失败:', err);
       addDebugLog('刷新余额失败', err);
-      message.error('刷新余额失败');
     } finally {
       loadingBalances.value = false;
     }
