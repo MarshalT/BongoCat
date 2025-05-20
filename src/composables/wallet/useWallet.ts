@@ -382,6 +382,8 @@ export function useWallet() {
         // 未设置节点URL，直接返回
         walletStatus.value = WalletStatus.DISCONNECTED;
         return;
+      }else{
+      //  message.success(`初始化钱包:${nodeUrl}`);
       }
 
       // 检查本地存储是否有加密钱包

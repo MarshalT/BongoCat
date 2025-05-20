@@ -160,6 +160,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
+import { useWalletStore } from '@/stores/walletStore';
+import { useWallet } from '@/composables/wallet/useWallet';
+
+// 获取钱包存储
+const walletStore = useWalletStore();
+// 获取钱包功能组合
+const wallet = useWallet();
 
 const form = reactive({
   password: '',
@@ -203,7 +210,7 @@ onMounted(async () => {
     form.nodeUrl = storedNodeUrl;
   } else {
     // 设置默认节点URL
-    form.nodeUrl = 'https://dfs-mainnet.example.com';
+    form.nodeUrl = 'https://api.dfs.land';
   }
 });
 
@@ -294,13 +301,26 @@ const handleTestNode = async () => {
     testingNode.value = true;
     nodeTestResult.value = '';
     
-    // 这里应该实现真实的节点连接测试逻辑
-    // 为了演示，使用模拟延迟
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // 创建临时JsonRpc实例测试连接
+    const { JsonRpc } = await import('eosjs');
+    const rpc = new JsonRpc(form.nodeUrl);
     
-    // 模拟成功响应
-    nodeTestSuccess.value = true;
-    nodeTestResult.value = '节点连接成功！延迟: 125ms';
+    // 测试开始时间
+    const startTime = Date.now();
+    
+    // 尝试获取区块链信息，测试连接
+    const chainInfo = await rpc.get_info();
+    
+    // 计算延迟时间
+    const latency = Date.now() - startTime;
+    
+    if (chainInfo && chainInfo.chain_id) {
+      nodeTestSuccess.value = true;
+      nodeTestResult.value = `节点连接成功！延迟: ${latency}ms`;
+    } else {
+      nodeTestSuccess.value = false;
+      nodeTestResult.value = '节点连接失败，无法获取区块链信息';
+    }
   } catch (error) {
     console.error('测试节点连接失败:', error);
     nodeTestSuccess.value = false;
@@ -317,10 +337,32 @@ const handleSaveNodeUrl = async () => {
   try {
     savingNode.value = true;
     
+    // 保存之前的URL用于比较
+    const previousUrl = localStorage.getItem('bongo-cat-wallet-node-url');
+    
     // 保存节点URL
     localStorage.setItem('bongo-cat-wallet-node-url', form.nodeUrl);
     
     message.success('节点设置已保存');
+    
+    // 直接检查原始加密钱包数据
+    const encryptedWallet = localStorage.getItem('bongo-cat-wallet-encrypted');
+    
+    // 只有在URL发生变化且加密钱包数据存在的情况下才重新初始化
+    if (previousUrl !== form.nodeUrl && encryptedWallet) {
+      try {
+        // 重新初始化钱包连接
+        await wallet.initWallet();
+        message.success('钱包已重新连接到新节点');
+      } catch (err) {
+        console.error('重新连接钱包失败:', err);
+        message.error('重新连接钱包失败，请手动重新连接');
+      }
+    }else{
+    //   message.success('1');
+    //   message.success(`${previousUrl} ${form.nodeUrl} ${wallet.walletStatus.value} ${encryptedWallet}`);
+      
+    }
   } catch (error) {
     console.error('保存节点设置失败:', error);
     message.error('保存节点设置失败，请重试');
