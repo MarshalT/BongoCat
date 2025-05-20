@@ -142,6 +142,7 @@ onMounted(async () => {
       :address="walletAddress"
       :price-change="ui.getPriceChange()"
       @copy="ui.copyToClipboard"
+      @export-private-key="ui.exportPrivateKey"
     />
 
     <!-- 未连接钱包提示 -->
@@ -178,7 +179,7 @@ onMounted(async () => {
           />
           
           <!-- 钱包操作快捷按钮 -->
-          <a-card class="wallet-actions bg-gray-50" :bordered="false">
+          <!-- <a-card class="wallet-actions bg-gray-50" :bordered="false">
             <div class="grid grid-cols-3 gap-4">
               <div 
                 class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"     
@@ -204,7 +205,7 @@ onMounted(async () => {
                 <span>历史</span>
               </div>
             </div>
-          </a-card>
+          </a-card> -->
         </div>
       </a-tab-pane>
       
@@ -360,6 +361,69 @@ onMounted(async () => {
           <input type="checkbox" class="checkbox-input" />
           我了解私钥的重要性，并已安全备份
         </label>
+      </div>
+    </WalletModal>
+    
+    <!-- 导出私钥模态框 -->
+    <WalletModal
+      v-model:visible="ui.modals.exportPrivateKey"
+      title="导出私钥"
+      confirm-text="我已安全备份私钥"
+      @confirm="ui.modals.exportPrivateKey = false"
+    >
+      <div class="warning-box">
+        <div class="warning-title">安全警告</div>
+        <div class="warning-content">
+          <strong>请勿向任何人分享您的私钥，拥有私钥即可完全控制您的钱包资产！</strong>
+        </div>
+      </div>
+      
+      <div class="key-container">
+        <div class="key-header">
+          <span class="key-title">账户地址</span>
+        </div>
+        <div class="key-value">
+          <div class="key-text address-display">
+            {{ walletAddress }}
+          </div>
+        </div>
+        
+        <div class="key-header mt-4">
+          <span class="key-title">私钥</span>
+          <button class="toggle-btn" @click="ui.togglePrivateKeyVisibility">
+            <span v-if="ui.forms.backup.showPrivateKey">
+              <LockOutlined /> 隐藏
+            </span>
+            <span v-else>
+              <EyeOutlined /> 显示
+            </span>
+          </button>
+        </div>
+        
+        <div class="key-value">
+          <div v-if="ui.forms.backup.showPrivateKey" class="key-text">
+            {{ ui.forms.backup.privateKey }}
+          </div>
+          <div v-else class="key-masked">
+            ***** 点击"显示"查看私钥 *****
+          </div>
+        </div>
+        
+        <div class="key-actions">
+          <button class="copy-btn" @click="ui.copyToClipboard(ui.forms.backup.privateKey)">
+            <CopyOutlined /> 复制私钥
+          </button>
+        </div>
+      </div>
+      
+      <div class="security-tips">
+        <h4>重要安全提示：</h4>
+        <ul>
+          <li>私钥是钱包的"主密码"，可用于恢复钱包和控制资产</li>
+          <li>确保在安全环境中查看私钥</li>
+          <li>建议将私钥保存在离线安全的位置</li>
+          <li>永远不要与他人分享您的私钥</li>
+        </ul>
       </div>
     </WalletModal>
   </div>
@@ -542,6 +606,19 @@ onMounted(async () => {
 
 .checkbox-input {
   margin-right: 4px;
+}
+
+.address-display {
+  word-break: break-all;
+  font-family: monospace;
+  background-color: #f9f9f9;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #eee;
+}
+
+.mt-4 {
+  margin-top: 1rem;
 }
 </style>
 

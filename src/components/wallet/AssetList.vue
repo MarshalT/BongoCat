@@ -3,8 +3,7 @@
     <div class="flex justify-between items-center mb-3">
       <div class="font-bold">全部资产</div>
       <a-button size="small" @click="onRefresh" :loading="loading">
-        <template #icon><SyncOutlined /></template>
-        刷新资产
+        <sync-outlined />刷新资产
       </a-button>
     </div>
     
@@ -38,8 +37,7 @@
     <a-empty v-else description="暂无资产" class="my-8">
       <template #extra>
         <a-button type="primary" @click="onRefresh" :loading="loading">
-          <template #icon><SyncOutlined /></template>
-          刷新
+          <sync-outlined />刷新
         </a-button>
       </template>
     </a-empty>

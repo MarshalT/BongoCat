@@ -1,7 +1,7 @@
 import { ref, reactive, computed } from 'vue';
 import { message } from 'ant-design-vue';
 import { useWallet, WalletStatus, WalletType } from './useWallet';
-import { error } from '@tauri-apps/plugin-log'
+import { error,info } from '@tauri-apps/plugin-log'
 
 // 用于管理钱包UI状态的composable
 export function useWalletUI() {
@@ -19,7 +19,8 @@ export function useWalletUI() {
     receive: false,
     createWallet: false,
     importWallet: false,
-    backup: false
+    backup: false,
+    exportPrivateKey: false
   });
   
   // 表单状态
@@ -113,7 +114,7 @@ export function useWalletUI() {
   
   // 添加调试日志
   const addDebugLog = (message: string, data?: any) => {
-    error(message, data);
+    info(message, data);
     const timestamp = new Date().toLocaleTimeString();
     const logMessage = data ? `${timestamp} - ${message}: ${JSON.stringify(data)}` : `${timestamp} - ${message}`;
     debugLogs.value.push(logMessage);
@@ -341,6 +342,22 @@ export function useWalletUI() {
     forms.backup.showPrivateKey = !forms.backup.showPrivateKey;
   };
   
+  // 导出私钥 - 新增方法
+  const exportPrivateKey = () => {
+    if (!wallet.currentWallet.value || !wallet.currentWallet.value.privateKey) {
+      message.error('无法获取私钥');
+      return;
+    }
+    
+    // 设置私钥到备份表单
+    forms.backup.privateKey = wallet.currentWallet.value.privateKey;
+    
+    // 显示备份模态框
+    modals.exportPrivateKey = true;
+    
+    addDebugLog('导出私钥');
+  };
+  
   // 模拟价格变动数据
   const getPriceChange = () => {
     const fixedValue = -2.06;
@@ -375,6 +392,7 @@ export function useWalletUI() {
     handleSendTokens,
     completeBackup,
     togglePrivateKeyVisibility,
+    exportPrivateKey,
     getPriceChange
   };
 } 
