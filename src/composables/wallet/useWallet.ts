@@ -310,32 +310,42 @@ export function useWallet() {
    */
   const disconnectWallet = async () => {
     try {
-      currentWallet.value = null;
+      console.log('执行断开钱包连接...');
+      
+      // 先设置状态，确保UI立即响应
       walletStatus.value = WalletStatus.DISCONNECTED;
+      currentWallet.value = null;
 
       // 重置余额
-      balances[WalletType.DFS] = '0.0000';
-      balances[WalletType.ETH] = '0.0000';
-      balances[WalletType.BTC] = '0.0000';
-      balances[WalletType.USDT] = '0.0000';
+      Object.keys(balances).forEach(key => {
+        balances[key as WalletType] = '0.0000';
+      });
 
       // 清空交易历史
       transactions.value = [];
 
       // 清除本地存储
       localStorage.removeItem('bongo-cat-wallet');
+      localStorage.removeItem('bongo-cat-transactions');
 
       // 尝试登出DfsWallet
       try {
         await dfsWallet.logout();
+        console.log('DfsWallet登出成功');
       } catch (e) {
         console.error('登出钱包失败:', e);
+        // 即使DFS钱包登出失败，我们仍然认为断开成功
       }
 
-      // message.success('钱包已断开连接');
+      console.log('钱包断开连接成功');
+      return true; // 返回成功状态
     } catch (err: any) {
       console.error('断开钱包失败:', err);
       error.value = `断开钱包失败: ${err.message || '未知错误'}`;
+      // 即使发生错误，也强制重置状态
+      walletStatus.value = WalletStatus.DISCONNECTED;
+      currentWallet.value = null;
+      return false;
     }
   };
 
@@ -359,7 +369,7 @@ export function useWallet() {
       if (!to || !amount) {
         throw new Error('接收地址和金额不能为空');
       }
-
+       //需要处理小数点后8位
       // 验证金额格式
       const amountNum = parseFloat(amount);
       if (isNaN(amountNum) || amountNum <= 0) {
@@ -389,7 +399,7 @@ export function useWallet() {
           data: {
             from: currentWallet.value.address,
             to: to,
-            quantity: `${amount} DFS`,
+            quantity: `${parseFloat(amount).toFixed(8)} DFS`,
             memo: memo || '',
           },
         }]
