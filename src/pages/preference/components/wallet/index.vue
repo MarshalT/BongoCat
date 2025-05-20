@@ -21,12 +21,11 @@ import { message, Modal } from 'ant-design-vue'
 import { useWallet, WalletStatus, WalletType, Transaction } from '@/composables/wallet/useWallet'
 import { useTransaction, TransactionStatus } from '@/composables/wallet/useTransaction'
 import QRCode from 'qrcode.vue'
-import DfsWallet from '@/utils/dfs'
+
 
 // 使用钱包API
 const wallet = useWallet()
 const transaction = useTransaction()
-const dfsWallet = new DfsWallet()
 const allBalances = ref<string[]>([])
 const loadingBalances = ref(false)
 const showDebugLogs = ref(true) // 控制是否显示调试日志
@@ -57,6 +56,7 @@ const newWalletForm = reactive({
 // 导入钱包表单
 const importWalletForm = reactive({
   privateKey: '',
+  accountName: '',
   isImporting: false
 })
 
@@ -116,7 +116,7 @@ const addDebugLog = (message: string, data?: any) => {
   console.log(message, data);
   
   // 限制日志数量
-  if (debugLogs.value.length > 20) {
+  if (debugLogs.value.length > 300) {
     debugLogs.value.shift();
   }
 };
@@ -125,10 +125,7 @@ const addDebugLog = (message: string, data?: any) => {
 onMounted(async () => {
   addDebugLog('组件已挂载');
   try {
-    // 初始化dfsWallet
-    await dfsWallet.init('BongoCat');
-    addDebugLog('DFS钱包初始化完成');
-    
+
     addDebugLog('初始化钱包');
     await wallet.initWallet();
     addDebugLog('钱包初始化完成', { status: wallet.walletStatus.value });
@@ -371,13 +368,14 @@ const handleCreateWallet = async () => {
 
 // 导入钱包
 const handleImportWallet = async () => {
-  if (importWalletForm.isImporting || !importWalletForm.privateKey) return
+  if (importWalletForm.isImporting || !importWalletForm.privateKey || !importWalletForm.accountName) return
   
   try {
     importWalletForm.isImporting = true
-    await wallet.connectWallet(importWalletForm.privateKey)
+    await wallet.connectWallet(importWalletForm.privateKey,undefined,importWalletForm.accountName)
     showImportWalletModal.value = false
     importWalletForm.privateKey = ''
+    importWalletForm.accountName = ''
     message.success('钱包导入成功')
   } catch (err) {
     console.error('导入钱包失败:', err)
@@ -488,9 +486,7 @@ const fetchAllBalances = async () => {
     // 获取其他代币余额
     let result: string[] = [];
     try {
-      // 初始化dfsWallet
-      await dfsWallet.init('BongoCat');
-      
+     
       const address = wallet.currentWallet.value.address;
       addDebugLog('获取代币余额', { address });
       
@@ -591,8 +587,8 @@ const fetchAllBalances = async () => {
     <a-card class="wallet-summary mb-6" :bordered="false" v-if="isWalletConnected">
       <div class="flex justify-between">
         <div>
-          <p class="text-gray-500 mb-1">DFS余额</p>
-          <h1 class="text-2xl font-bold">{{ walletBalance }} DFS</h1>
+          <p class="text-gray-500 mb-1">账户资产(USDT)</p>
+          <h1 class="text-2xl font-bold">{{ walletBalance }} USDT</h1>
           <p class="text-sm" :class="getPriceChange().startsWith('-') ? 'text-red-500' : 'text-green-500'">
             {{ getPriceChange() }}% 24小时变动
           </p>
@@ -868,6 +864,16 @@ const fetchAllBalances = async () => {
               v-model="importWalletForm.privateKey" 
               type="password" 
               placeholder="输入您的私钥" 
+              class="form-input" 
+            />
+          </div>
+
+          <div class="form-group">
+            <label>账户名</label>
+            <input 
+              v-model="importWalletForm.accountName" 
+              type="text" 
+              placeholder="输入您的账户名" 
               class="form-input" 
             />
           </div>
