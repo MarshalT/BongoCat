@@ -397,7 +397,21 @@ export function useWallet() {
 
       // 发送交易 - 使用免CPU服务
       const result = await dfsWallet.transact(transaction, { useFreeCpu: true });
-      const txId = result?.transaction_id || generateTransactionId();
+      
+      // 生成交易ID，如果事务结果有可以使用的ID就使用，否则生成一个新的
+      let txId = generateTransactionId();
+      
+      // 尝试从事务结果中提取ID
+      if (result) {
+        // 检查常见的交易ID字段
+        const possibleIdFields = ['transaction_id', 'id', 'trx_id', 'transactionId'];
+        for (const field of possibleIdFields) {
+          if ((result as any)[field]) {
+            txId = (result as any)[field];
+            break;
+          }
+        }
+      }
 
       // 添加到交易历史
       const newTx: Transaction = {
@@ -442,18 +456,13 @@ export function useWallet() {
     try {
       isLoading.value = true;
 
-      // 使用DfsWallet获取真实余额
+      // 使用DfsWallet获取DFS余额
       const balance = await dfsWallet.getbalance('eosio.token', currentWallet.value.address, 'DFS');
-      const allBalance = await dfsWallet.get_currency_balance('dfsppptokens', currentWallet.value.address);
-      message.info(`获取余额成功，结果:${allBalance}`);
-      // [
-      //   "52.35974994 LN",
-      //   "0.00000000 DOG",
-      //   "0.00000000 PEPE",
-      //   "0.00000000 DOGS",
-      //   "0.00000000 TESLA"
-      // ]
-      //合并 然后显示到界面
+      
+      // 获取所有其他代币余额
+      const allTokens = await dfsWallet.get_currency_balance('dfsppptokens', currentWallet.value.address);
+      
+      // 更新DFS余额
       if (balance) {
         // 更新余额数据
         const balanceAmount = balance.split(' ')[0]; // 例如 "10.0000 DFS" -> "10.0000"
@@ -463,9 +472,51 @@ export function useWallet() {
           currentWallet.value.balance = balance;
         }
       }
+      
+      // 创建包含所有代币的资产列表
+      const assetsList = [];
+      
+      // 添加DFS资产
+      assetsList.push({
+        key: 'DFS',
+        name: 'DFS Chain',
+        balance: balances[WalletType.DFS],
+        value: parseFloat(balances[WalletType.DFS]) * 0.5,
+        color: 'bg-blue-500'
+      });
+      
+      // 处理并添加其他代币
+      const colorClasses = [
+        'bg-green-500', 'bg-purple-500', 'bg-red-500', 
+        'bg-yellow-500', 'bg-indigo-500', 'bg-pink-500'
+      ];
+      
+      allTokens.forEach((item, index) => {
+        const parts = item.split(' ');
+        if (parts.length === 2) {
+          const tokenBalance = parts[0];
+          const symbol = parts[1];
+          const randomPrice = (Math.random() * 10).toFixed(2);
+          const value = parseFloat(tokenBalance) * parseFloat(randomPrice);
+          
+          // 使用循环颜色系统
+          const colorIndex = index % colorClasses.length;
+          
+          assetsList.push({
+            key: symbol,
+            name: `${symbol} Token`,
+            balance: tokenBalance,
+            value: value,
+            color: colorClasses[colorIndex]
+          });
+        }
+      });
 
-      // 返回当前余额
-      return balances[WalletType.DFS];
+      // 返回资产列表和当前DFS余额
+      return {
+        dfsBalance: balances[WalletType.DFS],
+        assetsList: assetsList
+      };
     } catch (err) {
       console.error('刷新余额失败:', err);
       // 如果获取真实余额失败，使用模拟数据作为备选
@@ -477,6 +528,18 @@ export function useWallet() {
       if (currentWallet.value) {
         currentWallet.value.balance = `${newBalance} DFS`;
       }
+      
+      // 返回模拟数据
+      return {
+        dfsBalance: balances[WalletType.DFS],
+        assetsList: [{
+          key: 'DFS',
+          name: 'DFS Chain',
+          balance: balances[WalletType.DFS],
+          value: parseFloat(balances[WalletType.DFS]) * 0.5,
+          color: 'bg-blue-500'
+        }]
+      };
     } finally {
       isLoading.value = false;
     }

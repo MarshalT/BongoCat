@@ -40,7 +40,21 @@ const showImportWalletModal = ref(false)
 const showBackupModal = ref(false)
 
 // 资产列表
-const assetList = ref<any[]>([])
+const assetList = ref<Array<{
+  key: string;
+  name: string;
+  balance: string;
+  value: number;
+  color: string;
+}>>([
+  {
+    key: 'DFS',
+    name: 'DFS Chain',
+    balance: wallet.balances[WalletType.DFS],
+    value: parseFloat(wallet.balances[WalletType.DFS]) * 0.5,
+    color: 'bg-blue-500'
+  }
+]);
 
 // 确保transactions是正确的Transaction数组类型
 const walletTransactions = computed(() => {
@@ -125,7 +139,6 @@ const addDebugLog = (message: string, data?: any) => {
 onMounted(async () => {
   addDebugLog('组件已挂载');
   try {
-
     addDebugLog('初始化钱包');
     await wallet.initWallet();
     addDebugLog('钱包初始化完成', { status: wallet.walletStatus.value });
@@ -134,6 +147,11 @@ onMounted(async () => {
     watch(wallet.walletStatus, (newStatus) => {
       addDebugLog(`钱包状态变化: ${newStatus}`);
     });
+    
+    // 刷新钱包余额和资产列表
+    if (wallet.walletStatus.value === WalletStatus.CONNECTED) {
+      await refreshWalletBalance();
+    }
     
     // 如果没有交易历史，添加一些模拟的交易记录
     if (!wallet.transactions.value || wallet.transactions.value.length === 0) {
@@ -164,14 +182,6 @@ onMounted(async () => {
       ];
       addDebugLog('交易记录已添加', { count: wallet.transactions.value.length });
     }
-    
-    // 获取所有币种余额
-    if (isWalletConnected.value) {
-      fetchAllBalances();
-    } else {
-      addDebugLog('钱包未连接，跳过获取余额');
-    }
-    
   } catch (error) {
     addDebugLog('初始化出错', error);
   }
@@ -294,27 +304,11 @@ const handleStartCreateWallet = async () => {
 
 // 创建新钱包
 const handleCreateWallet = async () => {
-  addDebugLog("开始执行handleCreateWallet", {
-    isCreating: newWalletForm.isCreating,
-    accountName: newWalletForm.accountName
-  });
-  
-  console.log("[DEBUG] 开始执行handleCreateWallet");
-  console.log("[DEBUG] 当前状态:", {
-    isCreating: newWalletForm.isCreating,
-    accountName: newWalletForm.accountName,
-    showModal: showCreateWalletModal.value
-  });
-  
   if (newWalletForm.isCreating) {
     console.log("[DEBUG] 钱包正在创建中，返回");
     return;
   }
- 
-
   try {
-    console.log("[DEBUG] 开始创建钱包流程");
-    
     // 验证账户名
     if (newWalletForm.accountName) {
       console.log("[DEBUG] 验证账户名:", newWalletForm.accountName);
@@ -353,12 +347,10 @@ const handleCreateWallet = async () => {
     
     showCreateWalletModal.value = false;
     showBackupModal.value = true;
-    
-    console.log("[DEBUG] 已切换到备份弹窗");
+
     message.success('钱包创建成功！');
     
   } catch (err) {
-    console.error("[DEBUG] 创建钱包失败:", err);
     message.error(`创建钱包失败: ${err instanceof Error ? err.message : '未知错误'}`);
   } finally {
     console.log("[DEBUG] 重置创建状态");
@@ -439,12 +431,22 @@ const formatTransactionDate = (dateString: string): string => {
 // 刷新余额
 const refreshWalletBalance = async () => {
   try {
-    message.loading('正在刷新余额...', 1)
-    await wallet.refreshBalance()
-    message.success('余额已更新')
+    addDebugLog('正在刷新余额...');
+    message.loading('正在刷新余额...', 1);
+    
+    // 调用重构后的refreshBalance函数获取所有资产
+    const result = await wallet.refreshBalance();
+    if (result) {
+      // 更新资产列表
+      assetList.value = result.assetsList;
+      addDebugLog('余额更新成功', assetList.value);
+    }
+    
+    message.success('余额已更新');
   } catch (err) {
-    console.error('刷新余额失败:', err)
-    message.error('刷新余额失败')
+    console.error('刷新余额失败:', err);
+    addDebugLog('刷新余额失败', err);
+    message.error('刷新余额失败');
   }
 }
 // 显示发送模态框
@@ -468,83 +470,6 @@ const showReceiveModalHandler = () => {
     addDebugLog("显示模态框错误: " + (err instanceof Error ? err.message : String(err)));
   }
 };
-
-// 添加获取资产列表的方法
-const fetchAllBalances = async () => {
-  addDebugLog('开始获取资产列表');
-  loadingBalances.value = true;
-  
-  try {
-    if (!wallet.currentWallet.value) {
-      addDebugLog('钱包未连接，无法获取资产');
-      return;
-    }
-    
-    // 获取DFS余额
-    await wallet.refreshBalance();
-    
-    // 获取其他代币余额
-    let result: string[] = [];
-    try {
-     
-      const address = wallet.currentWallet.value.address;
-      addDebugLog('获取代币余额', { address });
-      
-      // 从DFS合约获取所有代币余额
-      result = await dfsWallet.get_currency_balance('dfsppptokens', address);
-      addDebugLog('代币余额获取成功', result);
-    } catch (err) {
-      addDebugLog('获取代币余额失败', err);
-    }
-    
-    // 清空当前资产列表
-    assetList.value = []
-    
- 
-    
-    // 添加DFS资产
-    assetList.value.push({
-      key: 'DFS',
-      name: 'DFS Chain',
-      balance: wallet.balances[WalletType.DFS],
-      value: parseFloat(wallet.balances[WalletType.DFS]) * 0.5,
-      color: 'bg-blue-500'
-    })
-    
-    // 处理并添加其他代币
-    const colorClasses = [
-      'bg-green-500', 'bg-purple-500', 'bg-red-500', 
-      'bg-yellow-500', 'bg-indigo-500', 'bg-pink-500'
-    ]
-    
-    result.forEach((item, index) => {
-      const parts = item.split(' ')
-      if (parts.length === 2) {
-        const balance = parts[0]
-        const symbol = parts[1]
-        const randomPrice = (Math.random() * 10).toFixed(2)
-        const value = parseFloat(balance) * parseFloat(randomPrice)
-        
-        // 使用循环颜色系统
-        const colorIndex = index % colorClasses.length
-        
-        assetList.value.push({
-          key: symbol,
-          name: `${symbol} Token`,
-          balance: balance,
-          value: value,
-          color: colorClasses[colorIndex]
-        })
-      }
-    })
-    
-    addDebugLog('资产列表更新完成', assetList.value);
-  } catch (err) {
-    addDebugLog('获取资产列表失败', err);
-  } finally {
-    loadingBalances.value = false;
-  }
-}
 
 </script>
 
@@ -627,7 +552,7 @@ const fetchAllBalances = async () => {
         <div class="space-y-4">
           <div class="flex justify-between items-center mb-3">
             <div class="font-bold">全部资产</div>
-            <a-button size="small" @click="fetchAllBalances" :loading="loadingBalances">
+            <a-button size="small" @click="refreshWalletBalance" :loading="loadingBalances">
               <template #icon><SyncOutlined /></template>
               刷新资产
             </a-button>
@@ -665,7 +590,7 @@ const fetchAllBalances = async () => {
           
           <a-empty v-else description="暂无资产" class="my-8">
             <template #extra>
-              <a-button type="primary" @click="fetchAllBalances" :loading="loadingBalances">
+              <a-button type="primary" @click="refreshWalletBalance" :loading="loadingBalances">
                 <template #icon><SyncOutlined /></template>
                 刷新
               </a-button>
