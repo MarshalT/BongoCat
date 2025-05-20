@@ -1,6 +1,6 @@
 import { ref, reactive } from 'vue';
 import { message } from 'ant-design-vue';
-import { Api, JsonRpc } from 'eosjs';
+import { error, info } from '@tauri-apps/plugin-log'
 // 导入DfsWallet
 import DfsWallet from '@/utils/dfs';
 // 导入私钥转公钥函数
@@ -74,6 +74,58 @@ export function useWallet() {
   // DFS链ID
   const DFS_CHAIN_ID = '000d9cae502dd1cc895745e204f83cc892bc4c450f92a03ecd4fe057709853cc';
 
+  /**
+   * 加密钱包数据
+   * @param data 钱包数据
+   * @param password 钱包密码
+   * @returns 加密后的钱包数据
+   */
+  const encryptWalletData = (data: any, password: string): string => {
+    try {
+      // 这里仅作为简单示例，实际应使用更强的加密算法
+      // 例如AES加密或其他安全的加密方式
+      const stringData = JSON.stringify(data);
+      return btoa(stringData + '::' + password);
+    } catch (error) {
+      console.error('加密钱包数据失败:', error);
+      throw new Error('加密钱包数据失败');
+    }
+  };
+  /**
+   * 解密钱包数据
+   * @param encryptedData 加密的钱包数据
+   * @param password 钱包密码
+   * @returns 解密后的钱包数据
+   */
+  const decryptWalletData = (encryptedData: string, password: string): any => {
+    try {
+      const decodedData = atob(encryptedData);
+      const parts = decodedData.split('::');
+
+      if (parts.length !== 2 || parts[1] !== password) {
+        throw new Error('密码不正确');
+      }
+
+      return JSON.parse(parts[0]);
+    } catch (error) {
+      console.error('解密钱包数据失败:', error);
+      throw new Error('解密钱包数据失败，请检查密码是否正确');
+    }
+  };
+
+  // 从本地存储加载钱包
+  const loadWalletFromStorage = (password: string): StoredWallet | null => {
+    const encryptedWallet = localStorage.getItem('bongo-cat-wallet-encrypted');
+    if (!encryptedWallet) return null;
+
+    try {
+      return decryptWalletData(encryptedWallet, password);
+    } catch (error) {
+      console.error('从存储加载钱包失败:', error);
+      throw error;
+    }
+  };
+
   // 余额信息
   const balances = reactive({
     [WalletType.DFS]: '0.0000',
@@ -82,9 +134,13 @@ export function useWallet() {
     [WalletType.USDT]: '0.0000',
   });
 
+  // 初始化前确保节点URL已设置
+  const initDfsWallet = async (appName: string, privateKey?: string) => {
+    const nodeUrl = localStorage.getItem('bongo-cat-wallet-node-url');
+    // 初始化DfsWallet
+    await dfsWallet.init(appName, nodeUrl ?? 'https://dfs-mainnet.example.com', privateKey);
 
-
-
+  };
 
   /**
    * 创建新钱包
@@ -96,10 +152,22 @@ export function useWallet() {
       walletStatus.value = WalletStatus.CONNECTING;
       isLoading.value = true;
 
+      // 获取钱包密码
+      const password = localStorage.getItem('bongo-cat-wallet-password');
+      if (!password) {
+        throw new Error('请先设置钱包密码');
+      }
+
+      // 获取节点URL
+      const nodeUrl = localStorage.getItem('bongo-cat-wallet-node-url');
+      if (!nodeUrl) {
+        throw new Error('请先设置节点URL');
+      }
+
       // 确保DfsWallet已初始化
       console.log('useWallet.createWallet: 初始化DfsWallet');
       try {
-        await dfsWallet.init('BongoCat');
+        await initDfsWallet('BongoCat');
         console.log('useWallet.createWallet: DfsWallet初始化成功');
       } catch (error) {
         console.error('useWallet.createWallet: DfsWallet初始化失败:', error);
@@ -134,16 +202,23 @@ export function useWallet() {
         chainId: result.chainId
       };
 
-      // 保存钱包到本地存储
-      console.log('useWallet.createWallet: 保存钱包信息到本地存储');
-      localStorage.setItem('bongo-cat-wallet', JSON.stringify({
+      // 加密并保存钱包到本地存储
+      console.log('useWallet.createWallet: 加密并保存钱包信息到本地存储');
+      const walletData: StoredWallet = {
         address: result.accountName,
         name: result.accountName,
         publicKey: result.publicKey,
         privateKey: result.privateKey,
         type: WalletType.DFS,
         chainId: result.chainId
-      }));
+      };
+
+      const encryptedWallet = encryptWalletData(walletData, password);
+
+      // info(`useWallet.createWallet: 加密钱包数据: ${encryptedWallet}`);
+      localStorage.setItem('bongo-cat-wallet-encrypted', encryptedWallet);
+
+
 
       // 设置当前钱包
       console.log('useWallet.createWallet: 更新当前钱包状态');
@@ -172,12 +247,13 @@ export function useWallet() {
       console.log('useWallet.createWallet: 钱包创建过程结束');
     }
   };
+
   /**
- * 连接现有钱包
- * @param privateKey 钱包私钥
- * @param existingWallet 可选的已存在钱包信息
- * @param accountName 可选的账户名
- */
+   * 连接现有钱包
+   * @param privateKey 钱包私钥
+   * @param existingWallet 可选的已存在钱包信息
+   * @param accountName 可选的账户名
+   */
   const connectWallet = async (privateKey: string, existingWallet?: StoredWallet, accountName?: string) => {
     if (!privateKey) {
       throw new Error('请提供有效的私钥');
@@ -186,6 +262,18 @@ export function useWallet() {
     try {
       walletStatus.value = WalletStatus.CONNECTING;
       isLoading.value = true;
+
+      // 获取钱包密码
+      const password = localStorage.getItem('bongo-cat-wallet-password');
+      if (!password) {
+        throw new Error('请先设置钱包密码');
+      }
+
+      // 获取节点URL
+      const nodeUrl = localStorage.getItem('bongo-cat-wallet-node-url');
+      if (!nodeUrl) {
+        throw new Error('请先设置节点URL');
+      }
 
       // 验证私钥格式（简单示例）
       if (privateKey.length < 30) {
@@ -208,7 +296,7 @@ export function useWallet() {
       } else {
         // 从私钥创建新的钱包信息
         // 1. 初始化DfsWallet
-        await dfsWallet.init('BongoCat', privateKey);
+        await initDfsWallet('BongoCat', privateKey);
 
         // 2. 从私钥派生公钥
         const publicKey = privateToPublic(privateKey);
@@ -224,19 +312,22 @@ export function useWallet() {
           chainId: DFS_CHAIN_ID
         };
 
-        // 5. 保存到本地存储
-        localStorage.setItem('bongo-cat-wallet', JSON.stringify({
+        // 5. 加密并保存到本地存储
+        const walletData: StoredWallet = {
           address: accountName || '',
           name: accountName || '',
           publicKey: publicKey,
           privateKey: privateKey,
           type: WalletType.DFS,
           chainId: DFS_CHAIN_ID
-        }));
+        };
+
+        const encryptedWallet = encryptWalletData(walletData, password);
+        localStorage.setItem('bongo-cat-wallet-encrypted', encryptedWallet);
       }
 
       // 使用DfsWallet初始化API连接
-      await dfsWallet.init('BongoCat', privateKey);
+      await initDfsWallet('BongoCat', privateKey);
 
       // 尝试获取真实余额
       try {
@@ -268,8 +359,6 @@ export function useWallet() {
     }
   };
 
-
-
   /**
    * 初始化钱包
    */
@@ -277,21 +366,40 @@ export function useWallet() {
     try {
       isLoading.value = true;
 
-
-
-      // 检查本地存储是否有钱包
-      const storedWallet = localStorage.getItem('bongo-cat-wallet');
-      if (storedWallet) {
-        const walletData = JSON.parse(storedWallet) as StoredWallet;
-
-        message.info(`初始化钱包:${walletData.privateKey} ${walletData.address} ${walletData.name}`);
-        // 初始化DfsWallet
-        await dfsWallet.init('BongoCat', walletData.privateKey);
-        // 自动连接存储的钱包
-        await connectWallet(walletData.privateKey, walletData, "");
+      // 获取钱包密码
+      const password = localStorage.getItem('bongo-cat-wallet-password');
+      if (!password) {
+        // 未设置密码，直接返回
+        walletStatus.value = WalletStatus.DISCONNECTED;
+        return;
       }
 
-      walletStatus.value = storedWallet ? WalletStatus.CONNECTED : WalletStatus.DISCONNECTED;
+      // 获取节点URL
+      const nodeUrl = localStorage.getItem('bongo-cat-wallet-node-url');
+      if (!nodeUrl) {
+        // 未设置节点URL，直接返回
+        walletStatus.value = WalletStatus.DISCONNECTED;
+        return;
+      }
+
+      // 检查本地存储是否有加密钱包
+      try {
+        const storedWallet = loadWalletFromStorage(password);
+        if (storedWallet) {
+          message.info(`初始化钱包:${storedWallet.address} ${storedWallet.name}`);
+          // 初始化DfsWallet
+          await initDfsWallet('BongoCat', storedWallet.privateKey);
+          // 自动连接存储的钱包
+          await connectWallet(storedWallet.privateKey, storedWallet, "");
+          walletStatus.value = WalletStatus.CONNECTED;
+        } else {
+          walletStatus.value = WalletStatus.DISCONNECTED;
+        }
+      } catch (err) {
+        console.error('解密钱包失败:', err);
+        message.error('解密钱包失败，请检查密码');
+        walletStatus.value = WalletStatus.DISCONNECTED;
+      }
     } catch (err: any) {
       console.error('初始化钱包失败:', err);
       error.value = `初始化钱包失败: ${err.message || '未知错误'}`;
@@ -301,17 +409,13 @@ export function useWallet() {
     }
   };
 
-
-
-
-
   /**
    * 断开钱包连接
    */
   const disconnectWallet = async () => {
     try {
       console.log('执行断开钱包连接...');
-      
+
       // 先设置状态，确保UI立即响应
       walletStatus.value = WalletStatus.DISCONNECTED;
       currentWallet.value = null;
@@ -325,7 +429,7 @@ export function useWallet() {
       transactions.value = [];
 
       // 清除本地存储
-      localStorage.removeItem('bongo-cat-wallet');
+      localStorage.removeItem('bongo-cat-wallet-encrypted');
       localStorage.removeItem('bongo-cat-transactions');
 
       // 尝试登出DfsWallet
@@ -369,7 +473,7 @@ export function useWallet() {
       if (!to || !amount) {
         throw new Error('接收地址和金额不能为空');
       }
-      
+
       // 验证金额格式
       const amountNum = parseFloat(amount);
       if (isNaN(amountNum) || amountNum <= 0) {
@@ -389,7 +493,7 @@ export function useWallet() {
         if (!token) {
           throw new Error(`找不到${currency}代币余额`);
         }
-        
+
         const tokenBalance = parseFloat(token.split(' ')[0]);
         if (amountNum > tokenBalance) {
           throw new Error('余额不足');
@@ -403,7 +507,7 @@ export function useWallet() {
 
       // 构建发送代币的交易
       let transaction;
-      
+
       if (currency === 'DFS') {
         // 发送DFS代币
         transaction = {
@@ -444,10 +548,10 @@ export function useWallet() {
 
       // 发送交易 - 使用免CPU服务
       const result = await dfsWallet.transact(transaction, { useFreeCpu: true });
-      
+
       // 生成交易ID，如果事务结果有可以使用的ID就使用，否则生成一个新的
       let txId = generateTransactionId();
-      
+
       // 尝试从事务结果中提取ID
       if (result) {
         // 检查常见的交易ID字段
@@ -505,10 +609,10 @@ export function useWallet() {
 
       // 使用DfsWallet获取DFS余额
       const balance = await dfsWallet.getbalance('eosio.token', currentWallet.value.address, 'DFS');
-      
+
       // 获取所有其他代币余额
       const allTokens = await dfsWallet.get_currency_balance('dfsppptokens', currentWallet.value.address);
-      
+
       // 更新DFS余额
       if (balance) {
         // 更新余额数据
@@ -519,10 +623,10 @@ export function useWallet() {
           currentWallet.value.balance = balance;
         }
       }
-      
+
       // 创建包含所有代币的资产列表
       const assetsList = [];
-      
+
       // 添加DFS资产
       assetsList.push({
         key: 'DFS',
@@ -531,13 +635,13 @@ export function useWallet() {
         value: parseFloat(balances[WalletType.DFS]) * 0.5,
         color: 'bg-blue-500'
       });
-      
+
       // 处理并添加其他代币
       const colorClasses = [
-        'bg-green-500', 'bg-purple-500', 'bg-red-500', 
+        'bg-green-500', 'bg-purple-500', 'bg-red-500',
         'bg-yellow-500', 'bg-indigo-500', 'bg-pink-500'
       ];
-      
+
       allTokens.forEach((item, index) => {
         const parts = item.split(' ');
         if (parts.length === 2) {
@@ -545,10 +649,10 @@ export function useWallet() {
           const symbol = parts[1];
           const randomPrice = (Math.random() * 10).toFixed(2);
           const value = parseFloat(tokenBalance) * parseFloat(randomPrice);
-          
+
           // 使用循环颜色系统
           const colorIndex = index % colorClasses.length;
-          
+
           assetsList.push({
             key: symbol,
             name: `${symbol} Token`,
@@ -575,7 +679,7 @@ export function useWallet() {
       if (currentWallet.value) {
         currentWallet.value.balance = `${newBalance} DFS`;
       }
-      
+
       // 返回模拟数据
       return {
         dfsBalance: balances[WalletType.DFS],
@@ -636,8 +740,6 @@ export function useWallet() {
     }
   };
 
-
-
   // 辅助函数：生成交易ID
   const generateTransactionId = (): string => {
     const chars = '0123456789abcdef';
@@ -667,5 +769,10 @@ export function useWallet() {
     sendTransaction,
     refreshBalance,
     loadTransactionHistory,
+
+    // 加解密方法
+    encryptWalletData,
+    decryptWalletData,
+    loadWalletFromStorage
   };
 } 

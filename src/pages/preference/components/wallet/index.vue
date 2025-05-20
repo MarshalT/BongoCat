@@ -10,7 +10,8 @@ import {
   LockOutlined,
   EyeOutlined,
   CopyOutlined,
-  SyncOutlined
+  SyncOutlined,
+  SettingOutlined
 } from '@ant-design/icons-vue'
 import { WalletType } from '@/composables/wallet/useWallet'
 import { useWalletUI } from '@/composables/wallet/useWalletUI'
@@ -22,6 +23,8 @@ import TransactionList from '@/components/wallet/TransactionList.vue'
 import WalletModal from '@/components/wallet/WalletModal.vue'
 import SendTokenForm from '@/components/wallet/SendTokenForm.vue'
 import QRCodeView from '@/components/wallet/QRCodeView.vue'
+import EcosystemExplorer from '@/components/wallet/EcosystemExplorer.vue'
+import WalletSettings from '@/components/wallet/WalletSettings.vue'
 
 // 使用钱包UI composable
 const ui = useWalletUI()
@@ -151,11 +154,42 @@ onMounted(async () => {
         <WalletOutlined style="font-size: 48px;" class="text-gray-400 mb-4" />
         <h3 class="text-xl font-medium mb-2">未连接钱包</h3>
         <p class="text-gray-500 mb-4">请创建新钱包或导入已有钱包以继续</p>
+        
+        <!-- 密码未设置时提醒用户 -->
+        <div v-if="!ui.hasSetupPassword" class="warning-box mb-4 w-full max-w-md">
+          <div class="warning-title">请先设置钱包密码</div>
+          <div class="warning-content">
+            在创建或导入钱包前，您需要先设置钱包密码以保护您的资产安全。
+          </div>
+        </div>
+        
+        <!-- 节点URL未设置时提醒用户 -->
+        <div v-if="!ui.hasSetupNodeUrl && ui.hasSetupPassword" class="warning-box mb-4 w-full max-w-md">
+          <div class="warning-title">请设置节点URL</div>
+          <div class="warning-content">
+            在创建或导入钱包前，您需要设置正确的区块链节点URL。
+          </div>
+        </div>
+        
         <div class="flex gap-4">
-          <a-button type="primary" @click="ui.modals.createWallet = true">
+          <a-button 
+            type="primary" 
+            @click="activeTab = 'settings'"
+            v-if="!ui.hasSetupPassword || !ui.hasSetupNodeUrl"
+          >
+            <SettingOutlined />前往设置
+          </a-button>
+          <a-button 
+            type="primary" 
+            @click="ui.modals.createWallet = true" 
+            :disabled="!ui.hasSetupPassword || !ui.hasSetupNodeUrl"
+          >
             <PlusOutlined />创建钱包
           </a-button>
-          <a-button @click="ui.modals.importWallet = true">
+          <a-button 
+            @click="ui.modals.importWallet = true" 
+            :disabled="!ui.hasSetupPassword || !ui.hasSetupNodeUrl"
+          >
             <KeyOutlined />导入钱包
           </a-button>
         </div>
@@ -163,8 +197,8 @@ onMounted(async () => {
     </a-card>
 
     <!-- 选项卡 -->
-    <a-tabs v-model:activeKey="activeTab" v-if="isWalletConnected">
-      <a-tab-pane key="assets" tab="资产">
+    <a-tabs v-model:activeKey="activeTab">
+      <a-tab-pane key="assets" tab="资产" v-if="isWalletConnected">
         <div class="space-y-4">
           <!-- 调试日志显示 -->
           <!-- <div v-if="debugLogs.length > 0 && showDebugLogs" class="text-xs mb-2 p-2 bg-gray-100 rounded overflow-auto" style="max-height: 100px;">
@@ -209,9 +243,17 @@ onMounted(async () => {
         </div>
       </a-tab-pane>
       
-      <a-tab-pane key="activity" tab="交易记录">
+      <a-tab-pane key="activity" tab="交易记录" v-if="isWalletConnected">
         <!-- 交易记录列表组件 -->
         <TransactionList :transactions="ui.wallet.transactions.value || []" />
+      </a-tab-pane>
+      <a-tab-pane key="discovery" tab="发现" v-if="isWalletConnected">
+        <!-- 生态系统探索组件 -->
+        <EcosystemExplorer />
+      </a-tab-pane>
+      <a-tab-pane key="settings" tab="设置">
+        <!-- 钱包设置组件 -->
+        <WalletSettings />
       </a-tab-pane>
     </a-tabs>
 

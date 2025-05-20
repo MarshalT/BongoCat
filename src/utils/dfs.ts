@@ -159,11 +159,11 @@ export class DfsWallet {
     }
   }
 
-  async init(appName: string, private_key: string | null = null): Promise<void> {
+  async init(appName: string,node_url: string , private_key: string | null = null): Promise<void> {
     this.appName = appName;
     const network = { chainId: this.chainId };
     // this.rpc = new JsonRpc('http://server.manjia.net');
-    this.rpc = new JsonRpc('https://api.dfs.land');
+    this.rpc = new JsonRpc(node_url);
 
 
     console.log('init', appName, this.rpc.endpoint, network);

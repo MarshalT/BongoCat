@@ -20,7 +20,8 @@ export function useWalletUI() {
     createWallet: false,
     importWallet: false,
     backup: false,
-    exportPrivateKey: false
+    exportPrivateKey: false,
+    passwordRequired: false
   });
   
   // 表单状态
@@ -112,6 +113,16 @@ export function useWalletUI() {
     return parseFloat(balance || '0').toFixed(4);
   });
   
+  // 检查是否已设置密码
+  const hasSetupPassword = computed(() => {
+    return !!localStorage.getItem('bongo-cat-wallet-password');
+  });
+
+  // 检查是否已设置节点URL
+  const hasSetupNodeUrl = computed(() => {
+    return !!localStorage.getItem('bongo-cat-wallet-node-url');
+  });
+  
   // 添加调试日志
   const addDebugLog = (message: string, data?: any) => {
     info(message, data);
@@ -192,6 +203,19 @@ export function useWalletUI() {
   
   // 创建钱包
   const handleCreateWallet = async () => {
+    // 检查密码和节点设置
+    if (!hasSetupPassword.value) {
+      message.error('请先设置钱包密码');
+      modals.passwordRequired = true;
+      return;
+    }
+    
+    if (!hasSetupNodeUrl.value) {
+      message.error('请先设置节点URL');
+      modals.passwordRequired = true;
+      return;
+    }
+
     if (forms.newWallet.isCreating) {
       addDebugLog("钱包正在创建中，返回");
       return;
@@ -244,6 +268,19 @@ export function useWalletUI() {
   
   // 导入钱包
   const handleImportWallet = async () => {
+    // 检查密码和节点设置
+    if (!hasSetupPassword.value) {
+      message.error('请先设置钱包密码');
+      modals.passwordRequired = true;
+      return;
+    }
+    
+    if (!hasSetupNodeUrl.value) {
+      message.error('请先设置节点URL');
+      modals.passwordRequired = true;
+      return;
+    }
+
     if (forms.importWallet.isImporting) {
       return;
     }
@@ -320,7 +357,6 @@ export function useWalletUI() {
       modals.send = false;
       // forms.send.reset();
       
-      message.success('交易发送成功！');
       addDebugLog('交易发送成功:', { txId });
       
     } catch (err) {
@@ -379,6 +415,8 @@ export function useWalletUI() {
     isWalletConnected,
     walletAddress,
     walletBalance,
+    hasSetupPassword,
+    hasSetupNodeUrl,
     
     // 方法
     addDebugLog,

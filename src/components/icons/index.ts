@@ -10,7 +10,14 @@ import {
   KeyOutlined,
   LockOutlined,
   EyeOutlined,
-  CopyOutlined
+  CopyOutlined,
+  SwapOutlined,
+  DollarOutlined,
+  BankOutlined,
+  FundOutlined,
+  TrophyOutlined,
+  RocketOutlined,
+  AppstoreOutlined
 } from '@ant-design/icons-vue';
 
 import { App } from 'vue';
@@ -27,7 +34,14 @@ const icons = {
   KeyOutlined,
   LockOutlined,
   EyeOutlined,
-  CopyOutlined
+  CopyOutlined,
+  SwapOutlined,
+  DollarOutlined,
+  BankOutlined,
+  FundOutlined,
+  TrophyOutlined,
+  RocketOutlined,
+  AppstoreOutlined
 };
 
 // 注册所有图标组件
