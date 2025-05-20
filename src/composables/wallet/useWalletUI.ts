@@ -2,8 +2,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
 import { useWallet, WalletStatus, WalletType } from './useWallet';
 import { error,info } from '@tauri-apps/plugin-log'
-import { getDFSPrice } from '@/utils/dfs';
-import { getTokenPrice, getMultipleTokenPrices } from '@/utils/tokenPrice';
+import { getTokenPrice, getDFSPriceFromAPI } from '@/utils/tokenPrice';
 
 // 用于管理钱包UI状态的composable
 export function useWalletUI() {
@@ -177,7 +176,7 @@ export function useWalletUI() {
       dfsPriceLoading.value = true;
       addDebugLog('正在获取DFS价格...');
       
-      const price = await getDFSPrice();
+      const price = await getDFSPriceFromAPI();
       dfsPrice.value = price;
       lastPriceUpdate.value = new Date();
       

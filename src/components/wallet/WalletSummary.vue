@@ -10,9 +10,9 @@
             <sync-outlined @click="onRefreshPrice" :spin="isRefreshing" class="ml-1 cursor-pointer" />
           </a-tooltip>
         </p>
-        <p v-if="isLocked" class="text-sm text-red-500 mt-1">
+        <!-- <p v-if="isLocked" class="text-sm text-red-500 mt-1">
           <LockOutlined class="mr-1" />钱包已锁定
-        </p>
+        </p> -->
       </div>
       <div class="flex items-center">
         <div class="bg-gray-100 rounded-full p-2 flex items-center address-container" :class="{ 'address-locked': isLocked }">

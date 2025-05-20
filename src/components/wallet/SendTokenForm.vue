@@ -43,6 +43,14 @@ interface Asset {
   color: string;
 }
 
+// 定义表单类型
+interface TokenForm {
+  recipient: string;
+  amount: string;
+  currency: string;
+  memo: string;
+}
+
 // 组件属性
 interface Props {
   availableBalance: string;
@@ -54,7 +62,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 // 表单状态
-const form = reactive({
+const form = reactive<TokenForm>({
   recipient: '',
   amount: '',
   currency: 'DFS',
@@ -63,7 +71,7 @@ const form = reactive({
 
 // 定义事件
 const emit = defineEmits<{
-  (e: 'update:form', form: typeof form): void;
+  (e: 'update:form', form: TokenForm): void;
   (e: 'validate'): boolean;
 }>();
 
