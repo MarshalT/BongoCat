@@ -167,10 +167,11 @@ onMounted(async () => {
       v-if="isWalletConnected"
       :balance="walletBalance"
       :address="walletAddress"
-      :price-change="ui.getPriceChange()"
+      :dfs-price="ui.dfsPrice.value"
       :is-locked="isWalletLocked"
       @copy="ui.copyToClipboard"
       @export-private-key="ui.exportPrivateKey"
+      @refresh-price="ui.fetchDFSPrice"
     />
 
     <!-- 未连接钱包提示 -->

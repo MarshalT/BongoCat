@@ -3,13 +3,16 @@
     <div class="flex justify-between">
       <div>
         <p class="text-gray-500 mb-1">账户资产(USDT)</p>
-        <h1 class="text-2xl font-bold">{{ balance }} USDT</h1>
-        <p class="text-sm" :class="priceChange.startsWith('-') ? 'text-red-500' : 'text-green-500'">
-          {{ priceChange }}% 24小时变动
+        <h1 class="text-2xl font-bold">${{ balance }}</h1>
+        <p class="text-sm">
+          DFS价格: ${{ dfsPrice.toFixed(2) }} 
+          <a-tooltip title="刷新价格">
+            <sync-outlined @click="onRefreshPrice" :spin="isRefreshing" class="ml-1 cursor-pointer" />
+          </a-tooltip>
         </p>
-        <!-- <p v-if="isLocked" class="text-sm text-red-500 mt-1">
+        <p v-if="isLocked" class="text-sm text-red-500 mt-1">
           <LockOutlined class="mr-1" />钱包已锁定
-        </p> -->
+        </p>
       </div>
       <div class="flex items-center">
         <div class="bg-gray-100 rounded-full p-2 flex items-center address-container" :class="{ 'address-locked': isLocked }">
@@ -29,22 +32,25 @@
 </template>
 
 <script setup lang="ts">
-import { CopyOutlined, KeyOutlined, LockOutlined } from '@ant-design/icons-vue';
+import { ref } from 'vue';
+import { CopyOutlined, KeyOutlined, LockOutlined, SyncOutlined } from '@ant-design/icons-vue';
 
 // 组件属性
 interface Props {
   balance: string;
   address: string;
-  priceChange: string;
   isLocked?: boolean;
+  dfsPrice: number;
 }
 
 const props = defineProps<Props>();
+const isRefreshing = ref(false);
 
 // 定义事件
 const emit = defineEmits<{
   (e: 'copy', address: string): void;
   (e: 'exportPrivateKey'): void;
+  (e: 'refreshPrice'): void;
 }>();
 
 // 复制地址
@@ -55,6 +61,15 @@ const onCopy = () => {
 // 导出私钥
 const onExportPrivateKey = () => {
   emit('exportPrivateKey');
+};
+
+// 刷新价格
+const onRefreshPrice = async () => {
+  isRefreshing.value = true;
+  emit('refreshPrice');
+  setTimeout(() => {
+    isRefreshing.value = false;
+  }, 1500);
 };
 </script>
 

@@ -1,7 +1,9 @@
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
 import { useWallet, WalletStatus, WalletType } from './useWallet';
 import { error,info } from '@tauri-apps/plugin-log'
+import { getDFSPrice } from '@/utils/dfs';
+import { getTokenPrice, getMultipleTokenPrices } from '@/utils/tokenPrice';
 
 // 用于管理钱包UI状态的composable
 export function useWalletUI() {
@@ -12,6 +14,11 @@ export function useWalletUI() {
   const debugLogs = ref<string[]>([]);
   const showDebugLogs = ref(true);
   const loadingBalances = ref(false);
+  
+  // DFS价格状态
+  const dfsPrice = ref(1.80); // 默认价格
+  const dfsPriceLoading = ref(false);
+  const lastPriceUpdate = ref<Date | null>(null);
   
   // 模态框状态
   const modals = reactive({
@@ -112,9 +119,32 @@ export function useWalletUI() {
   const isWalletLocked = computed(() => wallet.isWalletLocked.value);
   
   const walletAddress = computed(() => wallet.currentWallet.value?.address || 'bongo1234567890');
+  
+  // 计算资产总价值（美元）
+  const calculateTotalAssetValue = computed(() => {
+    let total = 0;
+    
+    // 遍历所有资产并计算总价值
+    assetList.value.forEach(asset => {
+      const amount = parseFloat(asset.balance);
+      if (!isNaN(amount)) {
+        if (asset.key === 'DFS') {
+          // 使用实时DFS价格
+          total += amount * dfsPrice.value;
+        } else {
+          // 其他代币使用已计算的价值
+          total += asset.value;
+        }
+      }
+    });
+    
+    return total.toFixed(4);
+  });
+  
+  // 钱包余额（以美元显示）
   const walletBalance = computed(() => {
     const balance = wallet.balances[WalletType.DFS];
-    return parseFloat(balance || '0').toFixed(4);
+    return calculateTotalAssetValue.value;
   });
   
   // 检查是否已设置密码
@@ -141,7 +171,62 @@ export function useWalletUI() {
     }
   };
   
-  // 刷新余额和资产列表
+  // 获取DFS实时价格
+  const fetchDFSPrice = async () => {
+    try {
+      dfsPriceLoading.value = true;
+      addDebugLog('正在获取DFS价格...');
+      
+      const price = await getDFSPrice();
+      dfsPrice.value = price;
+      lastPriceUpdate.value = new Date();
+      
+      addDebugLog(`DFS价格获取成功: ${price}`);
+      return price;
+    } catch (err) {
+      addDebugLog('获取DFS价格失败', err);
+      return dfsPrice.value; // 返回当前值
+    } finally {
+      dfsPriceLoading.value = false;
+    }
+  };
+  
+  // 获取指定token的价格
+  const fetchTokenPrice = async (tokenName: string): Promise<number | null> => {
+    try {
+      addDebugLog(`正在获取${tokenName}价格...`);
+      
+      if (tokenName === 'DFS') {
+        return await fetchDFSPrice();
+      }
+      
+      const price = await getTokenPrice(tokenName);
+      
+      if (price !== null) {
+        addDebugLog(`${tokenName}价格获取成功: ${price}`);
+      } else {
+        addDebugLog(`未能获取${tokenName}价格`);
+      }
+      
+      return price;
+    } catch (err) {
+      addDebugLog(`获取${tokenName}价格失败`, err);
+      return null;
+    }
+  };
+  
+  // 初始化函数
+  const initialize = async () => {
+    // 获取DFS价格
+    await fetchDFSPrice();
+  };
+  
+  // 组件挂载时初始化
+  onMounted(() => {
+    initialize();
+  });
+  
+  // 刷新余额和资产列表 - 使用真实价格
   const refreshWalletBalance = async () => {
     if (!isWalletConnected.value) {
       addDebugLog('钱包未连接，无法刷新余额');
@@ -163,10 +248,49 @@ export function useWalletUI() {
       loadingBalances.value = true;
       message.loading('正在刷新余额...', 1);
       
+      // 同时获取最新DFS价格
+      await fetchDFSPrice();
+      
       const result = await wallet.refreshBalance();
       if (result) {
-        assetList.value = result.assetsList;
+        // 更新资产列表，获取所有token的实时价格
+        const tokenList = result.assetsList.map(asset => asset.key);
+        addDebugLog('获取到的token列表:', tokenList);
+        
+        // 获取多个token的价格
+        const tokenPrices: Record<string, number | null> = {};
+        
+        // 创建一个promises数组，确保异步计算准确
+        const valueCalculationPromises = result.assetsList.map(async (asset) => {
+          // 计算资产价值
+          const amount = parseFloat(asset.balance);
+          let calculatedValue = 0;
+          
+          try {
+            // 使用新的calculateAssetValue函数计算价值
+            calculatedValue = await calculateAssetValue(asset.balance, asset.key);
+            addDebugLog(`计算${asset.key}资产价值: ${calculatedValue}`);
+          } catch (error) {
+            addDebugLog(`计算${asset.key}资产价值失败:`, error);
+            // 失败时使用默认计算
+            if (asset.key === 'DFS') {
+              calculatedValue = amount * dfsPrice.value;
+            } else {
+              calculatedValue = amount; // 默认价格为1.0
+            }
+          }
+          
+          return {
+            ...asset,
+            value: calculatedValue
+          };
+        });
+        
+        // 等待所有价值计算完成
+        assetList.value = await Promise.all(valueCalculationPromises);
+        
         addDebugLog('余额更新成功', assetList.value);
+        addDebugLog('总资产价值: $' + calculateTotalAssetValue.value);
       }
     } catch (err) {
       addDebugLog('刷新余额失败', err);
@@ -424,12 +548,38 @@ export function useWalletUI() {
     modals.exportPrivateKey = true;
   };
   
+  // 计算资产的美元价值
+  const calculateAssetValue = async (amount: string, currency: string): Promise<number> => {
+    const numAmount = parseFloat(amount) || 0;
+    
+    // 如果金额为0，直接返回0
+    if (numAmount === 0) {
+      return 0;
+    }
+    
+    if (currency === 'DFS') {
+      // 使用已获取的DFS价格
+      return numAmount * dfsPrice.value;
+    }
+    
+    // 获取其他token价格
+    const tokenPrice = await fetchTokenPrice(currency);
+    if (tokenPrice !== null) {
+      return numAmount * tokenPrice;
+    }
+    
+    // 如果获取不到价格，使用默认价格1.0
+    return numAmount * 1.0;
+  };
+  
   // 模拟价格变动数据
   const getPriceChange = () => {
+    // 这里可以根据需要计算实际价格变动
+    // 目前仍然返回固定值，但使用真实价格计算资产价值
     const fixedValue = -2.06;
     return fixedValue.toFixed(2);
   };
-
+  
   // 解锁钱包
   const handleUnlockWallet = async (password: string) => {
     try {
@@ -495,18 +645,24 @@ export function useWalletUI() {
     modals,
     forms,
     assetList,
+    dfsPrice,
+    dfsPriceLoading,
+    lastPriceUpdate,
     
     // 计算属性
     isWalletConnected,
     isWalletLocked,
     walletAddress,
     walletBalance,
+    calculateTotalAssetValue,
     hasSetupPassword,
     hasSetupNodeUrl,
     
     // 方法
     addDebugLog,
     refreshWalletBalance,
+    fetchDFSPrice,
+    fetchTokenPrice,
     copyToClipboard,
     formatAddress,
     formatTransactionDate,
@@ -517,6 +673,7 @@ export function useWalletUI() {
     completeBackup,
     togglePrivateKeyVisibility,
     exportPrivateKey,
+    calculateAssetValue,
     getPriceChange,
     handleUnlockWallet,
     handleLockWallet,

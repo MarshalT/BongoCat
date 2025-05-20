@@ -749,12 +749,12 @@ export function useWallet() {
       // 创建包含所有代币的资产列表
       const assetsList = [];
 
-      // 添加DFS资产
+      // 添加DFS资产 - 不计算价值，让UI层处理
       assetsList.push({
         key: 'DFS',
         name: 'DFS Chain',
         balance: balances[WalletType.DFS],
-        value: parseFloat(balances[WalletType.DFS]) * 0.5,
+        value: 0, // 价值由UI层计算
         color: 'bg-blue-500'
       });
 
@@ -809,7 +809,7 @@ export function useWallet() {
           key: 'DFS',
           name: 'DFS Chain',
           balance: balances[WalletType.DFS],
-          value: parseFloat(balances[WalletType.DFS]) * 0.5,
+          value: 0, // 价值由UI层计算
           color: 'bg-blue-500'
         }]
       };
