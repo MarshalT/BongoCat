@@ -21,7 +21,8 @@ export function useWalletUI() {
     importWallet: false,
     backup: false,
     exportPrivateKey: false,
-    passwordRequired: false
+    passwordRequired: false,
+    unlockWallet: false
   });
   
   // 表单状态
@@ -107,6 +108,9 @@ export function useWalletUI() {
     return connected;
   });
   
+  // 钱包是否锁定的计算属性
+  const isWalletLocked = computed(() => wallet.isWalletLocked.value);
+  
   const walletAddress = computed(() => wallet.currentWallet.value?.address || 'bongo1234567890');
   const walletBalance = computed(() => {
     const balance = wallet.balances[WalletType.DFS];
@@ -143,6 +147,16 @@ export function useWalletUI() {
       addDebugLog('钱包未连接，无法刷新余额');
       return;
     }
+    
+    // 如果钱包已锁定，提示用户
+    if (isWalletLocked.value) {
+      message.warning('钱包已锁定，请先解锁');
+      modals.unlockWallet = true;
+      return;
+    }
+    
+    // 重置自动锁定计时器
+    resetWalletLockTimer();
     
     try {
       addDebugLog('正在刷新余额...');
@@ -331,6 +345,21 @@ export function useWalletUI() {
   
   // 发送代币
   const handleSendTokens = async () => {
+    if (!isWalletConnected.value) {
+      message.error('钱包未连接');
+      return false;
+    }
+    
+    // 检查钱包是否锁定
+    if (isWalletLocked.value) {
+      message.warning('钱包已锁定，请先解锁');
+      modals.unlockWallet = true;
+      return false;
+    }
+    
+    // 重置自动锁定计时器
+    resetWalletLockTimer();
+    
     addDebugLog('开始执行发送交易', forms.send);
     
     if (!forms.send.recipient || !forms.send.amount) {
@@ -378,26 +407,82 @@ export function useWalletUI() {
     forms.backup.showPrivateKey = !forms.backup.showPrivateKey;
   };
   
-  // 导出私钥 - 新增方法
+  // 导出私钥
   const exportPrivateKey = () => {
-    if (!wallet.currentWallet.value || !wallet.currentWallet.value.privateKey) {
-      message.error('无法获取私钥');
+    // 检查钱包是否锁定
+    if (isWalletLocked.value) {
+      message.warning('钱包已锁定，请先解锁');
+      modals.unlockWallet = true;
       return;
     }
     
-    // 设置私钥到备份表单
-    forms.backup.privateKey = wallet.currentWallet.value.privateKey;
+    // 重置自动锁定计时器
+    resetWalletLockTimer();
     
-    // 显示备份模态框
+    // 显示导出私钥对话框
+    forms.backup.privateKey = wallet.currentWallet.value?.privateKey || '';
     modals.exportPrivateKey = true;
-    
-    addDebugLog('导出私钥');
   };
   
   // 模拟价格变动数据
   const getPriceChange = () => {
     const fixedValue = -2.06;
     return fixedValue.toFixed(2);
+  };
+
+  // 解锁钱包
+  const handleUnlockWallet = async (password: string) => {
+    try {
+      addDebugLog('尝试解锁钱包');
+      
+      const success = await wallet.unlockWallet(password);
+      
+      if (success) {
+        addDebugLog('钱包解锁成功');
+        message.success('钱包已解锁');
+        modals.unlockWallet = false;
+        
+        // 刷新余额和交易历史
+        await refreshWalletBalance();
+      } else {
+        addDebugLog('钱包解锁失败');
+        message.error('密码错误，解锁失败');
+      }
+      
+      return success;
+    } catch (err) {
+      addDebugLog('钱包解锁出错', err);
+      message.error(`解锁失败: ${err instanceof Error ? err.message : '未知错误'}`);
+      return false;
+    }
+  };
+  
+  // 锁定钱包
+  const handleLockWallet = () => {
+    try {
+      wallet.lockWallet();
+      addDebugLog('钱包已锁定');
+      message.success('钱包已锁定');
+      return true;
+    } catch (err) {
+      addDebugLog('锁定钱包出错', err);
+      message.error(`锁定失败: ${err instanceof Error ? err.message : '未知错误'}`);
+      return false;
+    }
+  };
+  
+  // 显示解锁对话框
+  const showUnlockDialog = () => {
+    if (isWalletLocked.value) {
+      console.log('显示解锁对话框，当前状态:', modals.unlockWallet);
+      modals.unlockWallet = true;
+      console.log('设置后状态:', modals.unlockWallet);
+    }
+  };
+  
+  // 重置锁定计时器（用户操作时）
+  const resetWalletLockTimer = () => {
+    wallet.refreshLockTimer();
   };
 
   return {
@@ -413,6 +498,7 @@ export function useWalletUI() {
     
     // 计算属性
     isWalletConnected,
+    isWalletLocked,
     walletAddress,
     walletBalance,
     hasSetupPassword,
@@ -431,6 +517,10 @@ export function useWalletUI() {
     completeBackup,
     togglePrivateKeyVisibility,
     exportPrivateKey,
-    getPriceChange
+    getPriceChange,
+    handleUnlockWallet,
+    handleLockWallet,
+    showUnlockDialog,
+    resetWalletLockTimer
   };
 } 

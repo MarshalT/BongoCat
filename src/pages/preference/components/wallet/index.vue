@@ -25,12 +25,14 @@ import SendTokenForm from '@/components/wallet/SendTokenForm.vue'
 import QRCodeView from '@/components/wallet/QRCodeView.vue'
 import EcosystemExplorer from '@/components/wallet/EcosystemExplorer.vue'
 import WalletSettings from '@/components/wallet/WalletSettings.vue'
+import WalletUnlockModal from '@/components/wallet/WalletUnlockModal.vue'
 
 // 使用钱包UI composable
 const ui = useWalletUI()
 
 // 需要转换类型，解决TypeScript错误
 const isWalletConnected = computed(() => ui.isWalletConnected.value)
+const isWalletLocked = computed(() => ui.isWalletLocked.value)
 const walletAddress = computed(() => ui.walletAddress.value)
 const walletBalance = computed(() => ui.walletBalance.value)
 const assetList = computed(() => ui.assetList.value)
@@ -42,6 +44,13 @@ const activeTab = computed({
 
 // 发送表单引用
 const sendFormRef = ref()
+
+// 显示解锁对话框并记录调试信息
+const showUnlockDialog = () => {
+  ui.addDebugLog('点击解锁钱包按钮')
+  ui.modals.unlockWallet = true
+  ui.addDebugLog('解锁对话框状态:', ui.modals.unlockWallet)
+}
 
 // 发送代币处理函数
 const handleSend = async () => {
@@ -111,21 +120,36 @@ onMounted(async () => {
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-xl font-bold flex items-center">
         <WalletOutlined class="mr-2" />钱包
+        <span v-if="isWalletConnected && isWalletLocked" class="ml-2 text-sm text-red-500 flex items-center">
+          <LockOutlined class="mr-1" />已锁定
+        </span>
       </h2>
       <div class="flex gap-2">
         <template v-if="isWalletConnected">
-          <a-button type="primary" @click="ui.modals.send = true">
-            <SendOutlined />发送
-          </a-button>
-          <a-button @click="ui.modals.receive = true">
-            <ScanOutlined />接收
-          </a-button>
-          <!-- <a-button @click="ui.refreshWalletBalance" :loading="loadingBalances">
-            <SyncOutlined />刷新
-          </a-button> -->
-          <a-button danger @click="ui.handleDisconnectWallet">
-            断开
-          </a-button>
+          <!-- 钱包已锁定时显示解锁按钮 -->
+          <template v-if="isWalletLocked">
+            <a-button type="primary" @click="ui.showUnlockDialog">
+              <KeyOutlined />解锁钱包
+            </a-button>
+          </template>
+          <!-- 钱包已解锁时显示功能按钮 -->
+          <template v-else>
+            <a-button type="primary" @click="ui.modals.send = true">
+              <SendOutlined />发送
+            </a-button>
+            <a-button @click="ui.modals.receive = true">
+              <ScanOutlined />接收
+            </a-button>
+            <!-- <a-button @click="ui.refreshWalletBalance" :loading="loadingBalances">
+              <SyncOutlined />刷新
+            </a-button> -->
+            <a-button @click="ui.handleLockWallet">
+              <LockOutlined />锁定
+            </a-button>
+            <a-button danger @click="ui.handleDisconnectWallet">
+              断开
+            </a-button>
+          </template>
         </template>
         <template v-else>
           <a-button type="primary" @click="ui.modals.createWallet = true">
@@ -144,6 +168,7 @@ onMounted(async () => {
       :balance="walletBalance"
       :address="walletAddress"
       :price-change="ui.getPriceChange()"
+      :is-locked="isWalletLocked"
       @copy="ui.copyToClipboard"
       @export-private-key="ui.exportPrivateKey"
     />
@@ -468,6 +493,16 @@ onMounted(async () => {
         </ul>
       </div>
     </WalletModal>
+
+    <!-- 解锁钱包对话框 -->
+    <WalletUnlockModal
+      :visible="ui.modals.unlockWallet"
+      @update:visible="(val) => { 
+        console.log('更新解锁对话框状态:', val); 
+        ui.modals.unlockWallet = val; 
+      }"
+      @unlock="ui.handleUnlockWallet"
+    />
   </div>
 </template>
 

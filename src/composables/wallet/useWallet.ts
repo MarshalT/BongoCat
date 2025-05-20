@@ -1,6 +1,6 @@
 import { ref, reactive } from 'vue';
 import { message } from 'ant-design-vue';
-import { error, info } from '@tauri-apps/plugin-log'
+import { error as logError, info as logInfo } from '@tauri-apps/plugin-log'
 // 导入DfsWallet
 import DfsWallet from '@/utils/dfs';
 // 导入私钥转公钥函数
@@ -67,6 +67,8 @@ export function useWallet() {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const transactions = ref<Transaction[]>([]);
+  const isWalletLocked = ref(true); // 钱包是否锁定
+  const walletLockTimer = ref<ReturnType<typeof setTimeout> | null>(null); // 自动锁定计时器
 
   // 创建DfsWallet实例
   const dfsWallet = new DfsWallet();
@@ -386,18 +388,32 @@ export function useWallet() {
       try {
         const storedWallet = loadWalletFromStorage(password);
         if (storedWallet) {
-          message.info(`初始化钱包:${storedWallet.address} ${storedWallet.name}`);
+          logInfo(`初始化钱包:${storedWallet.address} ${storedWallet.name}`);
           // 初始化DfsWallet
           await initDfsWallet('BongoCat', storedWallet.privateKey);
-          // 自动连接存储的钱包
-          await connectWallet(storedWallet.privateKey, storedWallet, "");
+          
+          // 自动连接存储的钱包但保持锁定状态
+          currentWallet.value = {
+            address: storedWallet.address,
+            name: storedWallet.name,
+            balance: '0.0000 DFS',
+            publicKey: storedWallet.publicKey,
+            privateKey: storedWallet.privateKey, // 实际应用中可能需要加密处理
+            type: storedWallet.type,
+            chainId: storedWallet.chainId
+          };
+          
           walletStatus.value = WalletStatus.CONNECTED;
+          isWalletLocked.value = true; // 默认锁定状态
+          
+          // 只获取公开信息如地址和公钥，等解锁后再获取完整数据
+          logInfo('钱包初始化完成，处于锁定状态');
         } else {
           walletStatus.value = WalletStatus.DISCONNECTED;
         }
       } catch (err) {
         console.error('解密钱包失败:', err);
-        message.error('解密钱包失败，请检查密码');
+        logError('解密钱包失败，请检查密码');
         walletStatus.value = WalletStatus.DISCONNECTED;
       }
     } catch (err: any) {
@@ -406,6 +422,94 @@ export function useWallet() {
       walletStatus.value = WalletStatus.ERROR;
     } finally {
       isLoading.value = false;
+    }
+  };
+
+  /**
+   * 解锁钱包
+   * @param password 钱包密码
+   */
+  const unlockWallet = async (password: string): Promise<boolean> => {
+    if (!password) {
+      throw new Error('请输入密码');
+    }
+
+    try {
+      isLoading.value = true;
+
+      // 验证密码
+      const storedPassword = localStorage.getItem('bongo-cat-wallet-password');
+      if (password !== storedPassword) {
+        throw new Error('密码不正确');
+      }
+
+      if (!currentWallet.value) {
+        throw new Error('钱包未初始化');
+      }
+
+      // 解锁钱包
+      isWalletLocked.value = false;
+      
+      // 刷新余额和交易历史
+      await refreshBalance();
+      await loadTransactionHistory();
+      
+      logInfo('钱包已解锁');
+      
+      // 设置自动锁定计时器
+      resetLockTimer();
+      
+      return true;
+    } catch (err: any) {
+      const errorMessage = err.message || '解锁钱包失败';
+      error.value = errorMessage;
+      logError(`解锁钱包失败: ${errorMessage}`);
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  /**
+   * 锁定钱包
+   */
+  const lockWallet = () => {
+    isWalletLocked.value = true;
+    
+    // 清除自动锁定计时器
+    if (walletLockTimer.value) {
+      clearTimeout(walletLockTimer.value);
+      walletLockTimer.value = null;
+    }
+    
+    logInfo('钱包已锁定');
+    return true;
+  };
+
+  /**
+   * 重置自动锁定计时器
+   */
+  const resetLockTimer = () => {
+    // 清除已有的计时器
+    if (walletLockTimer.value) {
+      clearTimeout(walletLockTimer.value);
+    }
+    
+    // 设置新计时器，10分钟后自动锁定
+    walletLockTimer.value = setTimeout(() => {
+      if (!isWalletLocked.value) {
+        lockWallet();
+        logInfo('钱包已自动锁定');
+      }
+    }, 10 * 60 * 1000); // 10分钟
+  };
+
+  /**
+   * 钱包操作时重置自动锁定计时器
+   */
+  const refreshLockTimer = () => {
+    if (!isWalletLocked.value) {
+      resetLockTimer();
     }
   };
 
@@ -466,8 +570,17 @@ export function useWallet() {
       return null;
     }
 
+    // 检查钱包是否锁定
+    if (isWalletLocked.value) {
+      message.error('钱包已锁定，请先解锁');
+      return null;
+    }
+
     try {
       isLoading.value = true;
+      
+      // 刷新自动锁定计时器
+      refreshLockTimer();
 
       // 验证基本参数
       if (!to || !amount) {
@@ -603,9 +716,18 @@ export function useWallet() {
    */
   const refreshBalance = async () => {
     if (!currentWallet.value) return;
+    
+    // 如果钱包锁定，则不刷新余额
+    if (isWalletLocked.value) {
+      logInfo('钱包已锁定，无法刷新余额');
+      return;
+    }
 
     try {
       isLoading.value = true;
+      
+      // 刷新自动锁定计时器
+      refreshLockTimer();
 
       // 使用DfsWallet获取DFS余额
       const balance = await dfsWallet.getbalance('eosio.token', currentWallet.value.address, 'DFS');
@@ -679,7 +801,7 @@ export function useWallet() {
       if (currentWallet.value) {
         currentWallet.value.balance = `${newBalance} DFS`;
       }
-
+      
       // 返回模拟数据
       return {
         dfsBalance: balances[WalletType.DFS],
@@ -760,6 +882,7 @@ export function useWallet() {
     error,
     transactions,
     balances,
+    isWalletLocked,
 
     // 方法
     initWallet,
@@ -773,6 +896,12 @@ export function useWallet() {
     // 加解密方法
     encryptWalletData,
     decryptWalletData,
-    loadWalletFromStorage
+    loadWalletFromStorage,
+    
+    // 锁定/解锁方法
+    lockWallet,
+    unlockWallet,
+    resetLockTimer,
+    refreshLockTimer
   };
 } 
