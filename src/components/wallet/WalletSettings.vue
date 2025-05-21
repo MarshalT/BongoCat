@@ -162,6 +162,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
 import { useWalletStore } from '@/stores/walletStore';
 import { useWallet } from '@/composables/wallet/useWallet';
+import { info } from '@tauri-apps/plugin-log';
 
 // 获取钱包存储
 const walletStore = useWalletStore();
@@ -344,12 +345,20 @@ const handleSaveNodeUrl = async () => {
     localStorage.setItem('bongo-cat-wallet-node-url', form.nodeUrl);
     
     message.success('节点设置已保存');
-    
-    // 直接检查原始加密钱包数据
-    const encryptedWallet = localStorage.getItem('bongo-cat-wallet-encrypted');
-    
+
+
+    // 只输出关键属性
+    const walletStatus = {
+      status: wallet.walletStatus.value,
+      isConnected: wallet.walletStatus.value === 'connected',
+      hasWallet: !!wallet.currentWallet.value,
+      address: wallet.currentWallet.value?.address || 'none',
+      chainId: wallet.currentWallet.value?.chainId || 'none'
+    };
+    info(`钱包状态: ${JSON.stringify(walletStatus, null, 2)}`);
+
     // 只有在URL发生变化且加密钱包数据存在的情况下才重新初始化
-    if (previousUrl !== form.nodeUrl && encryptedWallet) {
+    if (previousUrl !== form.nodeUrl && wallet.walletStatus.value === 'connected') {
       try {
         // 重新初始化钱包连接
         await wallet.initWallet();
@@ -358,10 +367,7 @@ const handleSaveNodeUrl = async () => {
         console.error('重新连接钱包失败:', err);
         message.error('重新连接钱包失败，请手动重新连接');
       }
-    }else{
-    //   message.success('1');
-    //   message.success(`${previousUrl} ${form.nodeUrl} ${wallet.walletStatus.value} ${encryptedWallet}`);
-      
+    }else{ 
     }
   } catch (error) {
     console.error('保存节点设置失败:', error);

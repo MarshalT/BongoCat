@@ -1,6 +1,8 @@
 import { ref, reactive } from 'vue';
 import { message } from 'ant-design-vue';
 import { error as logError, info as logInfo } from '@tauri-apps/plugin-log'
+import { encryptWalletData, decryptWalletData } from '@/utils/Encrypt';
+
 // 导入DfsWallet
 import DfsWallet from '@/utils/dfs';
 // 导入私钥转公钥函数
@@ -56,11 +58,13 @@ interface StoredWallet {
   chainId: string;
 }
 
+// 全局单例钱包实例
+let _walletInstance: ReturnType<typeof createWalletInstance> | null = null;
+
 /**
- * 钱包管理Composable
- * 提供钱包连接、交易和管理功能
+ * 创建钱包实例的内部工厂函数
  */
-export function useWallet() {
+function createWalletInstance() {
   // 状态
   const walletStatus = ref<WalletStatus>(WalletStatus.DISCONNECTED);
   const currentWallet = ref<WalletInfo | null>(null);
@@ -74,46 +78,7 @@ export function useWallet() {
   const dfsWallet = new DfsWallet();
 
   // DFS链ID
-  const DFS_CHAIN_ID = '000d9cae502dd1cc895745e204f83cc892bc4c450f92a03ecd4fe057709853cc';
-
-  /**
-   * 加密钱包数据
-   * @param data 钱包数据
-   * @param password 钱包密码
-   * @returns 加密后的钱包数据
-   */
-  const encryptWalletData = (data: any, password: string): string => {
-    try {
-      // 这里仅作为简单示例，实际应使用更强的加密算法
-      // 例如AES加密或其他安全的加密方式
-      const stringData = JSON.stringify(data);
-      return btoa(stringData + '::' + password);
-    } catch (error) {
-      console.error('加密钱包数据失败:', error);
-      throw new Error('加密钱包数据失败');
-    }
-  };
-  /**
-   * 解密钱包数据
-   * @param encryptedData 加密的钱包数据
-   * @param password 钱包密码
-   * @returns 解密后的钱包数据
-   */
-  const decryptWalletData = (encryptedData: string, password: string): any => {
-    try {
-      const decodedData = atob(encryptedData);
-      const parts = decodedData.split('::');
-
-      if (parts.length !== 2 || parts[1] !== password) {
-        throw new Error('密码不正确');
-      }
-
-      return JSON.parse(parts[0]);
-    } catch (error) {
-      console.error('解密钱包数据失败:', error);
-      throw new Error('解密钱包数据失败，请检查密码是否正确');
-    }
-  };
+  const DFS_CHAIN_ID = dfsWallet.chainId;
 
   // 从本地存储加载钱包
   const loadWalletFromStorage = (password: string): StoredWallet | null => {
@@ -140,8 +105,7 @@ export function useWallet() {
   const initDfsWallet = async (appName: string, privateKey?: string) => {
     const nodeUrl = localStorage.getItem('bongo-cat-wallet-node-url');
     // 初始化DfsWallet
-    await dfsWallet.init(appName, nodeUrl ?? 'https://dfs-mainnet.example.com', privateKey);
-
+    await dfsWallet.init(appName, nodeUrl ?? 'https://api.dfs.land', privateKey);
   };
 
   /**
@@ -906,4 +870,20 @@ export function useWallet() {
     resetLockTimer,
     refreshLockTimer
   };
+}
+
+/**
+ * 钱包管理Composable
+ * 提供钱包连接、交易和管理功能
+ * 单例模式实现，全局共享同一个钱包实例
+ */
+export function useWallet() {
+  // 如果实例不存在，创建新实例
+  if (!_walletInstance) {
+    _walletInstance = createWalletInstance();
+    console.log("创建全局钱包实例");
+  }
+  
+  // 返回共享的单例实例
+  return _walletInstance;
 } 

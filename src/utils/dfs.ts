@@ -4,6 +4,7 @@ import { message } from 'ant-design-vue';
 import { PushTransactionArgs } from 'eosjs/dist/eosjs-rpc-interfaces';
 // import * as eosEcc from 'eosjs-ecc';
 import { randomKey, privateToPublic } from 'eosjs-ecc';
+import { info } from '@tauri-apps/plugin-log';
 
 import {
   SignatureProviderArgs,
@@ -125,7 +126,7 @@ export class DfsWallet {
   private DFSWallet: any = null; // 待定义具体类型
   private api: Api | null = null;
   private rpc: JsonRpc | null = null;
-  private chainId: string = CHAINID;
+  public chainId: string = CHAINID;
   private freeCpuApi: Api | null = null;
 
   constructor() {
@@ -167,6 +168,7 @@ export class DfsWallet {
 
 
     console.log('init', appName, this.rpc.endpoint, network);
+    info(`init ${appName} ${this.rpc.endpoint} ${network}`);
 
     // 确保有可用的私钥
     let validPrivateKey = private_key;
@@ -214,7 +216,8 @@ export class DfsWallet {
 
   async transact(transaction: Transaction, opts: any = {}) {
     if (opts.useFreeCpu) {
-      delete opts.useFreeCpu;
+      // delete opts.useFreeCpu;
+      info(`this.api ${this.api?.rpc.endpoint}`);
       return await this.transactByFreeCpu(transaction, opts);
     }
 
