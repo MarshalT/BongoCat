@@ -159,6 +159,7 @@ export class DfsWallet {
     if (!isConnected) {
       throw new Error('dfsWallet not connected')
     }
+    
   }
 
   /**
