@@ -269,11 +269,21 @@ function createWalletInstance() {
       console.log('useWallet.createWallet: 更新当前钱包状态')
       currentWallet.value = walletInfo
 
+      // 缓存钱包公开信息，以便下次启动时能自动恢复
+      localStorage.setItem('bongo-cat-wallet-address', walletInfo.address)
+      localStorage.setItem('bongo-cat-wallet-name', walletInfo.name)
+      if (walletInfo.publicKey) localStorage.setItem('bongo-cat-wallet-public-key', walletInfo.publicKey)
+      localStorage.setItem('bongo-cat-wallet-type', walletInfo.type)
+      if (walletInfo.chainId) localStorage.setItem('bongo-cat-wallet-chain-id', walletInfo.chainId)
+
       // 设置初始余额
       balances[WalletType.DFS] = '0.0000'
 
       walletStatus.value = WalletStatus.CONNECTED
       console.log('useWallet.createWallet: 钱包创建成功')
+
+      // 加载交易历史
+      await loadTransactionHistory()
 
       return {
         address: result.accountName,
@@ -488,16 +498,16 @@ function createWalletInstance() {
       // 设置当前钱包
       currentWallet.value = walletInfo
       console.log('钱包信息已设置到当前状态')
-
+      
+      // 缓存钱包公开信息，以便下次启动时能自动恢复
+      localStorage.setItem('bongo-cat-wallet-address', walletInfo.address)
+      localStorage.setItem('bongo-cat-wallet-name', walletInfo.name)
+      if (walletInfo.publicKey) localStorage.setItem('bongo-cat-wallet-public-key', walletInfo.publicKey)
+      localStorage.setItem('bongo-cat-wallet-type', walletInfo.type)
+      if (walletInfo.chainId) localStorage.setItem('bongo-cat-wallet-chain-id', walletInfo.chainId)
+      
       // 加载交易历史
-      try {
-        console.log('开始加载交易历史')
-        await loadTransactionHistory()
-        console.log('交易历史加载完成')
-      } catch (historyError) {
-        console.error('加载交易历史失败:', historyError)
-        // 不中断流程
-      }
+      await loadTransactionHistory()
 
       walletStatus.value = WalletStatus.CONNECTED
       console.log('钱包连接状态已更新为CONNECTED')
@@ -529,6 +539,16 @@ function createWalletInstance() {
     try {
       isLoading.value = true
 
+      // 检查密码哈希是否存在
+      const passwordHash = localStorage.getItem('bongo-cat-wallet-password-hash')
+      const oldPassword = localStorage.getItem('bongo-cat-wallet-password')
+      
+      // 如果没有密码哈希也没有旧密码，直接返回
+      if (!passwordHash && !oldPassword) {
+        walletStatus.value = WalletStatus.DISCONNECTED
+        return
+      }
+
       // 获取节点URL
       const nodeUrl = localStorage.getItem('bongo-cat-wallet-node-url')
       if (!nodeUrl) {
@@ -544,21 +564,133 @@ function createWalletInstance() {
         return
       }
 
-      // 尝试解锁钱包
       try {
-        // 需要用户输入密码来解密钱包
-        // 这里只加载公开信息，不解密私钥等敏感数据
+        let storedWallet = null
+        
+        // 优先尝试使用旧密码格式直接解密
+        if (oldPassword) {
+          try {
+            storedWallet = await loadWalletFromStorage(oldPassword)
+            if (storedWallet) {
+              // 由于使用旧密码成功解密，现在自动升级到新密码格式
+              await PasswordManager.setPassword(oldPassword)
+              logInfo('已自动从旧密码格式升级到新密码哈希格式')
+              
+              // 初始化DfsWallet
+              await initDfsWallet('BongoCat', storedWallet.privateKey)
+              
+              // 自动连接存储的钱包
+              currentWallet.value = {
+                address: storedWallet.address,
+                name: storedWallet.name,
+                balance: '0.0000 DFS',
+                publicKey: storedWallet.publicKey,
+                privateKey: sanitizePrivateKey(storedWallet.privateKey),
+                type: storedWallet.type,
+                chainId: storedWallet.chainId
+              }
+              
+              walletStatus.value = WalletStatus.CONNECTED
+              isWalletLocked.value = false // 自动解锁钱包
+              
+              // 刷新余额和交易历史
+              await refreshBalance()
+              await loadTransactionHistory()
+              
+              logInfo('钱包已初始化并自动解锁(旧密码格式)')
+              return
+            }
+          } catch (error) {
+            console.error('使用旧密码格式解密失败:', error)
+          }
+        }
+        
+        // 如果旧密码解密失败或不存在旧密码，则处理为锁定状态钱包
+        // 新方法：在锁定状态下也加载钱包基本信息（不包含私钥）
+        try {
+          // 手动解析加密数据，提取公开信息（不需要密码）
+          // 由于我们不能没有密码就解密数据，我们需要从其他地方获取基本信息
+          
+          // 尝试使用localStorage中可能存在的钱包地址缓存
+          const cachedWalletAddress = localStorage.getItem('bongo-cat-wallet-address')
+          const cachedWalletName = localStorage.getItem('bongo-cat-wallet-name')
+          const cachedWalletPublicKey = localStorage.getItem('bongo-cat-wallet-public-key')
+          const cachedWalletType = localStorage.getItem('bongo-cat-wallet-type') as WalletType
+          const cachedWalletChainId = localStorage.getItem('bongo-cat-wallet-chain-id')
+          
+          if (cachedWalletAddress) {
+            // 有缓存的钱包信息，可以在锁定状态下显示
+            // 设置当前钱包的公开信息
+            currentWallet.value = {
+              address: cachedWalletAddress,
+              name: cachedWalletName || cachedWalletAddress,
+              balance: '0.0000 DFS', // 锁定状态下无法获取真实余额
+              publicKey: cachedWalletPublicKey || undefined,
+              type: cachedWalletType || WalletType.DFS,
+              chainId: cachedWalletChainId || DFS_CHAIN_ID
+            }
+            
+            // 初始化DfsWallet，但不提供私钥
+            await initDfsWallet('BongoCat')
+            
+            walletStatus.value = WalletStatus.CONNECTED
+            isWalletLocked.value = true // 钱包锁定状态
+            
+            logInfo('钱包已初始化，处于锁定状态，显示缓存信息')
+            return
+          }
+          
+          // 如果没有缓存信息，尝试从钱包名称解析数据
+          const walletNameMatch = encryptedWallet.match(/"name":"([^"]+)"/)
+          const walletAddressMatch = encryptedWallet.match(/"address":"([^"]+)"/)
+          const walletPublicKeyMatch = encryptedWallet.match(/"publicKey":"([^"]+)"/)
+          
+          if (walletAddressMatch) {
+            const address = walletAddressMatch[1]
+            const name = walletNameMatch ? walletNameMatch[1] : address
+            const publicKey = walletPublicKeyMatch ? walletPublicKeyMatch[1] : undefined
+            
+            // 缓存这些信息以便下次使用
+            localStorage.setItem('bongo-cat-wallet-address', address)
+            if (name) localStorage.setItem('bongo-cat-wallet-name', name)
+            if (publicKey) localStorage.setItem('bongo-cat-wallet-public-key', publicKey)
+            localStorage.setItem('bongo-cat-wallet-type', WalletType.DFS)
+            localStorage.setItem('bongo-cat-wallet-chain-id', DFS_CHAIN_ID)
+            
+            // 设置当前钱包的公开信息
+            currentWallet.value = {
+              address,
+              name,
+              balance: '0.0000 DFS', // 锁定状态下无法获取真实余额
+              publicKey,
+              type: WalletType.DFS,
+              chainId: DFS_CHAIN_ID
+            }
+            
+            // 初始化DfsWallet，但不提供私钥
+            await initDfsWallet('BongoCat')
+            
+            walletStatus.value = WalletStatus.CONNECTED
+            isWalletLocked.value = true // 钱包锁定状态
+            
+            logInfo('钱包已初始化，处于锁定状态，需要手动解锁')
+            return
+          }
+        } catch (parseError) {
+          console.error('解析钱包公开信息失败:', parseError)
+        }
+        
+        // 如果还是无法获取钱包信息，设置为连接但锁定状态
         walletStatus.value = WalletStatus.CONNECTED
-        isWalletLocked.value = true // 默认锁定状态
-
-        // 将来解锁时再加载完整的钱包信息
-        logInfo('钱包初始化完成，处于锁定状态')
+        isWalletLocked.value = true
+        logInfo('钱包初始化完成，处于锁定状态，需要手动解锁')
       } catch (err) {
         console.error('解锁钱包失败:', err)
         logError('解锁钱包失败，请检查密码')
         walletStatus.value = WalletStatus.DISCONNECTED
       }
     } catch (err: any) {
+    
       console.error('初始化钱包失败:', err)
       error.value = `初始化钱包失败: ${err.message || '未知错误'}`
       walletStatus.value = WalletStatus.ERROR
@@ -582,7 +714,15 @@ function createWalletInstance() {
       // 验证密码 - 使用安全哈希验证
       const isValidPassword = await PasswordManager.verifyPassword(password)
       if (!isValidPassword) {
-        throw new Error('密码不正确')
+        // 如果密码哈希验证失败，尝试检查是否使用旧版明文密码
+        const oldPassword = localStorage.getItem('bongo-cat-wallet-password')
+        if (oldPassword && password === oldPassword) {
+          // 旧版明文密码匹配成功，自动升级到新密码哈希格式
+          await PasswordManager.setPassword(password)
+          logInfo('检测到使用旧版明文密码，已自动升级到哈希存储格式')
+        } else {
+          throw new Error('密码不正确')
+        }
       }
 
       // 尝试使用密码解密钱包数据
@@ -693,6 +833,13 @@ function createWalletInstance() {
       // 清除本地存储
       localStorage.removeItem('bongo-cat-wallet-encrypted')
       localStorage.removeItem('bongo-cat-transactions')
+      
+      // 清除缓存的公开信息
+      localStorage.removeItem('bongo-cat-wallet-address')
+      localStorage.removeItem('bongo-cat-wallet-name')
+      localStorage.removeItem('bongo-cat-wallet-public-key')
+      localStorage.removeItem('bongo-cat-wallet-type')
+      localStorage.removeItem('bongo-cat-wallet-chain-id')
 
       // 尝试登出DfsWallet
       try {
