@@ -257,7 +257,7 @@ export function useWalletUI() {
       if (result) {
         // 更新资产列表，获取所有token的实时价格
         const tokenList = result.assetsList.map(asset => asset.key)
-        addDebugLog('获取到的token列表:', tokenList)
+        addDebugLog(`获取到的token列表: ${tokenList}`)
 
         // 获取多个token的价格
         const tokenPrices: Record<string, number | null> = {}
@@ -492,6 +492,10 @@ export function useWalletUI() {
 
   // 断开钱包连接
   const handleDisconnectWallet = async () => {
+    if (!isWalletConnected.value) {
+      return
+    }
+
     addDebugLog('尝试断开钱包连接')
     try {
       await wallet.disconnectWallet()
@@ -552,6 +556,55 @@ export function useWalletUI() {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
       addDebugLog(`交易发送失败: ${errorMessage}`)
       message.error(`交易发送失败: ${errorMessage}`)
+    }
+  }
+
+  // 使用密码发送代币（用于密码输入对话框）
+  const handleSendTokensWithPassword = async (password: string) => {
+    if (!isWalletConnected.value) {
+      message.error('钱包未连接')
+      return false
+    }
+
+    // 重置自动锁定计时器
+    resetWalletLockTimer()
+
+    addDebugLog('开始执行发送交易（带密码）')
+
+    if (!forms.send.recipient || !forms.send.amount) {
+      message.error('请填写完整的交易信息')
+      return false
+    }
+
+    try {
+      message.loading('正在处理交易...')
+      addDebugLog('发送交易参数:', {
+        to: forms.send.recipient,
+        amount: forms.send.amount,
+        currency: forms.send.currency,
+        memo: forms.send.memo,
+      })
+
+      // 使用密码发送交易
+      const txId = await wallet.sendTransaction(
+        forms.send.recipient,
+        forms.send.amount,
+        forms.send.currency,
+        forms.send.memo,
+        password // 传递密码参数
+      )
+
+      modals.send = false
+      // forms.send.reset();
+
+      addDebugLog('交易发送成功:', { txId })
+      message.success('交易发送成功')
+      return true
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '未知错误'
+      addDebugLog(`交易发送失败: ${errorMessage}`)
+      message.error(`交易发送失败: ${errorMessage}`)
+      throw err
     }
   }
 
@@ -616,44 +669,46 @@ export function useWalletUI() {
     return fixedValue.toFixed(2)
   }
 
-  // 解锁钱包
-  const handleUnlockWallet = async (password: string) => {
-    try {
-      addDebugLog('尝试解锁钱包')
-
-      const success = await wallet.unlockWallet(password)
-
-      if (success) {
-        addDebugLog('钱包解锁成功')
-        message.success('钱包已解锁')
-        modals.unlockWallet = false
-
-        // 刷新余额和交易历史
-        await refreshWalletBalance()
-      } else {
-        addDebugLog('钱包解锁失败')
-        message.error('密码错误，解锁失败')
-      }
-
-      return success
-    } catch (err) {
-      addDebugLog('钱包解锁出错', err)
-      message.error(`解锁失败: ${err instanceof Error ? err.message : '未知错误'}`)
-      return false
-    }
-  }
-
   // 锁定钱包
   const handleLockWallet = () => {
-    try {
-      wallet.lockWallet()
-      addDebugLog('钱包已锁定')
-      message.success('钱包已锁定')
-      return true
-    } catch (err) {
-      addDebugLog('锁定钱包出错', err)
-      message.error(`锁定失败: ${err instanceof Error ? err.message : '未知错误'}`)
+    if (!isWalletConnected.value) {
+      message.error('钱包未连接')
+      return
+    }
+
+    wallet.lockWallet()
+    addDebugLog('钱包已锁定')
+    message.success('钱包已锁定')
+  }
+
+  // 解锁钱包
+  const handleUnlockWallet = async (password: string) => {
+    if (!isWalletConnected.value) {
+      message.error('钱包未连接')
       return false
+    }
+
+    try {
+      addDebugLog('尝试解锁钱包')
+      const success = await wallet.unlockWallet(password)
+      
+      if (success) {
+        addDebugLog('钱包解锁成功')
+        message.success('钱包解锁成功')
+        
+        // 刷新钱包余额
+        await refreshWalletBalance()
+        return true
+      } else {
+        addDebugLog('钱包解锁失败')
+        message.error('钱包解锁失败，请检查密码')
+        return false
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '未知错误'
+      addDebugLog(`解锁钱包出错: ${errorMessage}`)
+      message.error(`解锁钱包失败: ${errorMessage}`)
+      throw err
     }
   }
 
@@ -706,6 +761,7 @@ export function useWalletUI() {
     handleImportWallet,
     handleDisconnectWallet,
     handleSendTokens,
+    handleSendTokensWithPassword,
     completeBackup,
     togglePrivateKeyVisibility,
     exportPrivateKey,

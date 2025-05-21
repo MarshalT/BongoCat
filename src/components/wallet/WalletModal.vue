@@ -93,7 +93,7 @@ function onConfirm() {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100000;
+  z-index: 200000;
 }
 
 .modal-backdrop {
@@ -112,7 +112,7 @@ function onConfirm() {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   overflow: hidden;
-  z-index: 100001;
+  z-index: 200001;
 }
 
 .modal-header {

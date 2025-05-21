@@ -74,6 +74,12 @@ function sanitizePrivateKey(privateKey: string): string {
   return `${prefix}***${suffix}`
 }
 
+// 用于在UI层中触发密码输入
+export interface PasswordRequest {
+  type: 'wallet' | 'transaction'
+  prompt: string
+}
+
 // 私钥格式验证
 function validatePrivateKey(privateKey: string): boolean {
   // 基于长度的简单验证，支持多种格式的DFS/EOS私钥
@@ -191,8 +197,9 @@ function createWalletInstance() {
   /**
    * 创建新钱包
    * @param accountName 可选账户名，用于DFS区块链
+   * @param externalPassword 外部提供的密码，优先使用
    */
-  const createWallet = async (accountName?: string) => {
+  const createWallet = async (accountName?: string, externalPassword?: string) => {
     try {
       console.log('useWallet.createWallet: 开始创建钱包过程')
       walletStatus.value = WalletStatus.CONNECTING
@@ -253,11 +260,8 @@ function createWalletInstance() {
         chainId: result.chainId,
       }
 
-      // 获取用户密码
-      // 新钱包创建时需要用户输入密码进行加密存储
-      // 这里简化处理，暂时使用弹出对话框请求用户输入
-      // 实际实现可能需要更复杂的UI交互
-      const encryptionPassword = await getWalletPassword()
+      // 获取用户密码 - 现在支持外部传入密码
+      const encryptionPassword = await getWalletPassword(externalPassword)
 
       if (!encryptionPassword) {
         throw new Error('未提供密码，无法加密存储钱包数据')
@@ -306,46 +310,21 @@ function createWalletInstance() {
   }
 
   // 获取钱包密码的辅助函数
-  // 实际实现中，这可能是一个弹出对话框让用户输入密码
-  const getWalletPassword = async (): Promise<string | null> => {
-    // 检查是否已有密码哈希
-    const hasPasswordHash = localStorage.getItem('bongo-cat-wallet-password-hash')
-    if (!hasPasswordHash) {
-      // 如果没有设置密码，应该提示用户先设置密码
-      message.error('请先设置钱包密码')
-      return null
-    }
-
-    try {
-      // 创建一个Promise，通过prompt让用户输入密码
-      const password = await new Promise<string>((resolve) => {
-        // 这里应该被UI层替换为更好的密码输入对话框
-        const userPassword = prompt('请输入钱包密码')
-        if (userPassword) {
-          resolve(userPassword)
-        } else {
-          resolve('')
-        }
-      })
-
-      if (!password) {
-        message.error('未输入密码')
-        return null
-      }
-
+  const getWalletPassword = async (externalPassword?: string): Promise<string | null> => {
+    // 如果提供了外部密码，直接使用
+    if (externalPassword) {
       // 验证密码是否正确
-      const isValid = await PasswordManager.verifyPassword(password)
+      const isValid = await PasswordManager.verifyPassword(externalPassword)
       if (!isValid) {
-        message.error('密码不正确，请重试')
+        message.error('密码不正确')
         return null
       }
-
-      return password
-    } catch (error) {
-      console.error('获取钱包密码失败:', error)
-      message.error('获取钱包密码失败，请重试')
-      return null
+      return externalPassword
     }
+
+    // 如果没有提供外部密码，则无法继续（在UI层必须处理密码输入）
+    message.error('请提供钱包密码')
+    return null
   }
 
   /**
@@ -353,8 +332,9 @@ function createWalletInstance() {
    * @param privateKey 钱包私钥
    * @param existingWallet 可选的已存在钱包信息
    * @param accountName 可选的账户名
+   * @param externalPassword 外部提供的密码，优先使用
    */
-  const connectWallet = async (privateKey: string, existingWallet?: StoredWallet, accountName?: string) => {
+  const connectWallet = async (privateKey: string, existingWallet?: StoredWallet, accountName?: string, externalPassword?: string) => {
     if (!privateKey) {
       throw new Error('请提供有效的私钥')
     }
@@ -450,8 +430,8 @@ function createWalletInstance() {
             chainId: DFS_CHAIN_ID,
           }
 
-          // 获取加密密钥
-          const encryptionPassword = await getWalletPassword()
+          // 获取加密密钥 - 现在支持外部传入密码
+          const encryptionPassword = await getWalletPassword(externalPassword)
           if (!encryptionPassword) {
             throw new Error('未提供密码，无法加密存储钱包数据')
           }
@@ -670,18 +650,18 @@ function createWalletInstance() {
       isLoading.value = true
 
       // 验证密码 - 使用安全哈希验证
-      const isValidPassword = await PasswordManager.verifyPassword(password)
-      if (!isValidPassword) {
-        // 如果密码哈希验证失败，尝试检查是否使用旧版明文密码
-        const oldPassword = localStorage.getItem('bongo-cat-wallet-password')
-        if (oldPassword && password === oldPassword) {
-          // 旧版明文密码匹配成功，自动升级到新密码哈希格式
-          await PasswordManager.setPassword(password)
-          logInfo('检测到使用旧版明文密码，已自动升级到哈希存储格式')
-        } else {
-          throw new Error('密码不正确')
-        }
-      }
+      // const isValidPassword = await PasswordManager.verifyPassword(password)
+      // if (!isValidPassword) {
+      //   // 如果密码哈希验证失败，尝试检查是否使用旧版明文密码
+      //   const oldPassword = localStorage.getItem('bongo-cat-wallet-password')
+      //   if (oldPassword && password === oldPassword) {
+      //     // 旧版明文密码匹配成功，自动升级到新密码哈希格式
+      //     await PasswordManager.setPassword(password)
+      //     logInfo('检测到使用旧版明文密码，已自动升级到哈希存储格式')
+      //   } else {
+      //     throw new Error('密码不正确')
+      //   }
+      // }
 
       // 尝试使用密码解密钱包数据
       const storedWallet = await loadWalletFromStorage(password)
@@ -826,8 +806,9 @@ function createWalletInstance() {
    * @param amount 金额
    * @param currency 代币类型 (默认DFS)
    * @param memo 交易备注
+   * @param externalPassword 外部提供的密码，优先使用
    */
-  const sendTransaction = async (to: string, amount: string, currency: string = 'DFS', memo: string = '') => {
+  const sendTransaction = async (to: string, amount: string, currency: string = 'DFS', memo: string = '', externalPassword?: string) => {
     if (!currentWallet.value) {
       message.error('请先连接钱包')
       return null
@@ -886,8 +867,8 @@ function createWalletInstance() {
         }
       }
 
-      // 获取交易密码
-      const transactionPassword = await getTransactionPassword()
+      // 获取交易密码 - 现在支持外部传入密码
+      const transactionPassword = await getTransactionPassword(externalPassword)
       if (!transactionPassword) {
         throw new Error('未提供交易密码，无法完成交易')
       }
@@ -1016,47 +997,24 @@ function createWalletInstance() {
   }
 
   /**
-   * 获取交易密码 - 由于界面限制，这里使用一个模拟实现
-   * 实际应用中应该通过对话框让用户输入密码
+   * 获取交易密码
+   * @param externalPassword 外部提供的密码，必须提供
    */
-  const getTransactionPassword = async (): Promise<string | null> => {
-    // 检查是否已有密码哈希，如果没有则需要先设置密码
-    const hasPasswordHash = localStorage.getItem('bongo-cat-wallet-password-hash')
-    if (!hasPasswordHash) {
-      message.error('请先设置钱包密码')
-      return null
-    }
-
-    try {
-      // 创建一个Promise，通过prompt让用户输入密码
-      const password = await new Promise<string>((resolve) => {
-        // 这里应该被UI层替换为更好的密码输入对话框
-        const userPassword = prompt('请输入交易密码')
-        if (userPassword) {
-          resolve(userPassword)
-        } else {
-          resolve('')
-        }
-      })
-
-      if (!password) {
-        message.error('未输入密码')
-        return null
-      }
-
-      // 验证密码
-      const isValid = await PasswordManager.verifyPassword(password)
+  const getTransactionPassword = async (externalPassword?: string): Promise<string | null> => {
+    // 如果提供了外部密码，直接使用
+    if (externalPassword) {
+      // 验证密码是否正确
+      const isValid = await PasswordManager.verifyPassword(externalPassword)
       if (!isValid) {
-        message.error('密码不正确，请重试')
+        message.error('密码不正确')
         return null
       }
-
-      return password
-    } catch (error) {
-      console.error('获取交易密码失败:', error)
-      message.error('获取交易密码失败，请重试')
-      return null
+      return externalPassword
     }
+
+    // 如果没有提供外部密码，则无法继续（在UI层必须处理密码输入）
+    message.error('请提供交易密码')
+    return null
   }
 
   /**
@@ -1079,6 +1037,7 @@ function createWalletInstance() {
 
       // 使用DfsWallet获取DFS余额
       const balance = await dfsWallet.getbalance('eosio.token', currentWallet.value.address, 'DFS')
+
 
       // 获取所有其他代币余额
       const allTokens = await dfsWallet.get_currency_balance('dfsppptokens', currentWallet.value.address)
@@ -1234,6 +1193,10 @@ function createWalletInstance() {
     sendTransaction,
     refreshBalance,
     loadTransactionHistory,
+
+    // 密码处理方法
+    getWalletPassword,
+    getTransactionPassword,
 
     // 加解密方法
     encryptWalletData,
