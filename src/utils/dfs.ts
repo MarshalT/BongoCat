@@ -159,7 +159,12 @@ export class DfsWallet {
       throw new Error('dfsWallet not connected');
     }
   }
-
+/**
+ * 
+ * @param appName 
+ * @param node_url 
+ * @param private_key 创建不要传入 私钥
+ */
   async init(appName: string,node_url: string , private_key: string | null = null): Promise<void> {
     this.appName = appName;
     const network = { chainId: this.chainId };

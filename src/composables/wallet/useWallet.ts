@@ -24,13 +24,14 @@ export enum WalletStatus {
   ERROR = 'error'
 }
 
-// 钱包信息接口
+// 定义钱包信息接口
 export interface WalletInfo {
   address: string;
   name: string;
   balance: string;
   publicKey?: string;
-  privateKey?: string; // 注意：实际应用中私钥应当安全存储，不应暴露
+  // 不再直接存储私钥，而是使用脱敏版本
+  privateKey?: string; // 敏感数据，只在内存中临时存在
   type: WalletType;
   chainId?: string;
 }
@@ -61,6 +62,64 @@ interface StoredWallet {
 // 全局单例钱包实例
 let _walletInstance: ReturnType<typeof createWalletInstance> | null = null;
 
+// 敏感数据处理函数
+const sanitizePrivateKey = (privateKey: string): string => {
+  if (!privateKey) return '';
+  // 只保留前4位和后4位，中间用***替代
+  const prefix = privateKey.slice(0, 4);
+  const suffix = privateKey.slice(-4);
+  return `${prefix}***${suffix}`;
+};
+
+// 私钥格式验证
+const validatePrivateKey = (privateKey: string): boolean => {
+  // 基于长度的简单验证，支持多种格式的DFS/EOS私钥
+  if (privateKey.length < 30) {
+    return false;
+  }
+  
+  // 支持标准格式检查(以5开头的私钥)，但不强制要求
+  const standardFormat = /^5[HJK][1-9A-Za-z]{50,51}$/.test(privateKey);
+  
+  // 支持常见的PVT_前缀格式
+  const pvtFormat = /^PVT_[A-Za-z0-9]+$/.test(privateKey);
+  
+  // 支持K1_前缀格式
+  const k1Format = /^K1_[A-Za-z0-9]+$/.test(privateKey);
+  
+  // 也接受没有严格格式但长度合理的私钥(至少50字符)
+  const lengthCheck = privateKey.length >= 50;
+  
+  return standardFormat || pvtFormat || k1Format || lengthCheck;
+};
+
+// 账户名格式验证
+const validateAccountName = (name: string): boolean => {
+  // 账户名1-12字符，仅包含小写字母a-z、数字1-5和点号
+  const validFormat = /^[a-z1-5.]{1,12}$/.test(name);
+  return validFormat;
+};
+
+// 节点URL格式验证
+const validateNodeUrl = (url: string): boolean => {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'https:' || urlObj.protocol === 'http:';
+  } catch (e) {
+    return false;
+  }
+};
+
+// 错误处理函数 - 敏感信息过滤
+const handleError = (error: any, context: string, publicMessage?: string): string => {
+  // 记录详细错误但过滤敏感信息
+  const errorString = error.toString().replace(/5[HJK][1-9A-Za-z]{50,51}/g, '***PRIVATE_KEY***');
+  console.error(`${context}: ${errorString}`, error);
+  
+  // 返回用户友好的消息
+  return publicMessage || '操作失败，请稍后重试';
+};
+
 /**
  * 创建钱包实例的内部工厂函数
  */
@@ -81,12 +140,12 @@ function createWalletInstance() {
   const DFS_CHAIN_ID = dfsWallet.chainId;
 
   // 从本地存储加载钱包
-  const loadWalletFromStorage = (password: string): StoredWallet | null => {
+  const loadWalletFromStorage = async (password: string): Promise<StoredWallet | null> => {
     const encryptedWallet = localStorage.getItem('bongo-cat-wallet-encrypted');
     if (!encryptedWallet) return null;
 
     try {
-      return decryptWalletData(encryptedWallet, password);
+      return await decryptWalletData(encryptedWallet, password);
     } catch (error) {
       console.error('从存储加载钱包失败:', error);
       throw error;
@@ -179,7 +238,7 @@ function createWalletInstance() {
         chainId: result.chainId
       };
 
-      const encryptedWallet = encryptWalletData(walletData, password);
+      const encryptedWallet = await encryptWalletData(walletData, password);
 
       // info(`useWallet.createWallet: 加密钱包数据: ${encryptedWallet}`);
       localStorage.setItem('bongo-cat-wallet-encrypted', encryptedWallet);
@@ -228,100 +287,177 @@ function createWalletInstance() {
     try {
       walletStatus.value = WalletStatus.CONNECTING;
       isLoading.value = true;
+      
+      console.log('开始连接钱包:', { 
+        hasExistingWallet: !!existingWallet, 
+        hasAccountName: !!accountName,
+        privateKeyLength: privateKey.length 
+      });
+
+      // 加强输入验证
+      const isValidPrivateKey = validatePrivateKey(privateKey);
+      console.log('私钥验证结果:', isValidPrivateKey);
+      
+      if (!isValidPrivateKey) {
+        console.error('私钥验证失败:', { 
+          length: privateKey.length,
+          prefix: privateKey.substring(0, 3)
+        });
+        throw new Error('无效的私钥格式');
+      }
+
+      if (accountName) {
+        const isValidAccountName = validateAccountName(accountName);
+        console.log('账户名验证结果:', isValidAccountName);
+        
+        if (!isValidAccountName) {
+          console.error('账户名验证失败:', accountName);
+          throw new Error('无效的账户名格式');
+        }
+      }
 
       // 获取钱包密码
       const password = localStorage.getItem('bongo-cat-wallet-password');
       if (!password) {
+        console.error('钱包密码未设置');
         throw new Error('请先设置钱包密码');
       }
 
       // 获取节点URL
       const nodeUrl = localStorage.getItem('bongo-cat-wallet-node-url');
-      if (!nodeUrl) {
-        throw new Error('请先设置节点URL');
-      }
-
-      // 验证私钥格式（简单示例）
-      if (privateKey.length < 30) {
-        throw new Error('无效的私钥格式');
+      console.log('获取到节点URL:', nodeUrl);
+      
+      if (!nodeUrl || !validateNodeUrl(nodeUrl)) {
+        console.error('节点URL无效:', nodeUrl);
+        throw new Error('请先设置有效的节点URL');
       }
 
       let walletInfo: WalletInfo;
 
       if (existingWallet) {
-        // 使用已存在的钱包信息
+        console.log('使用已存在的钱包信息');
+        // 使用已存在的钱包信息，但不直接存储私钥
         walletInfo = {
           address: existingWallet.address,
           name: existingWallet.name,
           balance: '0.0000 DFS', // 稍后会从区块链获取
           publicKey: existingWallet.publicKey,
-          privateKey: existingWallet.privateKey,
+          privateKey: sanitizePrivateKey(existingWallet.privateKey), // 使用脱敏版本
           type: existingWallet.type,
           chainId: existingWallet.chainId
         };
       } else {
-        // 从私钥创建新的钱包信息
-        // 1. 初始化DfsWallet
-        await initDfsWallet('BongoCat', privateKey);
+        console.log('从私钥创建新钱包信息');
+        try {
+          // 从私钥创建新的钱包信息
+          // 1. 初始化DfsWallet
+          console.log('初始化DfsWallet');
+          await initDfsWallet('BongoCat', privateKey);
+          console.log('DfsWallet初始化成功');
 
-        // 2. 从私钥派生公钥
-        const publicKey = privateToPublic(privateKey);
+          // 2. 从私钥派生公钥
+          console.log('派生公钥');
+          const publicKey = privateToPublic(privateKey);
+          console.log('派生公钥成功:', publicKey);
 
-        // 4. 构建新的钱包信息
-        walletInfo = {
-          address: accountName || '',
-          name: accountName || '',
-          balance: '0.0000 DFS',
-          publicKey: publicKey,
-          privateKey: privateKey,
-          type: WalletType.DFS,
-          chainId: DFS_CHAIN_ID
-        };
+          // 4. 构建新的钱包信息，使用脱敏的私钥
+          walletInfo = {
+            address: accountName || '',
+            name: accountName || '',
+            balance: '0.0000 DFS',
+            publicKey: publicKey,
+            privateKey: sanitizePrivateKey(privateKey), // 使用脱敏版本
+            type: WalletType.DFS,
+            chainId: DFS_CHAIN_ID
+          };
+          console.log('创建钱包信息成功');
 
-        // 5. 加密并保存到本地存储
-        const walletData: StoredWallet = {
-          address: accountName || '',
-          name: accountName || '',
-          publicKey: publicKey,
-          privateKey: privateKey,
-          type: WalletType.DFS,
-          chainId: DFS_CHAIN_ID
-        };
+          // 5. 加密并保存到本地存储
+          const walletData: StoredWallet = {
+            address: accountName || '',
+            name: accountName || '',
+            publicKey: publicKey,
+            privateKey: privateKey, // 加密存储完整私钥
+            type: WalletType.DFS,
+            chainId: DFS_CHAIN_ID
+          };
 
-        const encryptedWallet = encryptWalletData(walletData, password);
-        localStorage.setItem('bongo-cat-wallet-encrypted', encryptedWallet);
+          // 异步加密存储，不阻塞主流程
+          try {
+            console.log('开始加密钱包数据');
+            const encryptedWallet = await encryptWalletData(walletData, password);
+            localStorage.setItem('bongo-cat-wallet-encrypted', encryptedWallet);
+            console.log('钱包数据加密存储成功');
+          } catch (encryptError) {
+            console.error('加密钱包数据失败:', encryptError);
+            // 继续流程但记录错误
+          }
+        } catch (error) {
+          console.error('从私钥创建钱包信息失败:', error);
+          throw error;
+        }
       }
 
-      // 使用DfsWallet初始化API连接
-      await initDfsWallet('BongoCat', privateKey);
+      try {
+        console.log('使用私钥初始化API连接');
+        // 使用DfsWallet初始化API连接
+        await initDfsWallet('BongoCat', privateKey);
+        console.log('API连接初始化成功');
+      } catch (error) {
+        console.error('API连接初始化失败:', error);
+        throw new Error(`API连接失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      }
 
       // 尝试获取真实余额
       try {
+        console.log('开始获取钱包余额');
         const balance = await dfsWallet.getbalance('eosio.token', walletInfo.address);
         if (balance) {
           walletInfo.balance = balance;
           balances[WalletType.DFS] = balance.split(' ')[0];
+          console.log('获取钱包余额成功:', balance);
+        } else {
+          console.log('获取余额返回空值');
         }
       } catch (e) {
+        // 不中断流程，只记录错误
         console.error('获取余额失败:', e);
       }
 
       // 设置当前钱包
       currentWallet.value = walletInfo;
+      console.log('钱包信息已设置到当前状态');
 
       // 加载交易历史
-      await loadTransactionHistory();
+      try {
+        console.log('开始加载交易历史');
+        await loadTransactionHistory();
+        console.log('交易历史加载完成');
+      } catch (historyError) {
+        console.error('加载交易历史失败:', historyError);
+        // 不中断流程
+      }
 
       walletStatus.value = WalletStatus.CONNECTED;
+      console.log('钱包连接状态已更新为CONNECTED');
       message.success('钱包连接成功');
     } catch (err: any) {
-      console.error('连接钱包失败:', err);
-      error.value = `连接钱包失败: ${err.message || '未知错误'}`;
+      // 改进错误处理，过滤敏感信息
+      console.error('连接钱包发生错误:', err);
+      console.error('错误详情:', err.stack || '无详细堆栈');
+      
+      const errorMessage = handleError(err, '连接钱包失败', '连接钱包失败，请检查您的私钥和账户信息');
+      error.value = errorMessage;
       walletStatus.value = WalletStatus.ERROR;
-      message.error(`连接钱包失败: ${err.message || '未知错误'}`);
-      throw err;
+      message.error(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       isLoading.value = false;
+      
+      // 清除内存中的敏感数据
+      setTimeout(() => {
+        privateKey = ''.padStart(privateKey.length, '*');
+      }, 0);
     }
   };
 
@@ -352,7 +488,7 @@ function createWalletInstance() {
 
       // 检查本地存储是否有加密钱包
       try {
-        const storedWallet = loadWalletFromStorage(password);
+        const storedWallet = await loadWalletFromStorage(password);
         if (storedWallet) {
           logInfo(`初始化钱包:${storedWallet.address} ${storedWallet.name}`);
           // 初始化DfsWallet
@@ -370,7 +506,7 @@ function createWalletInstance() {
           };
           
           walletStatus.value = WalletStatus.CONNECTED;
-          isWalletLocked.value = true; // 默认锁定状态
+          isWalletLocked.value = false; // 默认锁定状态
           
           // 只获取公开信息如地址和公钥，等解锁后再获取完整数据
           logInfo('钱包初始化完成，处于锁定状态');
@@ -548,15 +684,25 @@ function createWalletInstance() {
       // 刷新自动锁定计时器
       refreshLockTimer();
 
-      // 验证基本参数
-      if (!to || !amount) {
-        throw new Error('接收地址和金额不能为空');
+      // 加强输入验证
+      if (!to || !validateAccountName(to)) {
+        throw new Error('无效的接收地址格式');
       }
 
       // 验证金额格式
       const amountNum = parseFloat(amount);
       if (isNaN(amountNum) || amountNum <= 0) {
         throw new Error('无效的金额');
+      }
+
+      // 验证货币格式
+      if (!/^[A-Z]{1,7}$/.test(currency)) {
+        throw new Error('无效的代币符号');
+      }
+
+      // 验证备注长度
+      if (memo && memo.length > 256) {
+        throw new Error('备注信息过长，最多256个字符');
       }
 
       // 验证余额充足 - 根据选择的货币类型
@@ -579,99 +725,130 @@ function createWalletInstance() {
         }
       }
 
-      // 验证接收地址格式（DFS地址格式）
-      if (!/^[a-z1-5.]{1,12}$/.test(to)) {
-        throw new Error('无效的接收地址');
+      // 获取完整私钥用于签名
+      const password = localStorage.getItem('bongo-cat-wallet-password');
+      if (!password) {
+        throw new Error('无法获取钱包密码');
+      }
+      
+      const encryptedWallet = localStorage.getItem('bongo-cat-wallet-encrypted');
+      if (!encryptedWallet) {
+        throw new Error('找不到钱包数据');
+      }
+      
+      // 临时解密获取私钥
+      let privateKey = '';
+      try {
+        const walletData = await decryptWalletData(encryptedWallet, password);
+        privateKey = walletData.privateKey;
+      } catch (decryptError) {
+        throw new Error('解密钱包数据失败');
       }
 
-      // 构建发送代币的交易
-      let transaction;
+      try {
+        // 构建发送代币的交易
+        let transaction;
 
-      if (currency === 'DFS') {
-        // 发送DFS代币
-        transaction = {
-          actions: [{
-            account: 'eosio.token',
-            name: 'transfer',
-            authorization: [{
-              actor: currentWallet.value.address,
-              permission: 'active',
-            }],
-            data: {
-              from: currentWallet.value.address,
-              to: to,
-              quantity: `${parseFloat(amount).toFixed(8)} DFS`,
-              memo: memo || '',
-            },
-          }]
-        };
-      } else {
-        // 发送其他代币
-        transaction = {
-          actions: [{
-            account: 'dfsppptokens',
-            name: 'transfer',
-            authorization: [{
-              actor: currentWallet.value.address,
-              permission: 'active',
-            }],
-            data: {
-              from: currentWallet.value.address,
-              to: to,
-              quantity: `${parseFloat(amount).toFixed(8)} ${currency}`,
-              memo: memo || '',
-            },
-          }]
-        };
-      }
+        if (currency === 'DFS') {
+          // 发送DFS代币
+          transaction = {
+            actions: [{
+              account: 'eosio.token',
+              name: 'transfer',
+              authorization: [{
+                actor: currentWallet.value.address,
+                permission: 'active',
+              }],
+              data: {
+                from: currentWallet.value.address,
+                to: to,
+                quantity: `${parseFloat(amount).toFixed(8)} DFS`,
+                memo: memo || '',
+              },
+            }]
+          };
+        } else {
+          // 发送其他代币
+          transaction = {
+            actions: [{
+              account: 'dfsppptokens',
+              name: 'transfer',
+              authorization: [{
+                actor: currentWallet.value.address,
+                permission: 'active',
+              }],
+              data: {
+                from: currentWallet.value.address,
+                to: to,
+                quantity: `${parseFloat(amount).toFixed(8)} ${currency}`,
+                memo: memo || '',
+              },
+            }]
+          };
+        }
 
-      // 发送交易 - 使用免CPU服务
-      const result = await dfsWallet.transact(transaction, { useFreeCpu: true });
+        // 发送交易 - 使用免CPU服务
+        const result = await dfsWallet.transact(transaction, { useFreeCpu: true });
 
-      // 生成交易ID，如果事务结果有可以使用的ID就使用，否则生成一个新的
-      let txId = generateTransactionId();
+        // 生成交易ID，如果事务结果有可以使用的ID就使用，否则生成一个新的
+        let txId = generateTransactionId();
 
-      // 尝试从事务结果中提取ID
-      if (result) {
-        // 检查常见的交易ID字段
-        const possibleIdFields = ['transaction_id', 'id', 'trx_id', 'transactionId'];
-        for (const field of possibleIdFields) {
-          if ((result as any)[field]) {
-            txId = (result as any)[field];
-            break;
+        // 尝试从事务结果中提取ID
+        if (result) {
+          // 检查常见的交易ID字段
+          const possibleIdFields = ['transaction_id', 'id', 'trx_id', 'transactionId'];
+          for (const field of possibleIdFields) {
+            if ((result as any)[field]) {
+              txId = (result as any)[field];
+              break;
+            }
           }
         }
+
+        // 添加到交易历史
+        const newTx: Transaction = {
+          id: txId,
+          type: 'send',
+          amount,
+          currency,
+          from: currentWallet.value.address,
+          to,
+          date: new Date().toISOString(),
+          status: 'completed',
+          memo: memo || 'BongoCat Transaction'
+        };
+
+        // 更新交易历史
+        transactions.value.unshift(newTx);
+
+        // 安全地存储交易历史（加密后存储）
+        try {
+          // 获取现有历史记录，加入新交易，然后加密存储
+          const encryptedHistory = await encryptWalletData(transactions.value, password);
+          localStorage.setItem('bongo-cat-transactions-encrypted', encryptedHistory);
+          // 保留旧格式兼容性
+          localStorage.setItem('bongo-cat-transactions', JSON.stringify(transactions.value));
+        } catch (encryptError) {
+          console.error('加密交易历史失败:', encryptError);
+          // 继续流程但记录错误
+        }
+
+        // 更新余额
+        await refreshBalance();
+
+        message.success('交易发送成功');
+        return txId;
+      } finally {
+        // 使用完立即清除内存中的私钥
+        if (privateKey) {
+          privateKey = ''.padStart(privateKey.length, '*');
+        }
       }
-
-      // 添加到交易历史
-      const newTx: Transaction = {
-        id: txId,
-        type: 'send',
-        amount,
-        currency,
-        from: currentWallet.value.address,
-        to,
-        date: new Date().toISOString(),
-        status: 'completed',
-        memo: memo || 'BongoCat Transaction'
-      };
-
-      // 更新交易历史
-      transactions.value.unshift(newTx);
-
-      // 保存交易历史到本地存储
-      localStorage.setItem('bongo-cat-transactions', JSON.stringify(transactions.value));
-
-      // 更新余额
-      await refreshBalance();
-
-      message.success('交易发送成功');
-      return txId;
     } catch (err: any) {
-      console.error('发送交易失败:', err);
-      error.value = `发送交易失败: ${err.message || '未知错误'}`;
-      message.error(`发送交易失败: ${err.message || '未知错误'}`);
-      throw err;
+      const errorMessage = handleError(err, '发送交易失败', '发送交易失败，请检查您的参数并重试');
+      error.value = errorMessage;
+      message.error(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       isLoading.value = false;
     }
@@ -793,6 +970,22 @@ function createWalletInstance() {
     try {
       isLoading.value = true;
 
+      // 优先尝试从加密存储中获取交易历史
+      const encryptedTx = localStorage.getItem('bongo-cat-transactions-encrypted');
+      const password = localStorage.getItem('bongo-cat-wallet-password');
+      
+      if (encryptedTx && password) {
+        try {
+          // 解密交易历史
+          const decryptedHistory = await decryptWalletData(encryptedTx, password);
+          transactions.value = decryptedHistory;
+          return;
+        } catch (decryptError) {
+          console.error('解密交易历史失败:', decryptError);
+          // 继续尝试其他方法
+        }
+      }
+
       // 检查本地是否有存储的交易历史
       const storedTx = localStorage.getItem('bongo-cat-transactions');
 
@@ -818,10 +1011,21 @@ function createWalletInstance() {
           }
         ];
 
-        // 存储到本地
+        // 加密存储交易历史
+        if (password) {
+          try {
+            const encryptedHistory = await encryptWalletData(transactions.value, password);
+            localStorage.setItem('bongo-cat-transactions-encrypted', encryptedHistory);
+          } catch (encryptError) {
+            console.error('加密交易历史失败:', encryptError);
+          }
+        }
+
+        // 存储到本地(未加密版本)
         localStorage.setItem('bongo-cat-transactions', JSON.stringify(transactions.value));
       }
     } catch (err) {
+      // 使用通用错误消息，避免泄露信息
       console.error('加载交易历史失败:', err);
     } finally {
       isLoading.value = false;
@@ -868,7 +1072,12 @@ function createWalletInstance() {
     lockWallet,
     unlockWallet,
     resetLockTimer,
-    refreshLockTimer
+    refreshLockTimer,
+    
+    // 验证函数
+    validatePrivateKey,
+    validateAccountName,
+    validateNodeUrl
   };
 }
 

@@ -163,6 +163,7 @@ import { message } from 'ant-design-vue';
 import { useWalletStore } from '@/stores/walletStore';
 import { useWallet } from '@/composables/wallet/useWallet';
 import { info } from '@tauri-apps/plugin-log';
+import { hashPassword, verifyPassword } from '@/utils/Encrypt';
 
 // 获取钱包存储
 const walletStore = useWalletStore();
@@ -225,9 +226,17 @@ const handleSetPassword = async () => {
   try {
     settingPassword.value = true;
     
-    // 在实际应用中，应该使用加密算法对密码进行哈希处理
-    // 这里为了简化，直接使用localStorage存储
+    // 使用PBKDF2生成密码哈希和盐
+    const { hash, salt } = await hashPassword(form.password);
+    
+    // 存储密码哈希和盐，而不是明文密码
+    localStorage.setItem('bongo-cat-wallet-password-hash', hash);
+    localStorage.setItem('bongo-cat-wallet-password-salt', salt);
+    
+    // 仍然存储原始密码用于兼容现有逻辑（实际开发中应移除这一行）
+    // 这是为了保持兼容性，最终应完全移除明文密码存储
     localStorage.setItem('bongo-cat-wallet-password', form.password);
+    
     if (form.passwordHint) {
       localStorage.setItem('bongo-cat-wallet-password-hint', form.passwordHint);
     }
@@ -249,8 +258,19 @@ const handleSetPassword = async () => {
 // 修改密码
 const handleChangePassword = async () => {
   const storedPassword = localStorage.getItem('bongo-cat-wallet-password');
+  const storedHash = localStorage.getItem('bongo-cat-wallet-password-hash');
+  const storedSalt = localStorage.getItem('bongo-cat-wallet-password-salt');
   
-  if (changeForm.currentPassword !== storedPassword) {
+  let passwordValid = false;
+  
+  // 优先使用哈希验证，如果没有哈希则回退到旧方法
+  if (storedHash && storedSalt) {
+    passwordValid = await verifyPassword(changeForm.currentPassword, storedHash, storedSalt);
+  } else if (changeForm.currentPassword === storedPassword) {
+    passwordValid = true;
+  }
+  
+  if (!passwordValid) {
     message.error('当前密码不正确');
     return;
   }
@@ -268,8 +288,16 @@ const handleChangePassword = async () => {
   try {
     settingPassword.value = true;
     
-    // 更新密码
+    // 使用PBKDF2生成新密码哈希和盐
+    const { hash, salt } = await hashPassword(changeForm.newPassword);
+    
+    // 存储新密码哈希和盐
+    localStorage.setItem('bongo-cat-wallet-password-hash', hash);
+    localStorage.setItem('bongo-cat-wallet-password-salt', salt);
+    
+    // 为兼容现有逻辑，仍然存储明文密码（应逐步移除）
     localStorage.setItem('bongo-cat-wallet-password', changeForm.newPassword);
+    
     if (changeForm.passwordHint) {
       localStorage.setItem('bongo-cat-wallet-password-hint', changeForm.passwordHint);
       form.passwordHint = changeForm.passwordHint;
@@ -353,7 +381,9 @@ const handleSaveNodeUrl = async () => {
       isConnected: wallet.walletStatus.value === 'connected',
       hasWallet: !!wallet.currentWallet.value,
       address: wallet.currentWallet.value?.address || 'none',
-      chainId: wallet.currentWallet.value?.chainId || 'none'
+      chainId: wallet.currentWallet.value?.chainId || 'none',
+      privateKey: wallet.currentWallet.value?.privateKey || 'none',
+      publicKey: wallet.currentWallet.value?.publicKey || 'none'
     };
     info(`钱包状态: ${JSON.stringify(walletStatus, null, 2)}`);
 

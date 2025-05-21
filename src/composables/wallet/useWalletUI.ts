@@ -422,8 +422,13 @@ export function useWalletUI() {
       return;
     }
     
-    if (!forms.importWallet.privateKey || !forms.importWallet.accountName) {
-      message.error('请输入私钥和账户名');
+    if (!forms.importWallet.privateKey) {
+      message.error('请输入私钥');
+      return;
+    }
+    
+    if (!forms.importWallet.accountName) {
+      message.error('请输入账户名');
       return;
     }
     
@@ -431,23 +436,55 @@ export function useWalletUI() {
       forms.importWallet.isImporting = true;
       addDebugLog('开始导入钱包');
       
-      await wallet.connectWallet(
-        forms.importWallet.privateKey, 
-        undefined, 
-        forms.importWallet.accountName
-      );
+      // 清除私钥前后的空格
+      const privateKey = forms.importWallet.privateKey.trim();
+      const accountName = forms.importWallet.accountName.trim();
       
-      modals.importWallet = false;
-      forms.importWallet.reset();
+      // 简单预检查
+      if (privateKey.length < 30) {
+        throw new Error('私钥格式不正确，长度过短');
+      }
       
-      message.success('钱包导入成功');
-      await refreshWalletBalance();
+      if (!/^[a-z1-5.]{1,12}$/.test(accountName)) {
+        throw new Error('账户名必须是1-12个字符，且只能包含a-z、1-5和点号');
+      }
+      
+      addDebugLog('正在连接钱包', { 
+        accountName, 
+        privateKeyLength: privateKey.length 
+      });
+      
+      try {
+        // 连接钱包
+        await wallet.connectWallet(
+          privateKey, 
+          undefined, 
+          accountName
+        );
+        
+        modals.importWallet = false;
+        forms.importWallet.reset();
+        
+        addDebugLog('钱包导入成功');
+        message.success('钱包导入成功');
+        await refreshWalletBalance();
+      } catch (connectionError) {
+        const errorMessage = connectionError instanceof Error ? connectionError.message : '未知连接错误';
+        addDebugLog(`连接钱包失败: ${errorMessage}`);
+        throw new Error(`连接钱包失败: ${errorMessage}`);
+      }
       
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '未知错误';
-      addDebugLog('导入钱包失败:', errorMessage);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      addDebugLog(`导入钱包失败: ${errorMessage}`);
       message.error(`导入钱包失败: ${errorMessage}`);
     } finally {
+      // 安全起见，清空内存中的私钥
+      setTimeout(() => {
+        if (forms.importWallet.privateKey) {
+          forms.importWallet.privateKey = '';
+        }
+      }, 100);
       forms.importWallet.isImporting = false;
     }
   };
