@@ -1,56 +1,68 @@
-<template>
-  <div class="qr-code">
-    <div class="qr-header">{{ title }}</div>
-    <div class="qr-box">
-      <QRCode 
-        :value="value" 
-        :size="200" 
-        level="M" 
-        render-as="svg"
-        :margin="0"
-        class="qr-svg"
-      />
-    </div>
-    
-    <div class="qr-address-container">
-      <div class="qr-address-preview">{{ value }}</div>
-      <button class="qr-copy-btn" @click="onCopy">
-        <CopyOutlined />
-      </button>
-    </div>
-    
-    <div class="qr-instructions">
-      <p v-for="(instruction, index) in instructions" :key="index">{{ instruction }}</p>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { CopyOutlined } from '@ant-design/icons-vue';
-import QRCode from 'qrcode.vue';
+import { CopyOutlined } from '@ant-design/icons-vue'
+import QRCode from 'qrcode.vue'
 
 // 组件属性
 interface Props {
-  value: string;
-  title?: string;
-  instructions?: string[];
+  value: string
+  title?: string
+  instructions?: string[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: '扫描二维码接收DFS',
-  instructions: () => ['扫描上方二维码向此钱包发送DFS', '或复制地址手动添加收款人']
-});
+  instructions: () => ['扫描上方二维码向此钱包发送DFS', '或复制地址手动添加收款人'],
+})
 
 // 定义事件
 const emit = defineEmits<{
-  (e: 'copy', value: string): void;
-}>();
+  (e: 'copy', value: string): void
+}>()
 
 // 复制内容
-const onCopy = () => {
-  emit('copy', props.value);
-};
+function onCopy() {
+  emit('copy', props.value)
+}
 </script>
+
+<template>
+  <div class="qr-code">
+    <div class="qr-header">
+      {{ title }}
+    </div>
+    <div class="qr-box">
+      <QRCode
+        class="qr-svg"
+        level="M"
+        :margin="0"
+        render-as="svg"
+        :size="200"
+        :value="value"
+      />
+    </div>
+
+    <div class="qr-address-container">
+      <div class="qr-address-preview">
+        {{ value }}
+      </div>
+      <button
+        class="qr-copy-btn"
+        @click="onCopy"
+      >
+        <CopyOutlined />
+      </button>
+    </div>
+
+    <div class="qr-instructions">
+      <p
+        v-for="(instruction, index) in instructions"
+        :key="index"
+      >
+        {{ instruction }}
+      </p>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .qr-code {
@@ -143,4 +155,4 @@ const onCopy = () => {
   margin: 4px 0;
   line-height: 1.4;
 }
-</style> 
+</style>

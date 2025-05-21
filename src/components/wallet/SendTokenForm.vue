@@ -1,132 +1,157 @@
-<template>
-  <div class="send-token-form">
-    <div class="form-group">
-      <label>选择资产</label>
-      <select v-model="form.currency" class="form-input">
-        <option v-for="asset in assets" :key="asset.key" :value="asset.key">
-          {{ asset.name }} ({{ asset.balance }} {{ asset.key }})
-        </option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label>接收地址</label>
-      <input v-model="form.recipient" placeholder="输入接收地址" class="form-input" />
-      <div class="form-help">DFS地址格式: accountname1235 (12个字符，仅支持a-z、1-5和点号)</div>
-    </div>
-    
-    <div class="form-group">
-      <label>数量</label>
-      <input v-model="form.amount" placeholder="0.00000000" class="form-input" />
-      <div class="form-help-row">
-        <span>可用: {{ getAvailableBalance(form.currency) }}</span>
-        <a class="link" @click="setMaxAmount">最大</a>
-      </div>
-    </div>
-    
-    <div class="form-group">
-      <label>备注 (可选)</label>
-      <input v-model="form.memo" placeholder="交易备注信息" class="form-input" />
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { reactive, watch, computed } from 'vue';
+import { reactive, watch } from 'vue'
 
 // 定义资产类型
 interface Asset {
-  key: string;
-  name: string;
-  balance: string;
-  value: number;
-  color: string;
+  key: string
+  name: string
+  balance: string
+  value: number
+  color: string
 }
 
 // 定义表单类型
 interface TokenForm {
-  recipient: string;
-  amount: string;
-  currency: string;
-  memo: string;
+  recipient: string
+  amount: string
+  currency: string
+  memo: string
 }
 
 // 组件属性
 interface Props {
-  availableBalance: string;
-  assets: Asset[];
+  availableBalance: string
+  assets: Asset[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  assets: () => []
-});
+  assets: () => [],
+})
+
+// 定义事件
+const emit = defineEmits<{
+  (e: 'update:form', form: TokenForm): void
+  (e: 'validate'): boolean
+}>()
 
 // 表单状态
 const form = reactive<TokenForm>({
   recipient: '',
   amount: '',
   currency: 'DFS',
-  memo: ''
-});
-
-// 定义事件
-const emit = defineEmits<{
-  (e: 'update:form', form: TokenForm): void;
-  (e: 'validate'): boolean;
-}>();
+  memo: '',
+})
 
 // 监听表单变化
 watch(form, () => {
-  emit('update:form', form);
-}, { deep: true });
+  emit('update:form', form)
+}, { deep: true })
 
 // 获取选定资产的可用余额
-const getAvailableBalance = (currency: string): string => {
-  const asset = props.assets.find(a => a.key === currency);
+function getAvailableBalance(currency: string): string {
+  const asset = props.assets.find(a => a.key === currency)
   if (asset) {
-    return `${asset.balance} ${currency}`;
+    return `${asset.balance} ${currency}`
   }
-  return currency === 'DFS' ? `${props.availableBalance} DFS` : '0';
-};
+  return currency === 'DFS' ? `${props.availableBalance} DFS` : '0'
+}
 
 // 设置最大金额
-const setMaxAmount = () => {
-  const asset = props.assets.find(a => a.key === form.currency);
+function setMaxAmount() {
+  const asset = props.assets.find(a => a.key === form.currency)
   if (asset) {
-    form.amount = asset.balance;
+    form.amount = asset.balance
   } else if (form.currency === 'DFS') {
-    form.amount = props.availableBalance;
+    form.amount = props.availableBalance
   }
-};
+}
 
 // 表单验证
-const validate = (): boolean => {
+function validate(): boolean {
   if (!form.recipient) {
-    return false;
+    return false
   }
-  
-  if (!form.amount || parseFloat(form.amount) <= 0) {
-    return false;
+
+  if (!form.amount || Number.parseFloat(form.amount) <= 0) {
+    return false
   }
-  
+
   // 检查余额是否足够
-  const asset = props.assets.find(a => a.key === form.currency);
-  const availableBalance = asset ? parseFloat(asset.balance) : 
-                           (form.currency === 'DFS' ? parseFloat(props.availableBalance) : 0);
-  
-  if (parseFloat(form.amount) > availableBalance) {
-    return false;
+  const asset = props.assets.find(a => a.key === form.currency)
+  const availableBalance = asset
+    ? Number.parseFloat(asset.balance)
+    : (form.currency === 'DFS' ? Number.parseFloat(props.availableBalance) : 0)
+
+  if (Number.parseFloat(form.amount) > availableBalance) {
+    return false
   }
-  
-  return true;
-};
+
+  return true
+}
 
 // 向外暴露验证方法和表单
 defineExpose({
   validate,
-  form
-});
+  form,
+})
 </script>
+
+<template>
+  <div class="send-token-form">
+    <div class="form-group">
+      <label>选择资产</label>
+      <select
+        v-model="form.currency"
+        class="form-input"
+      >
+        <option
+          v-for="asset in assets"
+          :key="asset.key"
+          :value="asset.key"
+        >
+          {{ asset.name }} ({{ asset.balance }} {{ asset.key }})
+        </option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>接收地址</label>
+      <input
+        v-model="form.recipient"
+        class="form-input"
+        placeholder="输入接收地址"
+      >
+      <div class="form-help">
+        DFS地址格式: accountname1235 (12个字符，仅支持a-z、1-5和点号)
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>数量</label>
+      <input
+        v-model="form.amount"
+        class="form-input"
+        placeholder="0.00000000"
+      >
+      <div class="form-help-row">
+        <span>可用: {{ getAvailableBalance(form.currency) }}</span>
+        <a
+          class="link"
+          @click="setMaxAmount"
+        >最大</a>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>备注 (可选)</label>
+      <input
+        v-model="form.memo"
+        class="form-input"
+        placeholder="交易备注信息"
+      >
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .form-group {
@@ -165,4 +190,4 @@ defineExpose({
   color: #1890ff;
   cursor: pointer;
 }
-</style> 
+</style>

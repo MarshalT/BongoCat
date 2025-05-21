@@ -22,7 +22,7 @@ onMounted(async () => {
 })
 
 const menus = [
- {
+  {
     label: '钱包',
     icon: 'i-solar:wallet-bold',
     component: Wallet,
@@ -32,7 +32,7 @@ const menus = [
     icon: 'i-solar:cat-bold',
     component: Cat,
   },
-  
+
   {
     label: '通用设置',
     icon: 'i-solar:settings-minimalistic-bold',

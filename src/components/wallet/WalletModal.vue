@@ -1,23 +1,79 @@
+<script setup lang="ts">
+// 组件属性
+interface Props {
+  visible: boolean
+  title: string
+  width?: number
+  cancelText?: string
+  confirmText?: string
+  confirmDisabled?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  width: 500,
+  cancelText: '取消',
+  confirmText: '确定',
+  confirmDisabled: false,
+})
+
+// 定义事件
+const emit = defineEmits<{
+  (e: 'cancel'): void
+  (e: 'confirm'): void
+  (e: 'update:visible', visible: boolean): void
+}>()
+
+// 取消事件
+function onCancel() {
+  emit('cancel')
+  emit('update:visible', false)
+}
+
+// 确认事件
+function onConfirm() {
+  emit('confirm')
+}
+</script>
+
 <template>
-  <div v-if="visible" class="custom-modal">
-    <div class="modal-backdrop" @click="onCancel"></div>
-    <div class="modal-content" :style="{ maxWidth: width + 'px' }">
+  <div
+    v-if="visible"
+    class="custom-modal"
+  >
+    <div
+      class="modal-backdrop"
+      @click="onCancel"
+    />
+    <div
+      class="modal-content"
+      :style="{ maxWidth: `${width}px` }"
+    >
       <div class="modal-header">
         <h3>{{ title }}</h3>
-        <button class="close-btn" @click="onCancel">&times;</button>
+        <button
+          class="close-btn"
+          @click="onCancel"
+        >
+          &times;
+        </button>
       </div>
-      
+
       <div class="modal-body">
-        <slot></slot>
+        <slot />
       </div>
-      
+
       <div class="modal-footer">
         <slot name="footer">
-          <button class="cancel-btn" @click="onCancel">{{ cancelText }}</button>
-          <button 
-            class="submit-btn" 
-            @click="onConfirm"
+          <button
+            class="cancel-btn"
+            @click="onCancel"
+          >
+            {{ cancelText }}
+          </button>
+          <button
+            class="submit-btn"
             :disabled="confirmDisabled"
+            @click="onConfirm"
           >
             {{ confirmText }}
           </button>
@@ -26,43 +82,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-// 组件属性
-interface Props {
-  visible: boolean;
-  title: string;
-  width?: number;
-  cancelText?: string;
-  confirmText?: string;
-  confirmDisabled?: boolean;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  width: 500,
-  cancelText: '取消',
-  confirmText: '确定',
-  confirmDisabled: false
-});
-
-// 定义事件
-const emit = defineEmits<{
-  (e: 'cancel'): void;
-  (e: 'confirm'): void;
-  (e: 'update:visible', visible: boolean): void;
-}>();
-
-// 取消事件
-const onCancel = () => {
-  emit('cancel');
-  emit('update:visible', false);
-};
-
-// 确认事件
-const onConfirm = () => {
-  emit('confirm');
-};
-</script>
 
 <style scoped>
 .custom-modal {
@@ -162,4 +181,4 @@ const onConfirm = () => {
   cursor: not-allowed;
   opacity: 0.7;
 }
-</style> 
+</style>

@@ -1,26 +1,26 @@
 // 导入ant-design-vue图标组件
+import type { App } from 'vue'
+
 import {
-  SyncOutlined,
-  ReloadOutlined, 
-  WalletOutlined,
-  SendOutlined,
-  ScanOutlined,
+  AppstoreOutlined,
+  BankOutlined,
+  CopyOutlined,
+  DollarOutlined,
+  EyeOutlined,
+  FundOutlined,
   HistoryOutlined,
-  PlusOutlined,
   KeyOutlined,
   LockOutlined,
-  EyeOutlined,
-  CopyOutlined,
-  SwapOutlined,
-  DollarOutlined,
-  BankOutlined,
-  FundOutlined,
-  TrophyOutlined,
+  PlusOutlined,
+  ReloadOutlined,
   RocketOutlined,
-  AppstoreOutlined
-} from '@ant-design/icons-vue';
-
-import { App } from 'vue';
+  ScanOutlined,
+  SendOutlined,
+  SwapOutlined,
+  SyncOutlined,
+  TrophyOutlined,
+  WalletOutlined,
+} from '@ant-design/icons-vue'
 
 // 创建图标组件映射
 const icons = {
@@ -41,14 +41,14 @@ const icons = {
   FundOutlined,
   TrophyOutlined,
   RocketOutlined,
-  AppstoreOutlined
-};
+  AppstoreOutlined,
+}
 
 // 注册所有图标组件
 export function registerIcons(app: App) {
   Object.entries(icons).forEach(([name, component]) => {
-    app.component(name, component);
-  });
+    app.component(name, component)
+  })
 }
 
-export default icons; 
+export default icons

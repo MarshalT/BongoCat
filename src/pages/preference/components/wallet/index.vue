@@ -1,31 +1,29 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { 
-  WalletOutlined, 
-  SendOutlined, 
-  ScanOutlined, 
-  HistoryOutlined, 
-  PlusOutlined, 
+import {
+  CopyOutlined,
+  EyeOutlined,
   KeyOutlined,
   LockOutlined,
-  EyeOutlined,
-  CopyOutlined,
-  SyncOutlined,
-  SettingOutlined
+  PlusOutlined,
+  ScanOutlined,
+  SendOutlined,
+  SettingOutlined,
+  WalletOutlined,
 } from '@ant-design/icons-vue'
-import { WalletType } from '@/composables/wallet/useWallet'
-import { useWalletUI } from '@/composables/wallet/useWalletUI'
+import { computed, onMounted, ref } from 'vue'
 
 // 导入新的组件
-import WalletSummary from '@/components/wallet/WalletSummary.vue'
 import AssetList from '@/components/wallet/AssetList.vue'
+import EcosystemExplorer from '@/components/wallet/EcosystemExplorer.vue'
+import QRCodeView from '@/components/wallet/QRCodeView.vue'
+import SendTokenForm from '@/components/wallet/SendTokenForm.vue'
 import TransactionList from '@/components/wallet/TransactionList.vue'
 import WalletModal from '@/components/wallet/WalletModal.vue'
-import SendTokenForm from '@/components/wallet/SendTokenForm.vue'
-import QRCodeView from '@/components/wallet/QRCodeView.vue'
-import EcosystemExplorer from '@/components/wallet/EcosystemExplorer.vue'
 import WalletSettings from '@/components/wallet/WalletSettings.vue'
+import WalletSummary from '@/components/wallet/WalletSummary.vue'
 import WalletUnlockModal from '@/components/wallet/WalletUnlockModal.vue'
+import { WalletType } from '@/composables/wallet/useWallet'
+import { useWalletUI } from '@/composables/wallet/useWalletUI'
 
 // 使用钱包UI composable
 const ui = useWalletUI()
@@ -39,27 +37,29 @@ const assetList = computed(() => ui.assetList.value)
 const loadingBalances = computed(() => ui.loadingBalances.value)
 const activeTab = computed({
   get: () => ui.activeTab.value,
-  set: (val) => { ui.activeTab.value = val }
+  set: (val) => {
+    ui.activeTab.value = val
+  },
 })
 
 // 发送表单引用
 const sendFormRef = ref()
 
 // 显示解锁对话框并记录调试信息
-const showUnlockDialog = () => {
+function showUnlockDialog() {
   ui.addDebugLog('点击解锁钱包按钮')
   ui.modals.unlockWallet = true
   ui.addDebugLog('解锁对话框状态:', ui.modals.unlockWallet)
 }
 
 // 发送代币处理函数
-const handleSend = async () => {
+async function handleSend() {
   // 验证表单
   if (sendFormRef.value && !sendFormRef.value.validate()) {
     ui.addDebugLog('表单验证失败')
     return
   }
-  
+
   // 获取表单数据并调用发送方法
   const formData = sendFormRef.value.form
   ui.forms.send = { ...formData }
@@ -69,23 +69,23 @@ const handleSend = async () => {
 // 初始化钱包
 onMounted(async () => {
   ui.addDebugLog('钱包组件已挂载')
-  
+
   try {
     // 初始化钱包
     await ui.wallet.initWallet()
     ui.addDebugLog('钱包初始化完成', { status: ui.wallet.walletStatus.value })
-    
+
     // 如果钱包已连接，刷新余额和资产
     if (ui.isWalletConnected.value) {
       await ui.refreshWalletBalance()
     }
-    
+
     // 添加模拟交易记录(如果需要)
     if (!ui.wallet.transactions.value || ui.wallet.transactions.value.length === 0) {
       ui.addDebugLog('初始化模拟交易记录')
       ui.wallet.transactions.value = [
         {
-          id: 'tx-' + Date.now(),
+          id: `tx-${Date.now()}`,
           type: 'receive',
           amount: '10.0000',
           currency: 'DFS',
@@ -93,10 +93,10 @@ onMounted(async () => {
           to: walletAddress.value,
           date: new Date().toISOString(),
           status: 'completed',
-          memo: '初始化转账'
+          memo: '初始化转账',
         },
         {
-          id: 'tx-' + (Date.now() - 86400000),
+          id: `tx-${Date.now() - 86400000}`,
           type: 'send',
           amount: '1.2000',
           currency: 'DFS',
@@ -104,8 +104,8 @@ onMounted(async () => {
           to: 'dfs.sample',
           date: new Date(Date.now() - 86400000).toISOString(),
           status: 'completed',
-          memo: '测试发送'
-        }
+          memo: '测试发送',
+        },
       ]
     }
   } catch (error) {
@@ -117,10 +117,13 @@ onMounted(async () => {
 <template>
   <div class="wallet-container p-4">
     <!-- 钱包头部 -->
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-xl font-bold flex items-center">
+    <div class="mb-6 flex items-center justify-between">
+      <h2 class="flex items-center text-xl font-bold">
         <WalletOutlined class="mr-2" />钱包
-        <span v-if="isWalletConnected && isWalletLocked" class="ml-2 text-sm text-red-500 flex items-center">
+        <span
+          v-if="isWalletConnected && isWalletLocked"
+          class="ml-2 flex items-center text-sm text-red-500"
+        >
           <LockOutlined class="mr-1" />已锁定
         </span>
       </h2>
@@ -128,13 +131,19 @@ onMounted(async () => {
         <template v-if="isWalletConnected">
           <!-- 钱包已锁定时显示解锁按钮 -->
           <template v-if="isWalletLocked">
-            <a-button type="primary" @click="ui.showUnlockDialog">
+            <a-button
+              type="primary"
+              @click="ui.showUnlockDialog"
+            >
               <KeyOutlined />解锁钱包
             </a-button>
           </template>
           <!-- 钱包已解锁时显示功能按钮 -->
           <template v-else>
-            <a-button type="primary" @click="ui.modals.send = true">
+            <a-button
+              type="primary"
+              @click="ui.modals.send = true"
+            >
               <SendOutlined />发送
             </a-button>
             <a-button @click="ui.modals.receive = true">
@@ -146,13 +155,19 @@ onMounted(async () => {
             <a-button @click="ui.handleLockWallet">
               <LockOutlined />锁定
             </a-button>
-            <a-button danger @click="ui.handleDisconnectWallet">
+            <a-button
+              danger
+              @click="ui.handleDisconnectWallet"
+            >
               断开
             </a-button>
           </template>
         </template>
         <template v-else>
-          <a-button type="primary" @click="ui.modals.createWallet = true">
+          <a-button
+            type="primary"
+            @click="ui.modals.createWallet = true"
+          >
             <PlusOutlined />创建钱包
           </a-button>
           <a-button @click="ui.modals.importWallet = true">
@@ -163,10 +178,10 @@ onMounted(async () => {
     </div>
 
     <!-- 钱包摘要卡片 -->
-    <WalletSummary 
+    <WalletSummary
       v-if="isWalletConnected"
-      :balance="walletBalance"
       :address="walletAddress"
+      :balance="walletBalance"
       :dfs-price="ui.dfsPrice.value"
       :is-locked="isWalletLocked"
       @copy="ui.copyToClipboard"
@@ -175,46 +190,67 @@ onMounted(async () => {
     />
 
     <!-- 未连接钱包提示 -->
-    <a-card class="mb-6" v-if="!isWalletConnected" :bordered="false">
+    <a-card
+      v-if="!isWalletConnected"
+      :bordered="false"
+      class="mb-6"
+    >
       <div class="flex flex-col items-center justify-center py-8">
-        <WalletOutlined style="font-size: 48px;" class="text-gray-400 mb-4" />
-        <h3 class="text-xl font-medium mb-2">未连接钱包</h3>
-        <p class="text-gray-500 mb-4">请创建新钱包或导入已有钱包以继续</p>
-        
+        <WalletOutlined
+          class="mb-4 text-gray-400"
+          style="font-size: 48px;"
+        />
+        <h3 class="mb-2 text-xl font-medium">
+          未连接钱包
+        </h3>
+        <p class="mb-4 text-gray-500">
+          请创建新钱包或导入已有钱包以继续
+        </p>
+
         <!-- 密码未设置时提醒用户 -->
-        <div v-if="!ui.hasSetupPassword" class="warning-box mb-4 w-full max-w-md">
-          <div class="warning-title">请先设置钱包密码</div>
+        <div
+          v-if="!ui.hasSetupPassword"
+          class="warning-box mb-4 max-w-md w-full"
+        >
+          <div class="warning-title">
+            请先设置钱包密码
+          </div>
           <div class="warning-content">
             在创建或导入钱包前，您需要先设置钱包密码以保护您的资产安全。
           </div>
         </div>
-        
+
         <!-- 节点URL未设置时提醒用户 -->
-        <div v-if="!ui.hasSetupNodeUrl && ui.hasSetupPassword" class="warning-box mb-4 w-full max-w-md">
-          <div class="warning-title">请设置节点URL</div>
+        <div
+          v-if="!ui.hasSetupNodeUrl && ui.hasSetupPassword"
+          class="warning-box mb-4 max-w-md w-full"
+        >
+          <div class="warning-title">
+            请设置节点URL
+          </div>
           <div class="warning-content">
             在创建或导入钱包前，您需要设置正确的区块链节点URL。
           </div>
         </div>
-        
+
         <div class="flex gap-4">
-          <a-button 
-            type="primary" 
-            @click="activeTab = 'settings'"
+          <a-button
             v-if="!ui.hasSetupPassword || !ui.hasSetupNodeUrl"
+            type="primary"
+            @click="activeTab = 'settings'"
           >
             <SettingOutlined />前往设置
           </a-button>
-          <a-button 
-            type="primary" 
-            @click="ui.modals.createWallet = true" 
+          <a-button
             :disabled="!ui.hasSetupPassword || !ui.hasSetupNodeUrl"
+            type="primary"
+            @click="ui.modals.createWallet = true"
           >
             <PlusOutlined />创建钱包
           </a-button>
-          <a-button 
-            @click="ui.modals.importWallet = true" 
+          <a-button
             :disabled="!ui.hasSetupPassword || !ui.hasSetupNodeUrl"
+            @click="ui.modals.importWallet = true"
           >
             <KeyOutlined />导入钱包
           </a-button>
@@ -223,41 +259,45 @@ onMounted(async () => {
     </a-card>
 
     <!-- 选项卡 -->
-    <a-tabs v-model:activeKey="activeTab">
-      <a-tab-pane key="assets" tab="资产" v-if="isWalletConnected">
+    <a-tabs v-model:active-key="activeTab">
+      <a-tab-pane
+        v-if="isWalletConnected"
+        key="assets"
+        tab="资产"
+      >
         <div class="space-y-4">
           <!-- 调试日志显示 -->
           <!-- <div v-if="debugLogs.length > 0 && showDebugLogs" class="text-xs mb-2 p-2 bg-gray-100 rounded overflow-auto" style="max-height: 100px;">
             <div v-for="(log, index) in debugLogs.slice(-5)" :key="index" class="mb-1">{{ log }}</div>
           </div> -->
-          
+
           <!-- 资产列表组件 -->
-          <AssetList 
-            :assets="assetList" 
+          <AssetList
+            :assets="assetList"
             :loading="loadingBalances"
             @refresh="ui.refreshWalletBalance"
           />
-          
+
           <!-- 钱包操作快捷按钮 -->
           <!-- <a-card class="wallet-actions bg-gray-50" :bordered="false">
             <div class="grid grid-cols-3 gap-4">
-              <div 
-                class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"     
+              <div
+                class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"
                 @click="ui.modals.send = true"
               >
                 <SendOutlined style="font-size: 24px;" class="mb-2" />
                 <span>发送</span>
               </div>
-              
-              <div 
+
+              <div
                 class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"
                 @click="ui.modals.receive = true"
               >
                 <ScanOutlined style="font-size: 24px;" class="mb-2" />
                 <span>接收</span>
               </div>
-              
-              <div 
+
+              <div
                 class="flex flex-col items-center justify-center py-2 cursor-pointer hover:text-primary"
                 @click="activeTab = 'activity'"
               >
@@ -268,16 +308,27 @@ onMounted(async () => {
           </a-card> -->
         </div>
       </a-tab-pane>
-      
-      <a-tab-pane key="activity" tab="交易记录" v-if="isWalletConnected">
+
+      <a-tab-pane
+        v-if="isWalletConnected"
+        key="activity"
+        tab="交易记录"
+      >
         <!-- 交易记录列表组件 -->
         <TransactionList :transactions="ui.wallet.transactions.value || []" />
       </a-tab-pane>
-      <a-tab-pane key="discovery" tab="发现" v-if="isWalletConnected">
+      <a-tab-pane
+        v-if="isWalletConnected"
+        key="discovery"
+        tab="发现"
+      >
         <!-- 生态系统探索组件 -->
         <EcosystemExplorer />
       </a-tab-pane>
-      <a-tab-pane key="settings" tab="设置">
+      <a-tab-pane
+        key="settings"
+        tab="设置"
+      >
         <!-- 钱包设置组件 -->
         <WalletSettings />
       </a-tab-pane>
@@ -286,23 +337,23 @@ onMounted(async () => {
     <!-- 发送模态框 -->
     <WalletModal
       v-model:visible="ui.modals.send"
-      :title="`发送${ui.forms.send.currency || 'DFS'}`"
       confirm-text="发送"
+      :title="`发送${ui.forms.send.currency || 'DFS'}`"
       @confirm="handleSend"
     >
-      <SendTokenForm 
+      <SendTokenForm
         ref="sendFormRef"
-        :available-balance="ui.wallet.balances[WalletType.DFS]"
         :assets="assetList"
+        :available-balance="ui.wallet.balances[WalletType.DFS]"
       />
     </WalletModal>
 
     <!-- 接收模态框 -->
     <WalletModal
       v-model:visible="ui.modals.receive"
-      title="接收DFS"
       cancel-text="关闭"
-      :confirm-text="''"
+      confirm-text=""
+      title="接收DFS"
     >
       <div class="text-center">
         <QRCodeView
@@ -315,19 +366,27 @@ onMounted(async () => {
     <!-- 创建钱包模态框 -->
     <WalletModal
       v-model:visible="ui.modals.createWallet"
-      title="创建新钱包"
-      confirm-text="创建"
       :confirm-disabled="ui.forms.newWallet.isCreating"
+      confirm-text="创建"
+      title="创建新钱包"
       @confirm="ui.handleCreateWallet"
     >
       <div class="form-group">
         <label>账户名称 (可选)</label>
-        <input v-model="ui.forms.newWallet.accountName" placeholder="输入账户名或留空生成随机名称" class="form-input" />
-        <div class="form-help">账户名必须是12个字符，只能包含a-z、1-5和点号</div>
+        <input
+          v-model="ui.forms.newWallet.accountName"
+          class="form-input"
+          placeholder="输入账户名或留空生成随机名称"
+        >
+        <div class="form-help">
+          账户名必须是12个字符，只能包含a-z、1-5和点号
+        </div>
       </div>
-      
+
       <div class="warning-box">
-        <div class="warning-title">重要提示</div>
+        <div class="warning-title">
+          重要提示
+        </div>
         <div class="warning-content">
           创建后，您将收到私钥，请务必安全保存。丢失私钥将无法恢复您的资产！
         </div>
@@ -337,33 +396,35 @@ onMounted(async () => {
     <!-- 导入钱包模态框 -->
     <WalletModal
       v-model:visible="ui.modals.importWallet"
-      title="导入钱包"
-      confirm-text="导入"
       :confirm-disabled="ui.forms.importWallet.isImporting"
+      confirm-text="导入"
+      title="导入钱包"
       @confirm="ui.handleImportWallet"
     >
       <div class="form-group">
         <label>私钥</label>
-        <input 
-          v-model="ui.forms.importWallet.privateKey" 
-          type="password" 
-          placeholder="输入您的私钥" 
-          class="form-input" 
-        />
+        <input
+          v-model="ui.forms.importWallet.privateKey"
+          class="form-input"
+          placeholder="输入您的私钥"
+          type="password"
+        >
       </div>
 
       <div class="form-group">
         <label>账户名</label>
-        <input 
-          v-model="ui.forms.importWallet.accountName" 
-          type="text" 
-          placeholder="输入您的账户名" 
-          class="form-input" 
-        />
+        <input
+          v-model="ui.forms.importWallet.accountName"
+          class="form-input"
+          placeholder="输入您的账户名"
+          type="text"
+        >
       </div>
-      
+
       <div class="info-box">
-        <div class="info-title">安全提示</div>
+        <div class="info-title">
+          安全提示
+        </div>
         <div class="info-text">
           <p>• 私钥将只在本地使用，不会上传至任何服务器</p>
           <p>• 请确保在安全的环境中导入私钥</p>
@@ -374,21 +435,26 @@ onMounted(async () => {
     <!-- 备份私钥模态框 -->
     <WalletModal
       v-model:visible="ui.modals.backup"
-      title="备份私钥"
       confirm-text="我已安全备份私钥"
+      title="备份私钥"
       @confirm="ui.completeBackup"
     >
       <div class="warning-box">
-        <div class="warning-title">重要提示</div>
+        <div class="warning-title">
+          重要提示
+        </div>
         <div class="warning-content">
           <strong>任何人获得您的私钥将可以完全控制您的资产！</strong>
         </div>
       </div>
-      
+
       <div class="key-container">
         <div class="key-header">
           <span class="key-title">您的私钥</span>
-          <button class="toggle-btn" @click="ui.togglePrivateKeyVisibility">
+          <button
+            class="toggle-btn"
+            @click="ui.togglePrivateKeyVisibility"
+          >
             <span v-if="ui.forms.backup.showPrivateKey">
               <LockOutlined /> 隐藏
             </span>
@@ -397,23 +463,32 @@ onMounted(async () => {
             </span>
           </button>
         </div>
-        
+
         <div class="key-value">
-          <div v-if="ui.forms.backup.showPrivateKey" class="key-text">
+          <div
+            v-if="ui.forms.backup.showPrivateKey"
+            class="key-text"
+          >
             {{ ui.forms.backup.privateKey }}
           </div>
-          <div v-else class="key-masked">
+          <div
+            v-else
+            class="key-masked"
+          >
             ***** 点击"显示"查看私钥 *****
           </div>
         </div>
-        
+
         <div class="key-actions">
-          <button class="copy-btn" @click="ui.copyToClipboard(ui.forms.backup.privateKey)">
+          <button
+            class="copy-btn"
+            @click="ui.copyToClipboard(ui.forms.backup.privateKey)"
+          >
             <CopyOutlined /> 复制
           </button>
         </div>
       </div>
-      
+
       <div class="security-tips">
         <h4>安全提示：</h4>
         <ul>
@@ -423,29 +498,34 @@ onMounted(async () => {
           <li>丢失私钥将导致资产永久丢失</li>
         </ul>
       </div>
-      
+
       <div class="checkbox-container">
         <label class="checkbox-label">
-          <input type="checkbox" class="checkbox-input" />
+          <input
+            class="checkbox-input"
+            type="checkbox"
+          >
           我了解私钥的重要性，并已安全备份
         </label>
       </div>
     </WalletModal>
-    
+
     <!-- 导出私钥模态框 -->
     <WalletModal
       v-model:visible="ui.modals.exportPrivateKey"
-      title="导出私钥"
       confirm-text="我已安全备份私钥"
+      title="导出私钥"
       @confirm="ui.modals.exportPrivateKey = false"
     >
       <div class="warning-box">
-        <div class="warning-title">安全警告</div>
+        <div class="warning-title">
+          安全警告
+        </div>
         <div class="warning-content">
           <strong>请勿向任何人分享您的私钥，拥有私钥即可完全控制您的钱包资产！</strong>
         </div>
       </div>
-      
+
       <div class="key-container">
         <div class="key-header">
           <span class="key-title">账户地址</span>
@@ -455,10 +535,13 @@ onMounted(async () => {
             {{ walletAddress }}
           </div>
         </div>
-        
+
         <div class="key-header mt-4">
           <span class="key-title">私钥</span>
-          <button class="toggle-btn" @click="ui.togglePrivateKeyVisibility">
+          <button
+            class="toggle-btn"
+            @click="ui.togglePrivateKeyVisibility"
+          >
             <span v-if="ui.forms.backup.showPrivateKey">
               <LockOutlined /> 隐藏
             </span>
@@ -467,23 +550,32 @@ onMounted(async () => {
             </span>
           </button>
         </div>
-        
+
         <div class="key-value">
-          <div v-if="ui.forms.backup.showPrivateKey" class="key-text">
+          <div
+            v-if="ui.forms.backup.showPrivateKey"
+            class="key-text"
+          >
             {{ ui.forms.backup.privateKey }}
           </div>
-          <div v-else class="key-masked">
+          <div
+            v-else
+            class="key-masked"
+          >
             ***** 点击"显示"查看私钥 *****
           </div>
         </div>
-        
+
         <div class="key-actions">
-          <button class="copy-btn" @click="ui.copyToClipboard(ui.forms.backup.privateKey)">
+          <button
+            class="copy-btn"
+            @click="ui.copyToClipboard(ui.forms.backup.privateKey)"
+          >
             <CopyOutlined /> 复制私钥
           </button>
         </div>
       </div>
-      
+
       <div class="security-tips">
         <h4>重要安全提示：</h4>
         <ul>
@@ -498,11 +590,11 @@ onMounted(async () => {
     <!-- 解锁钱包对话框 -->
     <WalletUnlockModal
       :visible="ui.modals.unlockWallet"
-      @update:visible="(val) => { 
-        console.log('更新解锁对话框状态:', val); 
-        ui.modals.unlockWallet = val; 
-      }"
       @unlock="ui.handleUnlockWallet"
+      @update:visible="(val) => {
+        console.log('更新解锁对话框状态:', val);
+        ui.modals.unlockWallet = val;
+      }"
     />
   </div>
 </template>
@@ -699,4 +791,3 @@ onMounted(async () => {
   margin-top: 1rem;
 }
 </style>
-
