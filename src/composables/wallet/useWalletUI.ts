@@ -696,6 +696,9 @@ export function useWalletUI() {
         addDebugLog('钱包解锁成功')
         message.success('钱包解锁成功')
         
+        // 关闭解锁对话框
+        modals.unlockWallet = false
+        
         // 刷新钱包余额
         await refreshWalletBalance()
         return true

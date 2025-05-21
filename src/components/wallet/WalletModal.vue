@@ -71,6 +71,7 @@ function onConfirm() {
             {{ cancelText }}
           </button>
           <button
+            v-if="confirmText"
             class="submit-btn"
             :disabled="confirmDisabled"
             @click="onConfirm"

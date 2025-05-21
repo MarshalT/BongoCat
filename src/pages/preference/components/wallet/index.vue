@@ -292,6 +292,7 @@ onMounted(async () => {
   try {
     // 初始化钱包
     await ui.wallet.initWallet()
+    
     ui.addDebugLog('钱包初始化完成', { status: ui.wallet.walletStatus.value })
 
     // 如果钱包已连接，刷新余额和资产
