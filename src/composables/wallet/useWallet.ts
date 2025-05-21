@@ -182,7 +182,10 @@ function createWalletInstance() {
 
       logInfo(`useWallet.initDfsWallet: 使用随机值覆盖私钥内存: ${randomChars}`)
       logInfo(`useWallet.initDfsWallet: 覆盖后的私钥: ${privateKey}`)
+    } else {
+      logInfo(`useWallet.initDfsWallet: 未提供私钥`)
     }
+
   }
 
   /**
@@ -541,13 +544,7 @@ function createWalletInstance() {
 
       // 检查密码哈希是否存在
       const passwordHash = localStorage.getItem('bongo-cat-wallet-password-hash')
-      const oldPassword = localStorage.getItem('bongo-cat-wallet-password')
-      
-      // 如果没有密码哈希也没有旧密码，直接返回
-      if (!passwordHash && !oldPassword) {
-        walletStatus.value = WalletStatus.DISCONNECTED
-        return
-      }
+     
 
       // 获取节点URL
       const nodeUrl = localStorage.getItem('bongo-cat-wallet-node-url')
@@ -565,46 +562,6 @@ function createWalletInstance() {
       }
 
       try {
-        let storedWallet = null
-        
-        // 优先尝试使用旧密码格式直接解密
-        if (oldPassword) {
-          try {
-            storedWallet = await loadWalletFromStorage(oldPassword)
-            if (storedWallet) {
-              // 由于使用旧密码成功解密，现在自动升级到新密码格式
-              await PasswordManager.setPassword(oldPassword)
-              logInfo('已自动从旧密码格式升级到新密码哈希格式')
-              
-              // 初始化DfsWallet
-              await initDfsWallet('BongoCat', storedWallet.privateKey)
-              
-              // 自动连接存储的钱包
-              currentWallet.value = {
-                address: storedWallet.address,
-                name: storedWallet.name,
-                balance: '0.0000 DFS',
-                publicKey: storedWallet.publicKey,
-                privateKey: sanitizePrivateKey(storedWallet.privateKey),
-                type: storedWallet.type,
-                chainId: storedWallet.chainId
-              }
-              
-              walletStatus.value = WalletStatus.CONNECTED
-              isWalletLocked.value = false // 自动解锁钱包
-              
-              // 刷新余额和交易历史
-              await refreshBalance()
-              await loadTransactionHistory()
-              
-              logInfo('钱包已初始化并自动解锁(旧密码格式)')
-              return
-            }
-          } catch (error) {
-            console.error('使用旧密码格式解密失败:', error)
-          }
-        }
-        
         // 如果旧密码解密失败或不存在旧密码，则处理为锁定状态钱包
         // 新方法：在锁定状态下也加载钱包基本信息（不包含私钥）
         try {
@@ -618,6 +575,7 @@ function createWalletInstance() {
           const cachedWalletType = localStorage.getItem('bongo-cat-wallet-type') as WalletType
           const cachedWalletChainId = localStorage.getItem('bongo-cat-wallet-chain-id')
           
+
           if (cachedWalletAddress) {
             // 有缓存的钱包信息，可以在锁定状态下显示
             // 设置当前钱包的公开信息
@@ -634,7 +592,7 @@ function createWalletInstance() {
             await initDfsWallet('BongoCat')
             
             walletStatus.value = WalletStatus.CONNECTED
-            isWalletLocked.value = true // 钱包锁定状态
+            isWalletLocked.value = false // 钱包锁定状态
             
             logInfo('钱包已初始化，处于锁定状态，显示缓存信息')
             return
@@ -682,7 +640,7 @@ function createWalletInstance() {
         
         // 如果还是无法获取钱包信息，设置为连接但锁定状态
         walletStatus.value = WalletStatus.CONNECTED
-        isWalletLocked.value = true
+        isWalletLocked.value = false
         logInfo('钱包初始化完成，处于锁定状态，需要手动解锁')
       } catch (err) {
         console.error('解锁钱包失败:', err)
@@ -1031,20 +989,11 @@ function createWalletInstance() {
         // 更新交易历史
         transactions.value.unshift(newTx)
 
-        // 安全地存储交易历史
-        try {
-        // 使用PasswordManager加密存储交易历史
-          const encryptedHistory = await PasswordManager.encryptData(transactions.value, transactionPassword)
-          localStorage.setItem('bongo-cat-transactions-encrypted', encryptedHistory)
-
-          // 保留旧格式兼容性
-          localStorage.setItem('bongo-cat-transactions', JSON.stringify(transactions.value))
-        } catch (encryptError) {
-          console.error('加密交易历史失败:', encryptError)
-        // 继续流程但记录错误
-        }
-
-        // 更新余额
+        // 直接以明文方式存储交易历史
+        localStorage.setItem('bongo-cat-transactions', JSON.stringify(transactions.value))
+        logInfo('交易历史已更新并保存')
+      
+      // 更新余额
         await refreshBalance()
 
         message.success('交易发送成功')
@@ -1056,7 +1005,8 @@ function createWalletInstance() {
         }
       }
     } catch (err: any) {
-      const errorMessage = handleError(err, '发送交易失败', '发送交易失败，请检查您的参数并重试')
+      const errorMessage = handleError(JSON.stringify(err), '发送交易失败', '发送交易失败，请检查您的参数并重试')
+      logError(`发送交易失败: ${JSON.stringify(err)}`)
       error.value = errorMessage
       message.error(errorMessage)
       throw new Error(errorMessage)
@@ -1105,48 +1055,6 @@ function createWalletInstance() {
     } catch (error) {
       console.error('获取交易密码失败:', error)
       message.error('获取交易密码失败，请重试')
-      return null
-    }
-  }
-
-  /**
-   * 获取历史记录密码 - 由于界面限制，这里使用一个模拟实现
-   * 实际应用中应该通过对话框让用户输入密码
-   */
-  const getHistoryPassword = async (): Promise<string | null> => {
-    // 检查是否已有密码哈希，如果没有则需要先设置密码
-    const hasPasswordHash = localStorage.getItem('bongo-cat-wallet-password-hash')
-    if (!hasPasswordHash) {
-      return null
-    }
-
-    try {
-      // 创建一个Promise，通过prompt让用户输入密码
-      const password = await new Promise<string>((resolve) => {
-        // 这里应该被UI层替换为更好的密码输入对话框
-        const userPassword = prompt('请输入钱包密码以加载历史记录')
-        if (userPassword) {
-          resolve(userPassword)
-        } else {
-          resolve('')
-        }
-      })
-
-      if (!password) {
-        console.warn('未输入密码')
-        return null
-      }
-
-      // 验证密码
-      const isValid = await PasswordManager.verifyPassword(password)
-      if (!isValid) {
-        console.warn('密码不正确')
-        return null
-      }
-
-      return password
-    } catch (error) {
-      console.error('获取历史记录密码失败:', error)
       return null
     }
   }
@@ -1270,70 +1178,27 @@ function createWalletInstance() {
 
     try {
       isLoading.value = true
-
-      // 获取交易密码
-      const historyPassword = await getHistoryPassword()
-      if (!historyPassword) {
-        // 不中断流程，尝试使用未加密的历史记录
-        console.warn('未提供密码，将尝试使用未加密的历史记录')
-      } else {
-        // 尝试从加密存储中获取交易历史
-        const encryptedTx = localStorage.getItem('bongo-cat-transactions-encrypted')
-
-        if (encryptedTx) {
-          try {
-            // 使用PasswordManager解密交易历史
-            const decryptedHistory = await PasswordManager.decryptData(encryptedTx, historyPassword)
-            transactions.value = decryptedHistory
-            return
-          } catch (decryptError) {
-            console.error('解密交易历史失败:', decryptError)
-            // 继续尝试其他方法
-          }
-        }
-      }
-
-      // 检查本地是否有存储的交易历史
+      
+      // 直接从localStorage获取未加密的交易历史
       const storedTx = localStorage.getItem('bongo-cat-transactions')
-
+      
       if (storedTx) {
+        // 解析交易历史数据
         transactions.value = JSON.parse(storedTx)
+        logInfo('已加载交易历史记录')
       } else {
-        // 尝试从区块链获取交易历史
-        // 这里可以尝试使用DfsWallet获取真实交易历史
-        // 但由于复杂性，以及可能需要额外的API，暂时使用模拟数据
-
-        // 模拟交易历史数据
-        transactions.value = [
-          {
-            id: generateTransactionId(),
-            type: 'receive',
-            amount: '10.0000',
-            currency: 'DFS',
-            from: 'dfs.genesis',
-            to: currentWallet.value.address,
-            date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-            status: 'completed',
-            memo: '初始余额',
-          },
-        ]
-
-        // 如果有可用的密码，加密存储交易历史
-        if (historyPassword) {
-          try {
-            const encryptedHistory = await PasswordManager.encryptData(transactions.value, historyPassword)
-            localStorage.setItem('bongo-cat-transactions-encrypted', encryptedHistory)
-          } catch (encryptError) {
-            console.error('加密交易历史失败:', encryptError)
-          }
-        }
-
-        // 存储到本地(未加密版本)
+        // 如果没有存储的交易历史，初始化一个空数组
+        transactions.value = []
+        logInfo('未找到交易历史记录，初始化为空')
+        
+        // 存储到本地
         localStorage.setItem('bongo-cat-transactions', JSON.stringify(transactions.value))
       }
     } catch (err) {
       // 使用通用错误消息，避免泄露信息
       console.error('加载交易历史失败:', err)
+      // 初始化一个空数组，防止出现null或undefined
+      transactions.value = []
     } finally {
       isLoading.value = false
     }
@@ -1343,11 +1208,11 @@ function createWalletInstance() {
   const generateTransactionId = (): string => {
     const chars = '0123456789abcdef'
     let txId = ''
-
+    
     for (let i = 0; i < 64; i++) {
       txId += chars.charAt(Math.floor(Math.random() * chars.length))
     }
-
+    
     return txId
   }
 

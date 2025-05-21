@@ -141,6 +141,8 @@ export class PasswordManager {
 
         // 转换为字符串并解析JSON
         const decryptedText = new TextDecoder().decode(decryptedBuffer)
+        logInfo(`解密数据: ${decryptedText}`)
+        logInfo(`解密数据: ${encryptedData}`)
         return JSON.parse(decryptedText)
       } catch (e) {
         // 如果新方法解密失败，尝试旧方法解密
@@ -249,25 +251,7 @@ export class PasswordManager {
         }
       }
 
-      // 2. 迁移交易历史
-      const encryptedTx = localStorage.getItem('bongo-cat-transactions-encrypted')
-      if (encryptedTx) {
-        try {
-          // 解密旧数据
-          const txData = await this.decryptData(encryptedTx, password)
-
-          // 使用新方法重新加密
-          const newEncryptedTx = await this.encryptData(txData, password)
-
-          // 存储新格式数据
-          localStorage.setItem('bongo-cat-transactions-encrypted', newEncryptedTx)
-          logInfo('交易历史已迁移到新加密格式')
-        } catch (e) {
-          logError(`迁移交易历史失败: ${e}`)
-        }
-      }
-
-      // 3. 迁移其他敏感配置
+      // 迁移其他敏感配置
       const secureConfig = localStorage.getItem('bongo-cat-wallet-secure-config')
       if (secureConfig) {
         try {
@@ -380,10 +364,7 @@ export class PasswordManager {
       // 清除加密钱包数据
       localStorage.removeItem('bongo-cat-wallet-encrypted')
 
-      // 清除加密交易历史
-      localStorage.removeItem('bongo-cat-transactions-encrypted')
-
-      // 清除未加密交易历史
+      // 清除交易历史
       localStorage.removeItem('bongo-cat-transactions')
 
       // 清除安全配置

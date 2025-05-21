@@ -550,7 +550,7 @@ export function useWalletUI() {
       addDebugLog('交易发送成功:', { txId })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
-      addDebugLog('交易发送失败:', errorMessage)
+      addDebugLog(`交易发送失败: ${errorMessage}`)
       message.error(`交易发送失败: ${errorMessage}`)
     }
   }
