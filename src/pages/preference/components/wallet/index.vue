@@ -46,7 +46,7 @@ const activeTab = computed({
 
 // 密码输入相关状态
 const showPasswordInput = ref(false)
-const passwordAction = ref<'import' | 'unlock' | 'send' | 'create' | null>(null)
+const passwordAction = ref<'import' | 'unlock' | 'send' | 'create' | 'export' | null>(null)
 const passwordPrompt = ref('')
 
 // 发送表单引用
@@ -59,6 +59,15 @@ function showUnlockDialog() {
   passwordPrompt.value = '请输入钱包密码以解锁钱包'
   showPasswordInput.value = true
   ui.addDebugLog('显示密码输入对话框')
+}
+
+// 处理导出私钥
+function handleExportPrivateKey() {
+  ui.addDebugLog('点击导出私钥按钮')
+  passwordAction.value = 'export'
+  passwordPrompt.value = '请输入钱包密码以导出私钥'
+  showPasswordInput.value = true
+  ui.addDebugLog('显示导出私钥密码输入对话框')
 }
 
 // 创建钱包处理函数
@@ -230,6 +239,30 @@ async function handlePasswordConfirm(password: string) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       ui.addDebugLog(`发送交易失败: ${errorMessage}`)
       message.error(`发送交易失败: ${errorMessage}`)
+    }
+  } else if (passwordAction.value === 'export') {
+    try {
+      ui.addDebugLog('开始导出私钥，使用密码验证')
+      
+      // 使用密码获取私钥
+      const privateKey = await ui.exportPrivateKey(password)
+      
+      if (!privateKey) {
+        throw new Error('获取私钥失败')
+      }
+      
+      // 设置私钥到表单
+      ui.forms.backup.privateKey = privateKey
+      
+      // 关闭密码输入对话框，显示私钥对话框
+      showPasswordInput.value = false
+      ui.modals.exportPrivateKey = true
+      
+      ui.addDebugLog('私钥导出成功')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      ui.addDebugLog(`导出私钥失败: ${errorMessage}`)
+      message.error(`导出私钥失败: ${errorMessage}`)
     }
   } else if (passwordAction.value === 'create') {
     try {
@@ -405,7 +438,7 @@ onMounted(async () => {
       :dfs-price="ui.dfsPrice.value"
       :is-locked="isWalletLocked"
       @copy="ui.copyToClipboard"
-      @export-private-key="ui.exportPrivateKey"
+      @export-private-key="handleExportPrivateKey"
       @refresh-price="ui.fetchDFSPrice"
     />
 
@@ -656,7 +689,7 @@ onMounted(async () => {
     <PasswordInputModal
       v-model:visible="showPasswordInput"
       :prompt="passwordPrompt"
-      :title="passwordAction === 'import' ? '导入钱包' : passwordAction === 'unlock' ? '解锁钱包' : '输入密码'"
+      :title="passwordAction === 'import' ? '导入钱包' : passwordAction === 'unlock' ? '解锁钱包' : passwordAction === 'export' ? '导出私钥' : '输入密码'"
       @confirm="handlePasswordConfirm"
       @cancel="handlePasswordCancel"
     />
