@@ -3,6 +3,7 @@ import { message } from 'ant-design-vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 
 import { useWallet, WalletStatus, WalletType } from './useWallet'
+import { PasswordManager } from '@/utils/PasswordManager'
 
 import { getDFSPriceFromAPI, getTokenPrice } from '@/utils/tokenPrice'
 
@@ -484,7 +485,7 @@ export function useWalletUI() {
       // 如果提供了密码，验证密码
       if (password) {
         // 验证密码是否正确
-        const isValid = await wallet.PasswordManager.verifyPassword(password)
+        const isValid = await PasswordManager.verifyPassword(password)
         if (!isValid) {
           message.error('密码不正确')
           return null
@@ -497,7 +498,7 @@ export function useWalletUI() {
         }
 
         // 解密获取完整的钱包数据
-        const walletData = await wallet.PasswordManager.decryptData(encryptedWallet, password)
+        const walletData = await PasswordManager.decryptData(encryptedWallet, password)
         
         // 重置自动锁定计时器
         resetWalletLockTimer()
