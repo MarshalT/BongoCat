@@ -339,156 +339,7 @@ export function useWalletUI() {
     }
   }
 
-  // 钱包操作方法
-
-  // 创建钱包
-  const handleCreateWallet = async () => {
-    // 检查密码和节点设置
-    if (!hasSetupPassword.value) {
-      message.error('请先设置钱包密码')
-      modals.passwordRequired = true
-      return
-    }
-
-    if (!hasSetupNodeUrl.value) {
-      message.error('请先设置节点URL')
-      modals.passwordRequired = true
-      return
-    }
-
-    if (forms.newWallet.isCreating) {
-      addDebugLog('钱包正在创建中，返回')
-      return
-    }
-
-    try {
-      // 验证账户名
-      if (forms.newWallet.accountName) {
-        addDebugLog('验证账户名:', forms.newWallet.accountName)
-        if (forms.newWallet.accountName.length !== 12 || !/^[a-z1-5.]+$/.test(forms.newWallet.accountName)) {
-          addDebugLog('账户名验证失败')
-          message.error('账户名必须是12个字符，且只能包含a-z、1-5和点号')
-          return
-        }
-      }
-
-      forms.newWallet.isCreating = true
-      addDebugLog('准备创建钱包')
-
-      const result = await wallet.createWallet(forms.newWallet.accountName || undefined)
-      addDebugLog('钱包创建结果:', result)
-
-      if (!result) {
-        throw new Error('钱包创建失败：未返回结果')
-      }
-
-      if (!result.privateKey) {
-        throw new Error('钱包创建失败：未返回私钥')
-      }
-
-      // 保存私钥以供备份
-      forms.backup.privateKey = result.privateKey
-      forms.newWallet.reset()
-
-      // 关闭创建模态框，显示备份模态框
-      modals.createWallet = false
-      modals.backup = true
-
-      message.success('钱包创建成功！')
-      await refreshWalletBalance()
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '未知错误'
-      addDebugLog('创建钱包失败:', errorMessage)
-      message.error(`创建钱包失败: ${errorMessage}`)
-    } finally {
-      forms.newWallet.isCreating = false
-    }
-  }
-
-  // 导入钱包
-  const handleImportWallet = async () => {
-    // 检查密码和节点设置
-    if (!hasSetupPassword.value) {
-      message.error('请先设置钱包密码')
-      modals.passwordRequired = true
-      return
-    }
-
-    if (!hasSetupNodeUrl.value) {
-      message.error('请先设置节点URL')
-      modals.passwordRequired = true
-      return
-    }
-
-    if (forms.importWallet.isImporting) {
-      return
-    }
-
-    if (!forms.importWallet.privateKey) {
-      message.error('请输入私钥')
-      return
-    }
-
-    if (!forms.importWallet.accountName) {
-      message.error('请输入账户名')
-      return
-    }
-
-    try {
-      forms.importWallet.isImporting = true
-      addDebugLog('开始导入钱包')
-
-      // 清除私钥前后的空格
-      const privateKey = forms.importWallet.privateKey.trim()
-      const accountName = forms.importWallet.accountName.trim()
-
-      // 简单预检查
-      if (privateKey.length < 30) {
-        throw new Error('私钥格式不正确，长度过短')
-      }
-
-      if (!/^[a-z1-5.]{1,12}$/.test(accountName)) {
-        throw new Error('账户名必须是1-12个字符，且只能包含a-z、1-5和点号')
-      }
-
-      addDebugLog('正在连接钱包', {
-        accountName,
-        privateKeyLength: privateKey.length,
-      })
-
-      try {
-        // 连接钱包
-        await wallet.connectWallet(
-          privateKey,
-          undefined,
-          accountName,
-        )
-
-        modals.importWallet = false
-        forms.importWallet.reset()
-
-        addDebugLog('钱包导入成功')
-        message.success('钱包导入成功')
-        await refreshWalletBalance()
-      } catch (connectionError) {
-        const errorMessage = connectionError instanceof Error ? connectionError.message : '未知连接错误'
-        addDebugLog(`连接钱包失败: ${errorMessage}`)
-        throw new Error(`连接钱包失败: ${errorMessage}`)
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      addDebugLog(`导入钱包失败: ${errorMessage}`)
-      message.error(`导入钱包失败: ${errorMessage}`)
-    } finally {
-      // 安全起见，清空内存中的私钥
-      setTimeout(() => {
-        if (forms.importWallet.privateKey) {
-          forms.importWallet.privateKey = ''
-        }
-      }, 100)
-      forms.importWallet.isImporting = false
-    }
-  }
+ 
 
   // 断开钱包连接
   const handleDisconnectWallet = async () => {
@@ -621,20 +472,48 @@ export function useWalletUI() {
   }
 
   // 导出私钥
-  const exportPrivateKey = () => {
+  const exportPrivateKey = async (password?: string): Promise<string | null> => {
     // 检查钱包是否锁定
     if (isWalletLocked.value) {
       message.warning('钱包已锁定，请先解锁')
       modals.unlockWallet = true
-      return
+      return null
     }
 
-    // 重置自动锁定计时器
-    resetWalletLockTimer()
+    try {
+      // 如果提供了密码，验证密码
+      if (password) {
+        // 验证密码是否正确
+        const isValid = await wallet.PasswordManager.verifyPassword(password)
+        if (!isValid) {
+          message.error('密码不正确')
+          return null
+        }
 
-    // 显示导出私钥对话框
-    forms.backup.privateKey = wallet.currentWallet.value?.privateKey || ''
-    modals.exportPrivateKey = true
+        // 获取加密的钱包数据
+        const encryptedWallet = localStorage.getItem('bongo-cat-wallet-encrypted')
+        if (!encryptedWallet) {
+          throw new Error('找不到钱包数据')
+        }
+
+        // 解密获取完整的钱包数据
+        const walletData = await wallet.PasswordManager.decryptData(encryptedWallet, password)
+        
+        // 重置自动锁定计时器
+        resetWalletLockTimer()
+        
+        // 获取真实的私钥
+        return walletData.privateKey
+      }
+
+      // 如果没有提供密码，返回null (UI层需要处理密码输入)
+      return null
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
+      addDebugLog(`获取私钥失败: ${errorMessage}`)
+      message.error(`获取私钥失败: ${errorMessage}`)
+      return null
+    }
   }
 
   // 计算资产的美元价值
@@ -760,8 +639,6 @@ export function useWalletUI() {
     copyToClipboard,
     formatAddress,
     formatTransactionDate,
-    handleCreateWallet,
-    handleImportWallet,
     handleDisconnectWallet,
     handleSendTokens,
     handleSendTokensWithPassword,
