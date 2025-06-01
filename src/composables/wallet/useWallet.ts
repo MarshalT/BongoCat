@@ -733,6 +733,32 @@ function createWalletInstance() {
   }
   
   /**
+   * 获取表数据
+   * @param code 合约账户名
+   * @param scope 表的作用域
+   * @param table 表名
+   * @param lower_bound 下限
+   * @param index_position 索引位置
+   * @param key_type 键类型
+   * @param limit 限制
+   */
+  const getTableRows = async (code: string, scope: string, table: string, lower_bound: string, index_position: number, key_type: string, limit: number) => {
+    logInfo('获取表数据')
+    const rows = await dfsWallet.getTableRows(code, scope, table, lower_bound, index_position, key_type, limit)
+    return rows
+  }
+
+  /**
+   * 发送交易
+   * @param transaction 交易对象
+   * @param options 交易选项
+   */
+  const transact = async (transaction: any, options: any) => {
+    const result = await dfsWallet.transact(transaction, options)
+    return result
+  }
+  
+  /**
    * 发送代币交易
    * @param to 接收地址
    * @param amount 金额
@@ -1156,7 +1182,8 @@ function createWalletInstance() {
     sendTransaction,
     refreshBalance,
     loadTransactionHistory,
-
+    getTableRows,
+    transact,
     // 密码处理方法
     getWalletPassword,
     getTransactionPassword,

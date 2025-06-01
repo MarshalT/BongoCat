@@ -1,0 +1,188 @@
+{
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT ",
+    "version": "eosio::abi/1.2",
+    "types": [],
+    "structs": [
+        {
+            "name": "cat",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "genes",
+                    "type": "uint64"
+                },
+                {
+                    "name": "birth_time",
+                    "type": "uint32"
+                },
+                {
+                    "name": "stamina",
+                    "type": "uint32"
+                },
+                {
+                    "name": "level",
+                    "type": "uint32"
+                },
+                {
+                    "name": "experience",
+                    "type": "uint64"
+                },
+                {
+                    "name": "last_external_check",
+                    "type": "uint64"
+                },
+                {
+                    "name": "last_processed_log_id",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "checkaction",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "cat_id",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "interaction",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "cat_id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "action_type",
+                    "type": "name"
+                },
+                {
+                    "name": "attribute_change",
+                    "type": "uint32"
+                },
+                {
+                    "name": "timestamp",
+                    "type": "time_point_sec"
+                }
+            ]
+        },
+        {
+            "name": "mint_config",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "total_supply",
+                    "type": "uint64"
+                },
+                {
+                    "name": "minted_count",
+                    "type": "uint64"
+                },
+                {
+                    "name": "base_price",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "minted_accounts",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "mint_time",
+                    "type": "time_point_sec"
+                }
+            ]
+        },
+        {
+            "name": "upgrade",
+            "base": "",
+            "fields": [
+                {
+                    "name": "cat_id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "owner",
+                    "type": "name"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "checkaction",
+            "type": "checkaction",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "upgrade",
+            "type": "upgrade",
+            "ricardian_contract": ""
+        }
+    ],
+    "tables": [
+        {
+            "name": "cats",
+            "type": "cat",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "interactions",
+            "type": "interaction",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "mintconfig",
+            "type": "mint_config",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "minters",
+            "type": "minted_accounts",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "ricardian_clauses": [],
+    "variants": [],
+    "action_results": []
+}

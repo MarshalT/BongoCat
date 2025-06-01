@@ -474,6 +474,24 @@ export class DfsWallet {
     return resp.rows
   }
 
+//获取表数据
+  async getTableRows(code: string, scope: string, table: string, lower_bound: string, index_position: number, key_type: string, limit: number) {
+    if (!this.rpc) {
+      throw new Error('RPC not initialized')
+    }
+    const resp = await this.rpc.get_table_rows({
+      json: true, // Get the response as json
+      code: code,
+      scope: scope,
+      table: table,
+      lower_bound: lower_bound,
+      index_position: index_position,
+      key_type: key_type,
+      limit: limit, 
+    })
+    return resp.rows
+  }
+
   assetidtohex(num: number, isLittleEndian = true): string {
     // 创建一个 8 字节的缓冲区
     const buffer = new ArrayBuffer(8)

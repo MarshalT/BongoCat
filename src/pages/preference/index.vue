@@ -7,7 +7,7 @@ import Cat from './components/cat/index.vue'
 import General from './components/general/index.vue'
 import Model from './components/model/index.vue'
 import Wallet from './components/wallet/index.vue'
-
+import CatPlanet from './components/catPlanet/index.vue'
 import UpdateApp from '@/components/update-app/index.vue'
 import { useTray } from '@/composables/useTray'
 import { useAppStore } from '@/stores/app'
@@ -26,6 +26,11 @@ const menus = [
     label: '钱包',
     icon: 'i-solar:wallet-bold',
     component: Wallet,
+  },
+  {
+    label: '猫星球',
+    icon: 'i-solar:cat-bold',
+    component: CatPlanet,
   },
   {
     label: '猫咪设置',
