@@ -519,7 +519,7 @@ function createWalletInstance() {
    * 初始化钱包
    * @param password 可选的钱包密码，如果提供则尝试解锁钱包
    */
-  const initWallet = async (password: string) => {
+  const initWallet = async (password?: string) => {
     try {
       isLoading.value = true
 

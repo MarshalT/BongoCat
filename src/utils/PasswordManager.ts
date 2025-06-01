@@ -38,8 +38,11 @@ export class PasswordManager {
    * 验证密码是否正确
    * @param password 要验证的密码
    */
-  static async verifyPassword(password: string): Promise<boolean> {
+  static async verifyPassword(password?: string): Promise<boolean> {
     try {
+      if (!password) {
+        return false
+      }
       // 获取存储的密码哈希
       const storedHash = localStorage.getItem('bongo-cat-wallet-password-hash')
       if (!storedHash) {

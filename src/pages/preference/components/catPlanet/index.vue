@@ -235,7 +235,7 @@ const mintCat = async () => {
   try {
     // 查询用户余额，确保有足够的DFS
     if (wallet) {
-      const balance = await wallet.getbalance('eosio.token', accountName.value, 'DFS')
+      const balance = await wallet.dfsWallet.getbalance('eosio.token', accountName.value, 'DFS')
       
       // 解析余额字符串，例如 "10.0000 DFS"
       const balanceValue = parseFloat(balance)
