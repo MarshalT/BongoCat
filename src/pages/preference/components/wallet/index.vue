@@ -3,6 +3,7 @@ import {
   CopyOutlined,
   EyeOutlined,
   KeyOutlined,
+  UnlockOutlined,
   LockOutlined,
   PlusOutlined,
   ScanOutlined,
@@ -388,7 +389,7 @@ onMounted(async () => {
               type="primary"
               @click="showUnlockDialog"
             >
-              <KeyOutlined />解锁钱包
+              <UnlockOutlined />解锁钱包
             </a-button>
           </template>
           <!-- 钱包已解锁时显示功能按钮 -->

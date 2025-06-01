@@ -16,6 +16,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useWallet } from '@/composables/wallet/useWallet'
 import { useWalletUI } from '@/composables/wallet/useWalletUI'
 import { PasswordManager } from '@/utils/PasswordManager'
+// 新增导入解锁组件
+import WalletUnlockModal from '@/components/wallet/WalletUnlockModal.vue'
 
 // 猫咪数据结构接口
 interface CatInfo {
@@ -55,6 +57,8 @@ const errorMessage = ref('')
 const refreshingCat = ref<number | null>(null)
 const interactionsLoading = ref(false)
 const catsLoading = ref(false)
+// 新增模态框显示控制
+const showUnlockModal = ref(false)
 
 // 计算属性
 const isWalletConnected = computed(() => walletUI.isWalletConnected.value)
@@ -104,8 +108,6 @@ const fetchUserCats = async () => {
   catsLoading.value = true;
 
   try {
- 
-
     const result = await wallet.getTableRows(
       'ifwzjalq2lg1',      // code: 合约账户名
       'ifwzjalq2lg1',      // scope: 表的作用域
@@ -117,8 +119,6 @@ const fetchUserCats = async () => {
     );
 
     console.log('获取猫咪API调用结果:', result);
-
-    // message.info('获取猫咪API调用结果:' + JSON.stringify(result));
 
     if (result && Array.isArray(result)) {
       // 过滤出属于当前用户的猫
@@ -137,16 +137,15 @@ const fetchUserCats = async () => {
       console.error('获取猫咪数据返回格式不正确:', result);
       message.error('获取猫咪数据格式不正确');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取猫咪失败:', error);
-    // 增加更详细的错误日志
     console.error('错误详情:', {
       isWalletConnected: !!wallet,
       accountName: accountName.value,
-      errorMessage: error.message || '未知错误',
-      errorStack: error.stack
+      errorMessage: error?.message || '未知错误',
+      errorStack: error?.stack
     });
-    message.error(`获取猫咪失败: ${error.message || '请检查网络连接'}`);
+    message.error(`获取猫咪失败: ${error?.message || '请检查网络连接'}`);
   } finally {
     loading.value = false;
     catsLoading.value = false;
@@ -174,8 +173,6 @@ const fetchCatInteractions = async (catId: number) => {
       100                  // limit: 最大结果数
     );
 
-    // console.log('获取互动记录API调用结果:', result);
-
     if (result && Array.isArray(result)) {
       // 过滤并按时间戳降序排序
       interactions.value = result
@@ -187,16 +184,15 @@ const fetchCatInteractions = async (catId: number) => {
       console.error('获取互动记录数据返回格式不正确:', result);
       message.error('获取互动记录数据格式不正确');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取互动记录失败:', error);
     console.error('错误详情:', {
       isWalletConnected: !!wallet,
       accountName: accountName.value,
-      catId,
-      errorMessage: error.message || '未知错误',
-      errorStack: error.stack
+      errorMessage: error?.message || '未知错误',
+      errorStack: error?.stack
     });
-    message.error(`获取互动记录失败: ${error.message || '请检查网络连接'}`);
+    message.error(`获取互动记录失败: ${error?.message || '请检查网络连接'}`);
   } finally {
     interactionsLoading.value = false;
   }
@@ -238,8 +234,8 @@ const mintCat = async () => {
   
   try {
     // 查询用户余额，确保有足够的DFS
-    if (wallet && wallet.dfsWallet) {
-      const balance = await wallet.dfsWallet.getbalance('eosio.token', accountName.value, 'DFS')
+    if (wallet) {
+      const balance = await wallet.getbalance('eosio.token', accountName.value, 'DFS')
       
       // 解析余额字符串，例如 "10.0000 DFS"
       const balanceValue = parseFloat(balance)
@@ -419,7 +415,44 @@ onMounted(async () => {
 
 // 解锁钱包的处理
 const unlockWallet = () => {
-  walletUI.showUnlockDialog()
+  // 显示解锁钱包对话框
+  showUnlockModal.value = true
+}
+
+// 处理解锁钱包
+const handleUnlockWallet = async (password: string) => {
+  try {
+    if (!password) {
+      message.error('请输入密码')
+      return false
+    }
+    
+    walletUI.addDebugLog('猫星球: 开始解锁钱包')
+    const result = await wallet.unlockWallet(password)
+    
+    if (result) {
+      showUnlockModal.value = false
+      message.success('钱包解锁成功')
+      
+      // 解锁成功后刷新数据
+      await fetchUserCats()
+      if (selectedCatId.value) {
+        await fetchCatInteractions(selectedCatId.value)
+      }
+      
+      walletUI.addDebugLog('猫星球: 钱包解锁成功')
+      return true
+    } else {
+      message.error('钱包解锁失败，请检查密码是否正确')
+      walletUI.addDebugLog('猫星球: 钱包解锁失败')
+      return false
+    }
+  } catch (err: any) {
+    const errorMessage = err.message || '解锁钱包失败'
+    message.error(`解锁失败: ${errorMessage}`)
+    walletUI.addDebugLog(`猫星球: 解锁钱包失败: ${errorMessage}`)
+    return false
+  }
 }
 </script>
 
@@ -672,6 +705,12 @@ const unlockWallet = () => {
         </template>
       </div>
     </a-modal>
+
+    <!-- 解锁钱包对话框 -->
+    <WalletUnlockModal
+      v-model:visible="showUnlockModal"
+      @unlock="handleUnlockWallet"
+    />
   </div>
 </template>
 
