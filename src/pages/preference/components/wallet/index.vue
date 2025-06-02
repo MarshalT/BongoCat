@@ -47,7 +47,7 @@ const activeTab = computed({
 
 // 密码输入相关状态
 const showPasswordInput = ref(false)
-const passwordAction = ref<'import' | 'send' | 'create' | 'export' | null>(null)
+const passwordAction = ref<'import' | 'send' | 'create' | 'export' | 'disconnect' | 'unlock' | null>(null)
 const passwordPrompt = ref('')
 
 // 发送表单引用
@@ -206,17 +206,6 @@ async function handlePasswordConfirm(password: string) {
     } finally {
       walletUI.forms.importWallet.isImporting = false
     }
-  // } else if (passwordAction.value === 'unlock') {
-  //   try {
-  //     walletUI.addDebugLog('开始解锁钱包')
-  //     await walletUI.handleUnlockWallet(password)
-  //     showPasswordInput.value = false
-  //     walletUI.addDebugLog('钱包解锁成功')
-  //   } catch (err) {
-  //     const errorMessage = err instanceof Error ? err.message : String(err)
-  //     walletUI.addDebugLog(`解锁钱包失败: ${errorMessage}`)
-  //     message.error(`解锁钱包失败: ${errorMessage}`)
-  //   }
   } else if (passwordAction.value === 'send') {
     try {
       walletUI.addDebugLog('开始发送交易，使用密码验证')
@@ -285,12 +274,24 @@ async function handlePasswordConfirm(password: string) {
       await walletUI.refreshWalletBalance()
       
       walletUI.addDebugLog('钱包创建成功')
-  } catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       walletUI.addDebugLog(`创建钱包失败: ${errorMessage}`)
       message.error(`创建钱包失败: ${errorMessage}`)
-  } finally {
+    } finally {
       walletUI.forms.newWallet.isCreating = false
+    }
+  } else if (passwordAction.value === 'disconnect') {
+    try {
+      walletUI.addDebugLog('开始断开钱包，使用密码验证')
+      // 执行断开钱包操作
+      await walletUI.handleDisconnectWallet()
+      showPasswordInput.value = false
+      walletUI.addDebugLog('钱包断开成功')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      walletUI.addDebugLog(`断开钱包失败: ${errorMessage}`)
+      message.error(`断开钱包失败: ${errorMessage}`)
     }
   }
 }
@@ -308,6 +309,15 @@ function handlePasswordCancel() {
   if (currentAction === 'send') {
     walletUI.addDebugLog('发送交易已取消')
   }
+}
+
+// 添加处理断开钱包的函数
+function handleDisconnectWallet() {
+  walletUI.addDebugLog('点击断开钱包按钮')
+  passwordAction.value = 'disconnect'
+  passwordPrompt.value = '请输入钱包密码以断开连接'
+  showPasswordInput.value = true
+  walletUI.addDebugLog('显示断开钱包密码输入对话框')
 }
 
 // 初始化钱包
@@ -402,7 +412,7 @@ onMounted(async () => {
           </a-button>
             <a-button
               danger
-              @click="walletUI.handleDisconnectWallet"
+              @click="handleDisconnectWallet"
             >
             断开
           </a-button>
