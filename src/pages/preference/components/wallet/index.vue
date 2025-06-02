@@ -29,73 +29,64 @@ import { WalletType } from '@/composables/wallet/useWallet'
 import { useWalletUI } from '@/composables/wallet/useWalletUI'
 
 // 使用钱包UI composable
-const ui = useWalletUI()
+const walletUI = useWalletUI()
 
 // 需要转换类型，解决TypeScript错误
-const isWalletConnected = computed(() => ui.isWalletConnected.value)
-const isWalletLocked = computed(() => ui.isWalletLocked.value)
-const walletAddress = computed(() => ui.walletAddress.value)
-const walletBalance = computed(() => ui.walletBalance.value)
-const assetList = computed(() => ui.assetList.value)
-const loadingBalances = computed(() => ui.loadingBalances.value)
+const isWalletConnected = computed(() => walletUI.isWalletConnected.value)
+const isWalletLocked = computed(() => walletUI.isWalletLocked.value)
+const walletAddress = computed(() => walletUI.walletAddress.value)
+const walletBalance = computed(() => walletUI.walletBalance.value)
+const assetList = computed(() => walletUI.assetList.value)
+const loadingBalances = computed(() => walletUI.loadingBalances.value)
 const activeTab = computed({
-  get: () => ui.activeTab.value,
+  get: () => walletUI.activeTab.value,
   set: (val) => {
-    ui.activeTab.value = val
+    walletUI.activeTab.value = val
   },
 })
 
 // 密码输入相关状态
 const showPasswordInput = ref(false)
-const passwordAction = ref<'import' | 'unlock' | 'send' | 'create' | 'export' | null>(null)
+const passwordAction = ref<'import' | 'send' | 'create' | 'export' | null>(null)
 const passwordPrompt = ref('')
 
 // 发送表单引用
 const sendFormRef = ref()
 
-// 显示解锁对话框并记录调试信息
-function showUnlockDialog() {
-  ui.addDebugLog('点击解锁钱包按钮')
-  passwordAction.value = 'unlock'
-  passwordPrompt.value = '请输入钱包密码以解锁钱包'
-  showPasswordInput.value = true
-  ui.addDebugLog('显示密码输入对话框')
-}
-
 // 处理导出私钥
 function handleExportPrivateKey() {
-  ui.addDebugLog('点击导出私钥按钮')
+  walletUI.addDebugLog('点击导出私钥按钮')
   passwordAction.value = 'export'
   passwordPrompt.value = '请输入钱包密码以导出私钥'
   showPasswordInput.value = true
-  ui.addDebugLog('显示导出私钥密码输入对话框')
+  walletUI.addDebugLog('显示导出私钥密码输入对话框')
 }
 
 // 创建钱包处理函数
 async function handleCreateWallet() {
   // 检查密码和节点设置
-  if (!ui.hasSetupPassword.value) {
+  if (!walletUI.hasSetupPassword.value) {
     message.error('请先设置钱包密码')
-    ui.modals.passwordRequired = true
+    walletUI.modals.passwordRequired = true
     return
   }
 
-  if (!ui.hasSetupNodeUrl.value) {
+  if (!walletUI.hasSetupNodeUrl.value) {
     message.error('请先设置节点URL')
-    ui.modals.passwordRequired = true
+    walletUI.modals.passwordRequired = true
     return
   }
   
-  if (ui.forms.newWallet.isCreating) {
-    ui.addDebugLog('钱包正在创建中，返回')
+  if (walletUI.forms.newWallet.isCreating) {
+    walletUI.addDebugLog('钱包正在创建中，返回')
     return
   }
 
   // 验证账户名
-  if (ui.forms.newWallet.accountName) {
-    ui.addDebugLog('验证账户名:', ui.forms.newWallet.accountName)
-    if (ui.forms.newWallet.accountName.length !== 12 || !/^[a-z1-5.]+$/.test(ui.forms.newWallet.accountName)) {
-      ui.addDebugLog('账户名验证失败')
+  if (walletUI.forms.newWallet.accountName) {
+    walletUI.addDebugLog('验证账户名:', walletUI.forms.newWallet.accountName)
+    if (walletUI.forms.newWallet.accountName.length !== 12 || !/^[a-z1-5.]+$/.test(walletUI.forms.newWallet.accountName)) {
+      walletUI.addDebugLog('账户名验证失败')
       message.error('账户名必须是12个字符，且只能包含a-z、1-5和点号')
       return
     }
@@ -105,53 +96,53 @@ async function handleCreateWallet() {
   passwordAction.value = 'create'
   passwordPrompt.value = '请输入钱包密码以创建钱包'
   showPasswordInput.value = true
-  ui.addDebugLog('显示创建钱包密码输入对话框')
+  walletUI.addDebugLog('显示创建钱包密码输入对话框')
 }
 
 // 发送代币处理函数
 async function handleSend() {
   // 验证表单
   if (sendFormRef.value && !sendFormRef.value.validate()) {
-    ui.addDebugLog('表单验证失败')
+    walletUI.addDebugLog('表单验证失败')
     return
   }
 
   // 获取表单数据
   const formData = sendFormRef.value.form
-  ui.forms.send = { ...formData }
+  walletUI.forms.send = { ...formData }
   
   // 显示密码输入对话框
   passwordAction.value = 'send'
   passwordPrompt.value = '请输入钱包密码以完成交易'
   showPasswordInput.value = true
-  ui.addDebugLog('显示发送交易密码输入对话框')
+  walletUI.addDebugLog('显示发送交易密码输入对话框')
 }
 
 // 处理导入钱包
 async function handleImportWallet() {
   // 检查密码和节点设置
-  if (!ui.hasSetupPassword.value) {
+  if (!walletUI.hasSetupPassword.value) {
     message.error('请先设置钱包密码')
-    ui.modals.passwordRequired = true
+    walletUI.modals.passwordRequired = true
     return
   }
 
-  if (!ui.hasSetupNodeUrl.value) {
+  if (!walletUI.hasSetupNodeUrl.value) {
     message.error('请先设置节点URL')
-    ui.modals.passwordRequired = true
+    walletUI.modals.passwordRequired = true
     return
   }
 
-  if (ui.forms.importWallet.isImporting) {
+  if (walletUI.forms.importWallet.isImporting) {
     return
   }
 
-  if (!ui.forms.importWallet.privateKey) {
+  if (!walletUI.forms.importWallet.privateKey) {
     message.error('请输入私钥')
     return
   }
 
-  if (!ui.forms.importWallet.accountName) {
+  if (!walletUI.forms.importWallet.accountName) {
     message.error('请输入账户名')
       return
     }
@@ -166,12 +157,12 @@ async function handleImportWallet() {
 async function handlePasswordConfirm(password: string) {
   if (passwordAction.value === 'import') {
     try {
-      ui.forms.importWallet.isImporting = true
-      ui.addDebugLog('开始导入钱包')
+      walletUI.forms.importWallet.isImporting = true
+      walletUI.addDebugLog('开始导入钱包')
 
       // 清除私钥前后的空格
-      const privateKey = ui.forms.importWallet.privateKey.trim()
-      const accountName = ui.forms.importWallet.accountName.trim()
+      const privateKey = walletUI.forms.importWallet.privateKey.trim()
+      const accountName = walletUI.forms.importWallet.accountName.trim()
 
       // 简单预检查
       if (privateKey.length < 30) {
@@ -182,96 +173,96 @@ async function handlePasswordConfirm(password: string) {
         throw new Error('账户名必须是1-12个字符，且只能包含a-z、1-5和点号')
       }
 
-      ui.addDebugLog('正在连接钱包', {
+      walletUI.addDebugLog('正在连接钱包', {
         accountName,
         privateKeyLength: privateKey.length,
       })
 
       try {
         // 使用输入的密码连接钱包
-        await ui.wallet.connectWallet(
+        await walletUI.wallet.connectWallet(
           privateKey,
           undefined,
           accountName,
           password // 传递密码参数
         )
 
-        ui.modals.importWallet = false
-        ui.forms.importWallet.reset()
+        walletUI.modals.importWallet = false
+        walletUI.forms.importWallet.reset()
         showPasswordInput.value = false // 关闭密码输入对话框
 
-        ui.addDebugLog('钱包导入成功')
+        walletUI.addDebugLog('钱包导入成功')
         message.success('钱包导入成功')
-        await ui.refreshWalletBalance()
+        await walletUI.refreshWalletBalance()
       } catch (connectionError) {
         const errorMessage = connectionError instanceof Error ? connectionError.message : '未知连接错误'
-        ui.addDebugLog(`连接钱包失败: ${errorMessage}`)
+        walletUI.addDebugLog(`连接钱包失败: ${errorMessage}`)
         throw new Error(`连接钱包失败: ${errorMessage}`)
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
-      ui.addDebugLog(`导入钱包失败: ${errorMessage}`)
+      walletUI.addDebugLog(`导入钱包失败: ${errorMessage}`)
       message.error(`导入钱包失败: ${errorMessage}`)
     } finally {
-      ui.forms.importWallet.isImporting = false
+      walletUI.forms.importWallet.isImporting = false
     }
-  } else if (passwordAction.value === 'unlock') {
-    try {
-      ui.addDebugLog('开始解锁钱包')
-      await ui.handleUnlockWallet(password)
-      showPasswordInput.value = false
-      ui.addDebugLog('钱包解锁成功')
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      ui.addDebugLog(`解锁钱包失败: ${errorMessage}`)
-      message.error(`解锁钱包失败: ${errorMessage}`)
-    }
+  // } else if (passwordAction.value === 'unlock') {
+  //   try {
+  //     walletUI.addDebugLog('开始解锁钱包')
+  //     await walletUI.handleUnlockWallet(password)
+  //     showPasswordInput.value = false
+  //     walletUI.addDebugLog('钱包解锁成功')
+  //   } catch (err) {
+  //     const errorMessage = err instanceof Error ? err.message : String(err)
+  //     walletUI.addDebugLog(`解锁钱包失败: ${errorMessage}`)
+  //     message.error(`解锁钱包失败: ${errorMessage}`)
+  //   }
   } else if (passwordAction.value === 'send') {
     try {
-      ui.addDebugLog('开始发送交易，使用密码验证')
+      walletUI.addDebugLog('开始发送交易，使用密码验证')
       
       // 执行发送交易，传入密码
-      await ui.handleSendTokensWithPassword(password)
+      await walletUI.handleSendTokensWithPassword(password)
       
       // 关闭密码输入对话框
       showPasswordInput.value = false
-      ui.addDebugLog('发送交易密码验证成功')
+      walletUI.addDebugLog('发送交易密码验证成功')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
-      ui.addDebugLog(`发送交易失败: ${errorMessage}`)
+      walletUI.addDebugLog(`发送交易失败: ${errorMessage}`)
       message.error(`发送交易失败: ${errorMessage}`)
     }
   } else if (passwordAction.value === 'export') {
     try {
-      ui.addDebugLog('开始导出私钥，使用密码验证')
+      walletUI.addDebugLog('开始导出私钥，使用密码验证')
       
       // 使用密码获取私钥
-      const privateKey = await ui.exportPrivateKey(password)
+      const privateKey = await walletUI.exportPrivateKey(password)
       
       if (!privateKey) {
         throw new Error('获取私钥失败')
       }
       
       // 设置私钥到表单
-      ui.forms.backup.privateKey = privateKey
+      walletUI.forms.backup.privateKey = privateKey
       
       // 关闭密码输入对话框，显示私钥对话框
       showPasswordInput.value = false
-      ui.modals.exportPrivateKey = true
+      walletUI.modals.exportPrivateKey = true
       
-      ui.addDebugLog('私钥导出成功')
+      walletUI.addDebugLog('私钥导出成功')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
-      ui.addDebugLog(`导出私钥失败: ${errorMessage}`)
+      walletUI.addDebugLog(`导出私钥失败: ${errorMessage}`)
       message.error(`导出私钥失败: ${errorMessage}`)
     }
   } else if (passwordAction.value === 'create') {
     try {
-      ui.forms.newWallet.isCreating = true
-      ui.addDebugLog('开始创建钱包，使用密码验证')
+      walletUI.forms.newWallet.isCreating = true
+      walletUI.addDebugLog('开始创建钱包，使用密码验证')
       
       // 执行创建钱包，传入密码
-      const result = await ui.wallet.createWallet(ui.forms.newWallet.accountName || undefined, password)
+      const result = await walletUI.wallet.createWallet(walletUI.forms.newWallet.accountName || undefined, password)
       
       if (!result) {
         throw new Error('钱包创建失败：未返回结果')
@@ -282,24 +273,24 @@ async function handlePasswordConfirm(password: string) {
       }
 
       // 保存私钥以供备份
-      ui.forms.backup.privateKey = result.privateKey
-      ui.forms.newWallet.reset()
+      walletUI.forms.backup.privateKey = result.privateKey
+      walletUI.forms.newWallet.reset()
 
       // 关闭创建模态框和密码输入框，显示备份模态框
-      ui.modals.createWallet = false
+      walletUI.modals.createWallet = false
       showPasswordInput.value = false
-      ui.modals.backup = true
+      walletUI.modals.backup = true
 
       message.success('钱包创建成功！')
-      await ui.refreshWalletBalance()
+      await walletUI.refreshWalletBalance()
       
-      ui.addDebugLog('钱包创建成功')
+      walletUI.addDebugLog('钱包创建成功')
   } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
-      ui.addDebugLog(`创建钱包失败: ${errorMessage}`)
+      walletUI.addDebugLog(`创建钱包失败: ${errorMessage}`)
       message.error(`创建钱包失败: ${errorMessage}`)
   } finally {
-      ui.forms.newWallet.isCreating = false
+      walletUI.forms.newWallet.isCreating = false
     }
   }
 }
@@ -315,29 +306,29 @@ function handlePasswordCancel() {
   
   // 如果是发送交易被取消，记录日志
   if (currentAction === 'send') {
-    ui.addDebugLog('发送交易已取消')
+    walletUI.addDebugLog('发送交易已取消')
   }
 }
 
 // 初始化钱包
 onMounted(async () => {
-  ui.addDebugLog('钱包组件已挂载')
+  walletUI.addDebugLog('钱包组件已挂载')
 
   try {
     // 初始化钱包
-    await ui.wallet.initWallet()
+    await walletUI.wallet.initWallet()
     
-    ui.addDebugLog('钱包初始化完成', { status: ui.wallet.walletStatus.value })
+    walletUI.addDebugLog('钱包初始化完成', { status: walletUI.wallet.walletStatus.value })
 
     // 如果钱包已连接，刷新余额和资产
-    if (ui.isWalletConnected.value) {
-      await ui.refreshWalletBalance()
+    if (walletUI.isWalletConnected.value) {
+      await walletUI.refreshWalletBalance()
     }
 
     // 添加模拟交易记录(如果需要)
-    if (!ui.wallet.transactions.value || ui.wallet.transactions.value.length === 0) {
-      ui.addDebugLog('初始化模拟交易记录')
-      ui.wallet.transactions.value = [
+    if (!walletUI.wallet.transactions.value || walletUI.wallet.transactions.value.length === 0) {
+      walletUI.addDebugLog('初始化模拟交易记录')
+      walletUI.wallet.transactions.value = [
         {
           id: `tx-${Date.now()}`,
           type: 'receive',
@@ -363,7 +354,7 @@ onMounted(async () => {
       ]
     }
   } catch (error) {
-    ui.addDebugLog('初始化出错', error)
+    walletUI.addDebugLog('初始化出错', error)
   }
 })
 </script>
@@ -387,7 +378,7 @@ onMounted(async () => {
           <template v-if="isWalletLocked">
             <a-button
               type="primary"
-              @click="showUnlockDialog"
+              @click="walletUI.showUnlockDialog"
             >
               <UnlockOutlined />解锁钱包
             </a-button>
@@ -396,22 +387,22 @@ onMounted(async () => {
           <template v-else>
             <a-button
               type="primary"
-              @click="ui.modals.send = true"
+              @click="walletUI.modals.send = true"
             >
             <SendOutlined />发送
           </a-button>
-            <a-button @click="ui.modals.receive = true">
+            <a-button @click="walletUI.modals.receive = true">
             <ScanOutlined />接收
           </a-button>
             <!-- <a-button @click="ui.refreshWalletBalance" :loading="loadingBalances">
             <SyncOutlined />刷新
             </a-button> -->
-            <a-button @click="ui.handleLockWallet">
+            <a-button @click="walletUI.handleLockWallet">
               <LockOutlined />锁定
           </a-button>
             <a-button
               danger
-              @click="ui.handleDisconnectWallet"
+              @click="walletUI.handleDisconnectWallet"
             >
             断开
           </a-button>
@@ -420,11 +411,11 @@ onMounted(async () => {
         <template v-else>
           <a-button
             type="primary"
-            @click="ui.modals.createWallet = true"
+            @click="walletUI.modals.createWallet = true"
           >
             <PlusOutlined />创建钱包
           </a-button>
-          <a-button @click="ui.modals.importWallet = true">
+          <a-button @click="walletUI.modals.importWallet = true">
             <KeyOutlined />导入钱包
           </a-button>
         </template>
@@ -436,11 +427,11 @@ onMounted(async () => {
       v-if="isWalletConnected"
       :address="walletAddress"
       :balance="walletBalance"
-      :dfs-price="ui.dfsPrice.value"
+      :dfs-price="walletUI.dfsPrice.value"
       :is-locked="isWalletLocked"
-      @copy="ui.copyToClipboard"
+      @copy="walletUI.copyToClipboard"
       @export-private-key="handleExportPrivateKey"
-      @refresh-price="ui.fetchDFSPrice"
+      @refresh-price="walletUI.fetchDFSPrice"
     />
 
     <!-- 未连接钱包提示 -->
@@ -463,7 +454,7 @@ onMounted(async () => {
 
         <!-- 密码未设置时提醒用户 -->
         <div
-          v-if="!ui.hasSetupPassword"
+          v-if="!walletUI.hasSetupPassword"
           class="warning-box mb-4 max-w-md w-full"
         >
           <div class="warning-title">
@@ -476,7 +467,7 @@ onMounted(async () => {
 
         <!-- 节点URL未设置时提醒用户 -->
         <div
-          v-if="!ui.hasSetupNodeUrl && ui.hasSetupPassword"
+          v-if="!walletUI.hasSetupNodeUrl && walletUI.hasSetupPassword"
           class="warning-box mb-4 max-w-md w-full"
         >
           <div class="warning-title">
@@ -489,22 +480,22 @@ onMounted(async () => {
 
         <div class="flex gap-4">
           <a-button
-            v-if="!ui.hasSetupPassword || !ui.hasSetupNodeUrl"
+            v-if="!walletUI.hasSetupPassword || !walletUI.hasSetupNodeUrl"
             type="primary"
             @click="activeTab = 'settings'"
           >
             <SettingOutlined />前往设置
           </a-button>
           <a-button
-            :disabled="!ui.hasSetupPassword || !ui.hasSetupNodeUrl"
+            :disabled="!walletUI.hasSetupPassword || !walletUI.hasSetupNodeUrl"
             type="primary"
-            @click="ui.modals.createWallet = true"
+            @click="walletUI.modals.createWallet = true"
           >
             <PlusOutlined />创建钱包
           </a-button>
           <a-button
-            :disabled="!ui.hasSetupPassword || !ui.hasSetupNodeUrl"
-            @click="ui.modals.importWallet = true"
+            :disabled="!walletUI.hasSetupPassword || !walletUI.hasSetupNodeUrl"
+            @click="walletUI.modals.importWallet = true"
           >
             <KeyOutlined />导入钱包
           </a-button>
@@ -529,7 +520,7 @@ onMounted(async () => {
           <AssetList
             :assets="assetList"
             :loading="loadingBalances"
-            @refresh="ui.refreshWalletBalance"
+            @refresh="walletUI.refreshWalletBalance"
           />
 
           <!-- 钱包操作快捷按钮 -->
@@ -569,7 +560,7 @@ onMounted(async () => {
         tab="交易记录"
       >
         <!-- 交易记录列表组件 -->
-        <TransactionList :transactions="ui.wallet.transactions.value || []" />
+        <TransactionList :transactions="walletUI.wallet.transactions.value || []" />
       </a-tab-pane>
       <a-tab-pane
         v-if="isWalletConnected"
@@ -590,21 +581,21 @@ onMounted(async () => {
 
     <!-- 发送模态框 -->
     <WalletModal
-      v-model:visible="ui.modals.send"
+      v-model:visible="walletUI.modals.send"
       confirm-text="发送"
-      :title="`发送${ui.forms.send.currency || 'DFS'}`"
+      :title="`发送${walletUI.forms.send.currency || 'DFS'}`"
       @confirm="handleSend"
     >
       <SendTokenForm
         ref="sendFormRef"
         :assets="assetList"
-        :available-balance="ui.wallet.balances[WalletType.DFS]"
+        :available-balance="walletUI.wallet.balances[WalletType.DFS]"
       />
     </WalletModal>
 
     <!-- 接收模态框 -->
     <WalletModal
-      v-model:visible="ui.modals.receive"
+      v-model:visible="walletUI.modals.receive"
       cancel-text="关闭"
       confirm-text=""
       title="接收DFS"
@@ -612,15 +603,15 @@ onMounted(async () => {
       <div class="text-center">
         <QRCodeView
               :value="walletAddress"
-          @copy="ui.copyToClipboard"
+          @copy="walletUI.copyToClipboard"
         />
       </div>
     </WalletModal>
 
     <!-- 创建钱包模态框 -->
     <WalletModal
-      v-model:visible="ui.modals.createWallet"
-      :confirm-disabled="ui.forms.newWallet.isCreating"
+      v-model:visible="walletUI.modals.createWallet"
+      :confirm-disabled="walletUI.forms.newWallet.isCreating"
       confirm-text="创建"
       title="创建新钱包"
       @confirm="handleCreateWallet"
@@ -628,7 +619,7 @@ onMounted(async () => {
       <div class="form-group">
         <label>账户名称 (可选)</label>
         <input
-          v-model="ui.forms.newWallet.accountName"
+          v-model="walletUI.forms.newWallet.accountName"
           class="form-input"
           placeholder="输入账户名或留空生成随机名称"
         >
@@ -649,8 +640,8 @@ onMounted(async () => {
 
     <!-- 导入钱包模态框 -->
     <WalletModal
-      v-model:visible="ui.modals.importWallet"
-      :confirm-disabled="ui.forms.importWallet.isImporting"
+      v-model:visible="walletUI.modals.importWallet"
+      :confirm-disabled="walletUI.forms.importWallet.isImporting"
       confirm-text="导入"
       title="导入钱包"
       @confirm="handleImportWallet"
@@ -658,7 +649,7 @@ onMounted(async () => {
       <div class="form-group">
         <label>私钥</label>
         <input
-          v-model="ui.forms.importWallet.privateKey"
+          v-model="walletUI.forms.importWallet.privateKey"
           class="form-input"
           placeholder="输入您的私钥"
           type="password"
@@ -668,7 +659,7 @@ onMounted(async () => {
       <div class="form-group">
         <label>账户名</label>
         <input
-          v-model="ui.forms.importWallet.accountName"
+          v-model="walletUI.forms.importWallet.accountName"
           class="form-input"
           placeholder="输入您的账户名"
           type="text"
@@ -697,10 +688,10 @@ onMounted(async () => {
 
     <!-- 备份私钥模态框 -->
     <WalletModal
-      v-model:visible="ui.modals.backup"
+      v-model:visible="walletUI.modals.backup"
       confirm-text="我已安全备份私钥"
       title="备份私钥"
-      @confirm="ui.completeBackup"
+      @confirm="walletUI.completeBackup"
     >
       <div class="warning-box">
         <div class="warning-title">
@@ -716,9 +707,9 @@ onMounted(async () => {
           <span class="key-title">您的私钥</span>
           <button
             class="toggle-btn"
-            @click="ui.togglePrivateKeyVisibility"
+            @click="walletUI.togglePrivateKeyVisibility"
           >
-            <span v-if="ui.forms.backup.showPrivateKey">
+            <span v-if="walletUI.forms.backup.showPrivateKey">
                 <LockOutlined /> 隐藏
             </span>
             <span v-else>
@@ -729,10 +720,10 @@ onMounted(async () => {
           
         <div class="key-value">
           <div
-            v-if="ui.forms.backup.showPrivateKey"
+            v-if="walletUI.forms.backup.showPrivateKey"
             class="key-text"
           >
-            {{ ui.forms.backup.privateKey }}
+            {{ walletUI.forms.backup.privateKey }}
           </div>
           <div
             v-else
@@ -745,7 +736,7 @@ onMounted(async () => {
         <div class="key-actions">
           <button
             class="copy-btn"
-            @click="ui.copyToClipboard(ui.forms.backup.privateKey)"
+            @click="walletUI.copyToClipboard(walletUI.forms.backup.privateKey)"
           >
             <CopyOutlined /> 复制
           </button>
@@ -775,10 +766,10 @@ onMounted(async () => {
 
     <!-- 导出私钥模态框 -->
     <WalletModal
-      v-model:visible="ui.modals.exportPrivateKey"
+      v-model:visible="walletUI.modals.exportPrivateKey"
       confirm-text="我已安全备份私钥"
       title="导出私钥"
-      @confirm="ui.modals.exportPrivateKey = false"
+      @confirm="walletUI.modals.exportPrivateKey = false"
     >
       <div class="warning-box">
         <div class="warning-title">
@@ -803,9 +794,9 @@ onMounted(async () => {
           <span class="key-title">私钥</span>
           <button
             class="toggle-btn"
-            @click="ui.togglePrivateKeyVisibility"
+            @click="walletUI.togglePrivateKeyVisibility"
           >
-            <span v-if="ui.forms.backup.showPrivateKey">
+            <span v-if="walletUI.forms.backup.showPrivateKey">
               <LockOutlined /> 隐藏
             </span>
             <span v-else>
@@ -816,10 +807,10 @@ onMounted(async () => {
 
         <div class="key-value">
           <div
-            v-if="ui.forms.backup.showPrivateKey"
+            v-if="walletUI.forms.backup.showPrivateKey"
             class="key-text"
           >
-            {{ ui.forms.backup.privateKey }}
+            {{ walletUI.forms.backup.privateKey }}
           </div>
           <div
             v-else
@@ -832,7 +823,7 @@ onMounted(async () => {
         <div class="key-actions">
           <button
             class="copy-btn"
-            @click="ui.copyToClipboard(ui.forms.backup.privateKey)"
+            @click="walletUI.copyToClipboard(walletUI.forms.backup.privateKey)"
           >
             <CopyOutlined /> 复制私钥
           </button>
@@ -852,8 +843,8 @@ onMounted(async () => {
 
     <!-- 解锁钱包对话框 -->
     <WalletUnlockModal
-      v-model:visible="ui.modals.unlockWallet"
-      @unlock="ui.handleUnlockWallet"
+      v-model:visible="walletUI.modals.unlockWallet"
+      @unlock="walletUI.handleUnlockWallet"
     />
   </div>
 </template>

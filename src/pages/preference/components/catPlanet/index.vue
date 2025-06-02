@@ -16,7 +16,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useWallet } from '@/composables/wallet/useWallet'
 import { useWalletUI } from '@/composables/wallet/useWalletUI'
 import { PasswordManager } from '@/utils/PasswordManager'
-// 新增导入解锁组件
+// 添加解锁组件导入
 import WalletUnlockModal from '@/components/wallet/WalletUnlockModal.vue'
 
 // 猫咪数据结构接口
@@ -57,8 +57,6 @@ const errorMessage = ref('')
 const refreshingCat = ref<number | null>(null)
 const interactionsLoading = ref(false)
 const catsLoading = ref(false)
-// 新增模态框显示控制
-const showUnlockModal = ref(false)
 
 // 计算属性
 const isWalletConnected = computed(() => walletUI.isWalletConnected.value)
@@ -412,48 +410,6 @@ onMounted(async () => {
     walletUI.addDebugLog('钱包组件挂载时出错', err)
   }
 })
-
-// 解锁钱包的处理
-const unlockWallet = () => {
-  // 显示解锁钱包对话框
-  showUnlockModal.value = true
-}
-
-// 处理解锁钱包
-const handleUnlockWallet = async (password: string) => {
-  try {
-    if (!password) {
-      message.error('请输入密码')
-      return false
-    }
-    
-    walletUI.addDebugLog('猫星球: 开始解锁钱包')
-    const result = await wallet.unlockWallet(password)
-    
-    if (result) {
-      showUnlockModal.value = false
-      message.success('钱包解锁成功')
-      
-      // 解锁成功后刷新数据
-      await fetchUserCats()
-      if (selectedCatId.value) {
-        await fetchCatInteractions(selectedCatId.value)
-      }
-      
-      walletUI.addDebugLog('猫星球: 钱包解锁成功')
-      return true
-    } else {
-      message.error('钱包解锁失败，请检查密码是否正确')
-      walletUI.addDebugLog('猫星球: 钱包解锁失败')
-      return false
-    }
-  } catch (err: any) {
-    const errorMessage = err.message || '解锁钱包失败'
-    message.error(`解锁失败: ${errorMessage}`)
-    walletUI.addDebugLog(`猫星球: 解锁钱包失败: ${errorMessage}`)
-    return false
-  }
-}
 </script>
 
 <template>
@@ -464,7 +420,7 @@ const handleUnlockWallet = async (password: string) => {
         <a-button @click="refreshData" :loading="loading">
           <ReloadOutlined /> 刷新数据
         </a-button>
-        <a-button v-if="isWalletLocked" @click="unlockWallet" type="primary">
+        <a-button v-if="isWalletLocked" @click="walletUI.showUnlockDialog" type="primary">
           <UnlockOutlined /> 解锁钱包
         </a-button>
         <a-button v-else @click="walletUI.handleLockWallet">
@@ -610,7 +566,7 @@ const handleUnlockWallet = async (password: string) => {
                       <div class="text-sm text-gray-500">体力</div>
                       <a-progress
                         :percent="catsList.find(c => c.id === selectedCatId)?.stamina || 0"
-                        :stroke-color="catsList.find(c => c.id === selectedCatId)?.stamina >= 50 ? '#52c41a' : '#faad14'"
+                        :stroke-color="((catsList.find(c => c.id === selectedCatId)?.stamina || 0) >= 50) ? '#52c41a' : '#faad14'"
                       />
                     </div>
                     <div>
@@ -708,8 +664,8 @@ const handleUnlockWallet = async (password: string) => {
 
     <!-- 解锁钱包对话框 -->
     <WalletUnlockModal
-      v-model:visible="showUnlockModal"
-      @unlock="handleUnlockWallet"
+      v-model:visible="walletUI.modals.unlockWallet"
+      @unlock="walletUI.handleUnlockWallet"
     />
   </div>
 </template>
