@@ -116,5 +116,6 @@
     "xmemory": "cpp",
     "xstddef": "cpp",
     "xtr1common": "cpp"
-  }
+  },
+  "workbench.activityBar.orientation": "vertical"
 }

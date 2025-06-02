@@ -7,7 +7,8 @@ import {
   LockOutlined,
   UnlockOutlined,
   ReloadOutlined,
-  PlusOutlined
+  PlusOutlined,
+  HeartOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { computed, onMounted, ref } from 'vue'
@@ -52,7 +53,7 @@ const interactions = ref<InteractionInfo[]>([])
 const selectedCatId = ref<number | null>(null)
 const showPasswordModal = ref(false)
 const password = ref('')
-const actionType = ref<'upgrade' | 'checkaction' | 'mint' | null>(null)
+const actionType = ref<'upgrade' | 'checkaction' | 'mint' | 'feed' | null>(null)
 const errorMessage = ref('')
 const refreshingCat = ref<number | null>(null)
 const interactionsLoading = ref(false)
@@ -79,6 +80,30 @@ const formatTime = (timestamp: number) => {
   return date.toLocaleString()
 }
 
+// 格式化ISO格式的时间字符串，转换为+8时区
+const formatISOTime = (timeStr: string) => {
+  if (!timeStr) return '未知'
+  try {
+    // 解析ISO时间字符串
+    const date = new Date(timeStr)
+    // 添加8小时调整为北京时间
+    const chinaTime = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+    // 格式化为友好的本地时间显示
+    return chinaTime.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    })
+  } catch (e) {
+    console.error('时间格式化错误:', e)
+    return timeStr
+  }
+}
+
 // 计算距离上次检查的时间（小时）
 const getHoursSinceLastCheck = (timestamp: number) => {
   if (!timestamp) return '从未检查'
@@ -87,11 +112,37 @@ const getHoursSinceLastCheck = (timestamp: number) => {
   return `${hours}小时前`
 }
 
+// 计算指定等级所需的总经验值
+const xpForLevel = (level: number) => {
+  // 使用二次方程式: xp = 100 * (level^2) + 500 * level
+  return 100 * level * level + 500 * level
+}
+
 // 计算经验进度百分比
 const getExpProgressPercent = (exp: number, level: number) => {
-  // 下一级所需经验 = 当前等级 * 1000
-  const nextLevelExp = level * 1000
-  return Math.min(Math.floor((exp / nextLevelExp) * 100), 100)
+  // 下一等级所需总经验
+  const nextLevelExp = xpForLevel(level)
+  // 当前已获得的总经验
+  const currentExp = exp || 0
+  
+  // 计算进度百分比，确保在0-100之间
+  return Math.min(Math.max(Math.floor((currentExp / nextLevelExp) * 100), 0), 100)
+}
+
+// 获取经验显示文本
+const getExpDisplayText = (exp: number, level: number) => {
+  // 下一等级所需总经验
+  const nextLevelExp = xpForLevel(level)
+  // 当前已获得的总经验
+  const currentExp = exp || 0
+  
+  return `${currentExp}/${nextLevelExp}`
+}
+
+// 判断猫咪是否可升级
+const canUpgrade = (exp: number, level: number) => {
+  const nextLevelExp = xpForLevel(level)
+  return exp >= nextLevelExp
 }
 
 // 获取用户的猫咪列表
@@ -159,23 +210,25 @@ const fetchCatInteractions = async (catId: number) => {
   }
 
   interactionsLoading.value = true;
-  
+  // message.info('获取互动记录...')
+  // message.info(catId.toString())
   try {
     const result = await wallet.getTableRows(
       'ifwzjalq2lg1',      // code: 合约账户名
       'ifwzjalq2lg1',      // scope: 表的作用域
       'interactions',       // table: 表名
       catId.toString(),     // lower_bound: 按猫咪ID索引
-      2,                   // index_position: 2表示secondary index (cat_id)
+      1,                   // index_position: 2表示secondary index (cat_id)
       'i64',               // key_type: 索引键类型
-      100                  // limit: 最大结果数
+      10                  // limit: 最大结果数
     );
 
     if (result && Array.isArray(result)) {
       // 过滤并按时间戳降序排序
       interactions.value = result
         .filter(interaction => Number(interaction.cat_id) === catId)
-        .sort((a, b) => b.timestamp - a.timestamp);
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(-5);
       
       console.log('过滤后的互动记录:', interactions.value);
     } else {
@@ -203,15 +256,16 @@ const selectCat = (catId: number) => {
 }
 
 // 执行合约操作前的检查
-const prepareAction = (type: 'upgrade' | 'checkaction' | 'mint') => {
+const prepareAction = (type: 'upgrade' | 'checkaction' | 'mint' | 'feed') => {
   if (!isWalletConnected.value) {
     message.error('请先连接钱包')
     return false
   }
   
   if (isWalletLocked.value) {
-    message.warning('钱包已锁定，请先解锁')
-    walletUI.showUnlockDialog()
+    message.warning('钱包已锁定，请先解锁',5)
+    walletUI.modals.unlockWallet = true
+    walletUI.addDebugLog('猫星球页面触发钱包解锁对话框')
     return false
   }
   
@@ -236,10 +290,10 @@ const mintCat = async () => {
       const balance = await wallet.dfsWallet.getbalance('eosio.token', accountName.value, 'DFS')
       
       // 解析余额字符串，例如 "10.0000 DFS"
-      const balanceValue = parseFloat(balance)
+      const balanceValue = parseFloat(balance);
       if (isNaN(balanceValue) || balanceValue < 1.0) {
         message.warning(`您的DFS余额不足，铸造猫咪需要至少1.0000 DFS (当前余额: ${balance || '0.0000 DFS'})`)
-        return
+        return;
       }
       
       // 显示当前余额和费用
@@ -260,6 +314,31 @@ const upgradeCat = async () => {
 // 执行检查操作
 const checkCatAction = async () => {
   if (!prepareAction('checkaction')) return
+}
+
+// 喂养猫咪
+const feedCat = async () => {
+  if (!prepareAction('feed')) return
+  
+  try {
+    // 查询用户余额，确保有足够的DFS
+    if (wallet) {
+      const balance = await wallet.dfsWallet.getbalance('eosio.token', accountName.value, 'DFS')
+      
+      // 解析余额字符串，例如 "10.0000 DFS"
+      const balanceValue = parseFloat(balance);
+      if (isNaN(balanceValue) || balanceValue < 0.01) {
+        message.warning(`您的DFS余额不足，喂养猫咪需要至少0.0100 DFS (当前余额: ${balance || '0.0000 DFS'})`)
+        return;
+      }
+      
+      // 显示当前余额和费用
+      message.info(`喂养猫咪需要支付0.0100 DFS (当前余额: ${balance})`)
+    }
+  } catch (error) {
+    console.error('查询余额失败:', error)
+    message.warning('查询余额失败，请确保有足够的DFS (至少0.0100 DFS)')
+  }
 }
 
 // 处理密码输入确认
@@ -326,6 +405,27 @@ const handlePasswordConfirm = async () => {
       
       message.success('铸造猫咪交易已提交')
       walletUI.addDebugLog('铸造猫咪交易已提交', result)
+    } else if (actionType.value === 'feed') {
+      // 喂养猫咪 - 使用转账交易和特定备注
+      result = await wallet.transact({
+        actions: [{
+          account: 'eosio.token',
+          name: 'transfer',
+          authorization: [{
+            actor: accountName.value,
+            permission: 'active',
+          }],
+          data: {
+            from: accountName.value,
+            to: 'ifwzjalq2lg1',  // 合约账户
+            quantity: '0.01000000 DFS',  // 固定费用
+            memo: `feed:${selectedCatId.value}`  // 特定备注，标识为喂养操作
+          }
+        }]
+      }, { useFreeCpu: true })
+      
+      message.success('喂养猫咪交易已提交')
+      walletUI.addDebugLog('喂养猫咪交易已提交', result)
     } else {
       // 升级或检查操作 - 直接调用合约方法
       const actionData = actionType.value === 'upgrade' 
@@ -495,7 +595,9 @@ onMounted(async () => {
                   </div>
                   <div class="flex flex-col">
                     <span class="font-medium">Lv.{{ cat.level }}</span>
-                    <span class="text-xs text-gray-500">经验: {{ cat.experience }}</span>
+                    <span class="text-xs text-gray-500">
+                      经验: {{ getExpDisplayText(cat.experience, cat.level) }}
+                    </span>
                   </div>
                 </div>
                 <div class="text-right">
@@ -525,7 +627,7 @@ onMounted(async () => {
             <!-- 猫咪信息 -->
             <div class="cat-info mb-4">
               <div v-if="selectedCatId && catsList.length > 0">
-                <div class="flex justify-between items-center mb-4">
+                <div class="flex justify-between items-start mb-4">
                   <div class="flex items-center gap-2">
                     <div 
                       :class="[
@@ -543,48 +645,90 @@ onMounted(async () => {
                     </div>
                   </div>
                   
-                  <div class="action-buttons space-x-2">
-                    <a-button type="primary" @click="upgradeCat">
-                      <UpCircleOutlined /> 升级
-                    </a-button>
-                    <a-button @click="checkCatAction">
-                      <ExperimentOutlined /> 检查
-                    </a-button>
-                  </div>
+                  <a-button type="dashed" @click="checkCatAction" class="flex items-center justify-center gap-1">
+                    <ExperimentOutlined /> 检查
+                  </a-button>
                 </div>
                 
                 <!-- 属性信息 -->
-                <div class="attributes bg-gray-50 p-3 rounded mb-3">
-                  <div class="grid grid-cols-2 gap-3">
+                <div class="attributes bg-gray-50 p-4 rounded-lg mb-4">
+                  <div class="grid grid-cols-1 gap-5">
                     <div>
-                      <div class="text-sm text-gray-500">等级</div>
-                      <div class="text-xl font-medium">
-                        {{ catsList.find(c => c.id === selectedCatId)?.level || 0 }}
+                      <div class="text-sm text-gray-500 mb-1">等级</div>
+                      <div class="flex items-center">
+                        <div class="text-2xl font-medium mr-2">
+                          {{ catsList.find(c => c.id === selectedCatId)?.level || 0 }}
+                        </div>
                       </div>
                     </div>
+                    
                     <div>
-                      <div class="text-sm text-gray-500">体力</div>
-                      <a-progress
-                        :percent="catsList.find(c => c.id === selectedCatId)?.stamina || 0"
-                        :stroke-color="((catsList.find(c => c.id === selectedCatId)?.stamina || 0) >= 50) ? '#52c41a' : '#faad14'"
-                      />
-                    </div>
-                    <div>
-                      <div class="text-sm text-gray-500">基因</div>
-                      <div class="text-base">
-                        {{ catsList.find(c => c.id === selectedCatId)?.genes || 0 }}
+                      <div class="flex justify-between text-sm text-gray-500 mb-1">
+                        <span>经验</span>
+                      </div>
+                      <div class="flex flex-col">
+                        <div class="relative w-full" style="height: 24px;">
+                          <a-progress 
+                            :percent="getExpProgressPercent(
+                              catsList.find(c => c.id === selectedCatId)?.experience || 0,
+                              catsList.find(c => c.id === selectedCatId)?.level || 1
+                            )" 
+                            :format="() => ''"
+                            stroke-color="#1890ff"
+                            :stroke-width="24"
+                          />
+                          <div class="absolute inset-0 flex items-center justify-center text-xs font-medium" style="line-height: 1;">
+                            {{ getExpDisplayText(
+                              catsList.find(c => c.id === selectedCatId)?.experience || 0,
+                              catsList.find(c => c.id === selectedCatId)?.level || 1
+                            ) }} 经验
+                          </div>
+                          <a-button 
+                            type="primary" 
+                            size="small" 
+                            shape="circle"
+                            @click="upgradeCat" 
+                            :disabled="!canUpgrade(
+                              catsList.find(c => c.id === selectedCatId)?.experience || 0,
+                              catsList.find(c => c.id === selectedCatId)?.level || 1
+                            )"
+                            class="absolute flex items-center justify-center"
+                            style="top: -4px; right: -4px; z-index: 10;"
+                          >
+                            <UpCircleOutlined />
+                          </a-button>
+                        </div>
                       </div>
                     </div>
+                    
                     <div>
-                      <div class="text-sm text-gray-500">经验</div>
-                      <a-progress 
-                        :percent="getExpProgressPercent(
-                          catsList.find(c => c.id === selectedCatId)?.experience || 0,
-                          catsList.find(c => c.id === selectedCatId)?.level || 1
-                        )" 
-                        :format="() => `${catsList.find(c => c.id === selectedCatId)?.experience || 0}`"
-                        stroke-color="#1890ff"
-                      />
+                      <div class="flex justify-between text-sm text-gray-500 mb-1">
+                        <span>体力</span>
+                      </div>
+                      <div class="flex flex-col">
+                        <div class="relative w-full" style="height: 24px;">
+                          <a-progress
+                            :percent="catsList.find(c => c.id === selectedCatId)?.stamina || 0"
+                            :stroke-color="((catsList.find(c => c.id === selectedCatId)?.stamina || 0) >= 50) ? '#52c41a' : '#faad14'"
+                            :stroke-width="24"
+                            :format="() => ''"
+                          />
+                          <div class="absolute inset-0 flex items-center justify-center text-xs font-medium" style="line-height: 1;">
+                            {{ catsList.find(c => c.id === selectedCatId)?.stamina || 0 }}% 体力
+                          </div>
+                          <a-button 
+                            type="primary" 
+                            danger 
+                            size="small" 
+                            shape="circle"
+                            @click="feedCat"
+                            class="absolute flex items-center justify-center"
+                            style="top: -4px; right: -4px; z-index: 10;"
+                          >
+                            <HeartOutlined />
+                          </a-button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -611,19 +755,29 @@ onMounted(async () => {
                       :key="interaction.id"
                       :color="
                         interaction.action_type === 'upgrade' ? 'green' : 
-                        interaction.action_type === 'checkaction' ? 'blue' : 'gray'
+                        interaction.action_type === 'feed' ? 'red' :
+                        interaction.action_type === 'addxp' ? 'blue' :
+                        interaction.action_type === 'external' ? 'purple' :
+                        'gray'
                       "
                     >
                       <p>
                         <span class="font-medium">
-                          {{ interaction.action_type === 'upgrade' ? '升级' : '检查活动' }}
+                          {{ 
+                            interaction.action_type === 'upgrade' ? '升级' : 
+                            interaction.action_type === 'addxp' ? '获得经验' :
+                            interaction.action_type === 'feed' ? '喂养' :
+                            interaction.action_type === 'external' ? '外部检查' :
+                            interaction.action_type === 'checkaction' ? '检查活动' :
+                            interaction.action_type 
+                          }}
                         </span>
                         <span v-if="interaction.attribute_change" class="text-green-500 ml-1">
                           +{{ interaction.attribute_change }}
                         </span>
                       </p>
                       <p class="text-xs text-gray-500">
-                        {{ new Date(interaction.timestamp).toLocaleString() }}
+                        {{ formatISOTime(interaction.timestamp) }}
                       </p>
                     </a-timeline-item>
                   </a-timeline>
@@ -638,7 +792,7 @@ onMounted(async () => {
     <!-- 密码输入对话框 -->
     <a-modal
       v-model:visible="showPasswordModal"
-      :title="actionType === 'upgrade' ? '升级猫咪' : actionType === 'mint' ? '铸造猫咪' : '检查活动'"
+      :title="actionType === 'upgrade' ? '升级猫咪' : actionType === 'mint' ? '铸造猫咪' : actionType === 'feed' ? '喂养猫咪' : '检查活动'"
       :confirm-loading="loading"
       @ok="handlePasswordConfirm"
     >
@@ -655,6 +809,9 @@ onMounted(async () => {
         </template>
         <template v-else-if="actionType === 'mint'">
           铸造猫咪将从您的钱包中扣除 <span class="font-bold text-red-500">1.0000 DFS</span>
+        </template>
+        <template v-else-if="actionType === 'feed'">
+          喂养猫咪将从您的钱包中扣除 <span class="font-bold text-red-500">0.0100 DFS</span>
         </template>
         <template v-else>
           检查活动可能会发现新的经验或属性增长
