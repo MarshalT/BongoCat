@@ -58,6 +58,7 @@ const errorMessage = ref('')
 const refreshingCat = ref<number | null>(null)
 const interactionsLoading = ref(false)
 const catsLoading = ref(false)
+const isPatting = ref(false)
 
 // 计算属性
 const isWalletConnected = computed(() => walletUI.isWalletConnected.value)
@@ -465,6 +466,7 @@ const handlePasswordConfirm = async () => {
       await fetchCatInteractions(selectedCatId.value)
     }
   } catch (err) {
+    walletUI.addDebugLog(`执行${actionType.value}操作失败`, err)
     const errMsg = err instanceof Error ? err.message : '未知错误'
     walletUI.addDebugLog(`执行${actionType.value}操作失败`, err)
     message.error(`操作失败: ${errMsg}`)
@@ -480,6 +482,69 @@ const refreshData = async () => {
     await fetchCatInteractions(selectedCatId.value)
   }
 }
+
+// 添加猫咪拍打互动函数
+const patCat = () => {
+  if (isPatting.value) return
+  
+  isPatting.value = true
+  message.success('喵~', 1)
+  
+  // 1秒后重置状态
+  setTimeout(() => {
+    isPatting.value = false
+  }, 1000)
+}
+
+// 根据基因值获取猫咪的渐变颜色
+const getCatGradient = computed(() => {
+  if (!selectedCatId.value || !catsList.value.length) return null
+  
+  const selectedCat = catsList.value.find(cat => cat.id === selectedCatId.value)
+  if (!selectedCat) return null
+  
+  // 根据基因值选择颜色
+  const genes = selectedCat.genes || 0
+  const colorSchemes = [
+    { // 橙色系
+      body1: '#ffb84d', 
+      body2: '#e67700',
+      ear: '#ffb380'
+    },
+    { // 灰色系
+      body1: '#b3b3cc', 
+      body2: '#666699',
+      ear: '#d1d1e0'
+    },
+    { // 棕色系
+      body1: '#bf8040', 
+      body2: '#734d26',
+      ear: '#d2a679'
+    },
+    { // 白色系
+      body1: '#ffffff', 
+      body2: '#e6e6e6',
+      ear: '#f2f2f2'
+    },
+    { // 黄色系
+      body1: '#ffff99', 
+      body2: '#e6e600',
+      ear: '#ffffb3'
+    },
+    { // 黑色系
+      body1: '#666666', 
+      body2: '#1a1a1a',
+      ear: '#808080'
+    },
+    { // 蓝灰系
+      body1: '#99ccff', 
+      body2: '#3399ff',
+      ear: '#cce6ff'
+    },
+  ]
+  
+  return colorSchemes[genes % colorSchemes.length]
+})
 
 // 组件挂载时获取数据
 onMounted(async () => {
@@ -569,6 +634,7 @@ onMounted(async () => {
             </a-button>
           </template>
           
+          <!-- 猫咪列表 -->
           <div v-if="!isWalletConnected || isWalletLocked" class="text-center p-4">
             <p>请先连接并解锁钱包</p>
           </div>
@@ -608,6 +674,94 @@ onMounted(async () => {
                 </div>
               </div>
             </a-card>
+          </div>
+          
+          <!-- 猫咪图形区域 -->
+          <div class="cat-illustration mt-4 border rounded-lg p-4 flex justify-center items-center" style="min-height: 200px;">
+            <svg 
+              width="180" 
+              height="140" 
+              viewBox="0 0 180 140" 
+              xmlns="http://www.w3.org/2000/svg"
+              @click="patCat"
+              :class="{ 'pat-animation': isPatting }"
+            >
+              <!-- 渐变定义 -->
+              <defs>
+                <linearGradient id="cat-body-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" :style="`stop-color:${getCatGradient?.body1 || '#ffb84d'};stop-opacity:1`" />
+                  <stop offset="100%" :style="`stop-color:${getCatGradient?.body2 || '#e67700'};stop-opacity:1`" />
+                </linearGradient>
+                
+                <linearGradient id="cat-head-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" :style="`stop-color:${getCatGradient?.body1 || '#ffb84d'};stop-opacity:1`" />
+                  <stop offset="100%" :style="`stop-color:${getCatGradient?.body2 || '#e67700'};stop-opacity:1`" />
+                </linearGradient>
+              </defs>
+              
+              <!-- 猫咪身体 - 更圆润的形状 -->
+              <ellipse class="cat-body" cx="90" cy="95" rx="55" ry="40" fill="url(#cat-body-gradient)" stroke="#e09112" stroke-width="2"/>
+              
+              <!-- 猫咪头部 - 更精致的形状 -->
+              <circle class="cat-body" cx="90" cy="60" r="38" fill="url(#cat-head-gradient)" stroke="#e09112" stroke-width="2"/>
+              
+              <!-- 尾巴 -->
+              <path class="cat-tail" d="M30,90 Q35,60 45,80 Q55,95 40,105" fill="url(#cat-body-gradient)" stroke="#e09112" stroke-width="2" stroke-linecap="round"/>
+              
+              <!-- 耳朵 - 更自然的形状 -->
+              <path class="cat-body" d="M65,35 L60,10 Q75,15 85,30" fill="url(#cat-body-gradient)" stroke="#e09112" stroke-width="2"/>
+              <path class="cat-body" d="M115,35 L120,10 Q105,15 95,30" fill="url(#cat-body-gradient)" stroke="#e09112" stroke-width="2"/>
+              
+              <!-- 耳朵内部 -->
+              <path class="cat-body" d="M67,30 L65,15 Q75,20 80,28" :fill="getCatGradient?.ear || '#ffb380'"/>
+              <path class="cat-body" d="M113,30 L115,15 Q105,20 100,28" :fill="getCatGradient?.ear || '#ffb380'"/>
+              
+              <!-- 脸颊 -->
+              <ellipse class="cat-body" cx="65" cy="70" rx="12" ry="10" :fill="getCatGradient?.ear || '#ffb380'" opacity="0.6"/>
+              <ellipse class="cat-body" cx="115" cy="70" rx="12" ry="10" :fill="getCatGradient?.ear || '#ffb380'" opacity="0.6"/>
+              
+              <!-- 眼睛 - 更大更有神 -->
+              <g class="cat-eyes">
+                <ellipse cx="75" cy="55" rx="9" ry="11" fill="white" stroke="#333" stroke-width="1.5"/>
+                <ellipse cx="105" cy="55" rx="9" ry="11" fill="white" stroke="#333" stroke-width="1.5"/>
+                
+                <!-- 眼睛高光 -->
+                <circle cx="73" cy="51" r="3" fill="white"/>
+                <circle cx="103" cy="51" r="3" fill="white"/>
+                
+                <!-- 瞳孔 - 猫眼竖瞳 -->
+                <ellipse cx="75" cy="55" rx="4" ry="8" fill="#333"/>
+                <ellipse cx="105" cy="55" rx="4" ry="8" fill="#333"/>
+              </g>
+              
+              <!-- 鼻子 - 更精致 -->
+              <path class="cat-body" d="M87,65 Q90,67 93,65 L93,68 Q90,70 87,68 Z" fill="#ff9999" stroke="#d67979" stroke-width="0.5"/>
+              
+              <!-- 嘴 - 更自然的微笑 -->
+              <path class="cat-body" d="M85,72 Q90,77 95,72" stroke="#333" stroke-width="1.5" fill="none"/>
+              <path class="cat-body" d="M90,68 L90,72" stroke="#333" stroke-width="1" fill="none"/>
+              
+              <!-- 胡须 - 更自然的曲线 -->
+              <g class="cat-whiskers">
+                <path d="M65,70 Q72,71 78,70" stroke="#333" stroke-width="1" fill="none"/>
+                <path d="M65,75 Q73,75 80,74" stroke="#333" stroke-width="1" fill="none"/>
+                <path d="M65,80 Q72,79 78,78" stroke="#333" stroke-width="1" fill="none"/>
+                
+                <path d="M115,70 Q108,71 102,70" stroke="#333" stroke-width="1" fill="none"/>
+                <path d="M115,75 Q107,75 100,74" stroke="#333" stroke-width="1" fill="none"/>
+                <path d="M115,80 Q108,79 102,78" stroke="#333" stroke-width="1" fill="none"/>
+              </g>
+              
+              <!-- 前爪 - 更可爱的设计 -->
+              <path class="cat-body" d="M65,110 C60,115 62,125 70,125 Q72,120 70,115" fill="url(#cat-body-gradient)" stroke="#e09112" stroke-width="2"/>
+              <path class="cat-body" d="M115,110 C120,115 118,125 110,125 Q108,120 110,115" fill="url(#cat-body-gradient)" stroke="#e09112" stroke-width="2"/>
+              
+              <!-- 爪子细节 -->
+              <path class="cat-body" d="M65,123 L67,119" stroke="#e09112" stroke-width="1.5"/>
+              <path class="cat-body" d="M68,123 L69,119" stroke="#e09112" stroke-width="1.5"/>
+              <path class="cat-body" d="M115,123 L113,119" stroke="#e09112" stroke-width="1.5"/>
+              <path class="cat-body" d="M112,123 L111,119" stroke="#e09112" stroke-width="1.5"/>
+            </svg>
           </div>
         </a-card>
       </a-col>
@@ -832,5 +986,91 @@ onMounted(async () => {
   max-height: 450px;
   overflow-y: auto;
   padding-right: 5px;
+}
+
+/* 猫咪动画效果 */
+@keyframes breathe {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+@keyframes tailWag {
+  0% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(2px) rotate(3deg); }
+  75% { transform: translateX(-2px) rotate(-3deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+
+@keyframes blinkEyes {
+  0% { transform: scaleY(1); }
+  5% { transform: scaleY(0.1); }
+  10% { transform: scaleY(1); }
+  100% { transform: scaleY(1); }
+}
+
+/* 点击猫咪时的动画 */
+@keyframes patReaction {
+  0% { transform: scale(1); }
+  30% { transform: scale(0.95); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.cat-illustration svg {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.cat-illustration svg:hover {
+  transform: scale(1.05);
+}
+
+.cat-illustration .cat-body {
+  animation: breathe 4s infinite ease-in-out;
+}
+
+.cat-illustration .cat-tail {
+  animation: tailWag 3s infinite ease-in-out;
+  transform-origin: 40px 90px;
+}
+
+.cat-illustration .cat-eyes {
+  animation: blinkEyes 7s infinite;
+}
+
+.cat-illustration .cat-whiskers path {
+  transition: all 0.3s ease;
+}
+
+.cat-illustration svg:hover .cat-whiskers path {
+  transform: translateY(1px);
+}
+
+.pat-animation {
+  animation: patReaction 0.5s ease-in-out;
+}
+
+/* 添加词泡提示效果 */
+.cat-illustration svg::after {
+  content: "摸摸我";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%) scale(0);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.cat-illustration svg:hover::after {
+  transform: translateX(-50%) scale(1);
+  opacity: 1;
+  top: -25px;
 }
 </style>

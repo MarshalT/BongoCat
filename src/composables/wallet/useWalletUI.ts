@@ -464,6 +464,8 @@ export function useWalletUI() {
   const completeBackup = () => {
     modals.backup = false
     forms.backup.reset()
+    //锁定钱包
+    handleLockWallet()
     addDebugLog('备份过程完成')
   }
 
