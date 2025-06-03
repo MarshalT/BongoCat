@@ -8,10 +8,11 @@ import {
   UnlockOutlined,
   ReloadOutlined,
   PlusOutlined,
-  HeartOutlined
+  HeartOutlined,
+  GiftOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, onUnmounted } from 'vue'
 
 // 导入钱包组件和工具
 import { useWallet } from '@/composables/wallet/useWallet'
@@ -29,6 +30,16 @@ import {
   type CatAppearance,
   type CatGeneDetails
 } from '@/utils/catGeneParser'
+// 导入区块链操作工具
+import {
+  checkCatHasAvailableExp,
+  mintCat as chainMintCat,
+  feedCat as chainFeedCat,
+  upgradeCat as chainUpgradeCat,
+  checkCatAction as chainCheckCatAction,
+  getUserCats as chainGetUserCats,
+  getCatInteractions as chainGetCatInteractions
+} from '@/utils/chainOperations'
 
 // 猫咪数据结构接口
 interface CatInfo {
@@ -70,6 +81,8 @@ const interactionsLoading = ref(false)
 const catsLoading = ref(false)
 const isPatting = ref(false)
 const isHovering = ref(false)
+const hasAvailableExp = ref(false)
+const checkInterval = ref<number | null>(null)
 
 // 计算属性
 const isWalletConnected = computed(() => walletUI.isWalletConnected.value)
@@ -173,34 +186,19 @@ const fetchUserCats = async () => {
   catsLoading.value = true;
 
   try {
-    const result = await wallet.getTableRows(
-      'ifwzjalq2lg1',      // code: 合约账户名
-      'ifwzjalq2lg1',      // scope: 表的作用域
-      'cats',              // table: 表名
-      accountName.value,   // lower_bound: 按所有者索引下限
-      2,                   // index_position: 2表示secondary index
-      'name',              // key_type: 索引键类型
-      100                  // limit: 最大结果数
+    catsList.value = await chainGetUserCats(
+      wallet, 
+      accountName.value,
+      (message, data) => walletUI.addDebugLog(message, data)
     );
-
-    console.log('获取猫咪API调用结果:', result);
-
-    if (result && Array.isArray(result)) {
-      // 过滤出属于当前用户的猫
-      catsList.value = result.filter(cat => cat.owner === accountName.value);
-      console.log('过滤后的用户猫咪列表:', catsList.value);
-      
-      if (catsList.value.length > 0 && !selectedCatId.value) {
-        // 默认选择第一只猫
-        selectedCatId.value = catsList.value[0].id;
-        // 获取该猫的互动记录
-        await fetchCatInteractions(selectedCatId.value);
-      } else if (catsList.value.length === 0) {
-        message.info('您还没有猫咪，请先获取一只猫咪');
-      }
-    } else {
-      console.error('获取猫咪数据返回格式不正确:', result);
-      message.error('获取猫咪数据格式不正确');
+    
+    if (catsList.value.length > 0 && !selectedCatId.value) {
+      // 默认选择第一只猫
+      selectedCatId.value = catsList.value[0].id;
+      // 获取该猫的互动记录
+      await fetchCatInteractions(selectedCatId.value);
+    } else if (catsList.value.length === 0) {
+      message.info('您还没有猫咪，请先获取一只猫咪');
     }
   } catch (error: any) {
     console.error('获取猫咪失败:', error);
@@ -210,7 +208,7 @@ const fetchUserCats = async () => {
       errorMessage: error?.message || '未知错误',
       errorStack: error?.stack
     });
-    message.error(`获取猫咪失败: ${error?.message || '请检查网络连接'}`);
+    showErrorWithTimeout(`获取猫咪失败: ${error?.message || '请检查网络连接'}`);
   } finally {
     loading.value = false;
     catsLoading.value = false;
@@ -226,31 +224,13 @@ const fetchCatInteractions = async (catId: number) => {
   }
 
   interactionsLoading.value = true;
-  // message.info('获取互动记录...')
-  // message.info(catId.toString())
-  try {
-    const result = await wallet.getTableRows(
-      'ifwzjalq2lg1',      // code: 合约账户名
-      'ifwzjalq2lg1',      // scope: 表的作用域
-      'interactions',       // table: 表名
-      catId.toString(),     // lower_bound: 按猫咪ID索引
-      1,                   // index_position: 2表示secondary index (cat_id)
-      'i64',               // key_type: 索引键类型
-      10                  // limit: 最大结果数
-    );
 
-    if (result && Array.isArray(result)) {
-      // 过滤并按时间戳降序排序
-      interactions.value = result
-        .filter(interaction => Number(interaction.cat_id) === catId)
-        .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(-5);
-      
-      console.log('过滤后的互动记录:', interactions.value);
-    } else {
-      console.error('获取互动记录数据返回格式不正确:', result);
-      message.error('获取互动记录数据格式不正确');
-    }
+  try {
+    interactions.value = await chainGetCatInteractions(
+      wallet,
+      catId,
+      (message, data) => walletUI.addDebugLog(message, data)
+    );
   } catch (error: any) {
     console.error('获取互动记录失败:', error);
     console.error('错误详情:', {
@@ -265,10 +245,91 @@ const fetchCatInteractions = async (catId: number) => {
   }
 };
 
+// 定时检查是否有可获取的经验
+const startCheckingForExp = () => {
+  // 清除之前的定时器
+  if (checkInterval.value) {
+    clearInterval(checkInterval.value);
+  }
+  
+  // 设置新的定时器，每分钟检查一次
+  checkInterval.value = window.setInterval(async () => {
+    try {
+      if (
+        !isWalletConnected.value || 
+        isWalletLocked.value || 
+        !selectedCatId.value || 
+        !wallet
+      ) {
+        hasAvailableExp.value = false;
+        return;
+      }
+      
+      const selectedCat = catsList.value.find(cat => cat.id === selectedCatId.value);
+      if (!selectedCat) {
+        hasAvailableExp.value = false;
+        return;
+      }
+      
+      // 检查是否有可获取的经验
+      hasAvailableExp.value = await checkCatHasAvailableExp(
+        wallet,
+        accountName.value,
+        selectedCatId.value,
+        selectedCat.last_external_check,
+        (message, data) => walletUI.addDebugLog(message, data)
+      );
+      
+      console.log('检查经验结果:', hasAvailableExp.value);
+    } catch (error) {
+      console.error('检查可获取经验出错:', error);
+      hasAvailableExp.value = false;
+    }
+  }, 10*1000); // 60000毫秒 = 1分钟
+  
+  // 立即执行一次检查
+  setTimeout(async () => {
+    try {
+      if (
+        isWalletConnected.value && 
+        !isWalletLocked.value && 
+        selectedCatId.value && 
+        wallet
+      ) {
+        const selectedCat = catsList.value.find(cat => cat.id === selectedCatId.value);
+        if (selectedCat) {
+          hasAvailableExp.value = await checkCatHasAvailableExp(
+            wallet,
+            accountName.value,
+            selectedCatId.value,
+            selectedCat.last_external_check,
+            (message, data) => walletUI.addDebugLog(message, data)
+          );
+          walletUI.addDebugLog(`初始检查经验结果: ${hasAvailableExp.value}`)
+        }
+      }
+    } catch (error) {
+      console.error('初始检查可获取经验出错:', error);
+      walletUI.addDebugLog('初始检查可获取经验出错:', error)
+    }
+  }, 1000);
+}
+
+// 组件卸载时清除定时器
+onUnmounted(() => {
+  if (checkInterval.value) {
+    clearInterval(checkInterval.value);
+    checkInterval.value = null;
+  }
+});
+
 // 选择猫咪
 const selectCat = (catId: number) => {
   selectedCatId.value = catId
   fetchCatInteractions(catId)
+  
+  // 重新开始检查经验
+  startCheckingForExp()
 }
 
 // 执行合约操作前的检查
@@ -287,7 +348,7 @@ const prepareAction = (type: 'upgrade' | 'checkaction' | 'mint' | 'feed') => {
   
   // 对于mint操作不需要选择猫咪
   if (type !== 'mint' && !selectedCatId.value) {
-    message.error('请先选择一只猫咪')
+    showErrorWithTimeout('请先选择一只猫咪')
     return false
   }
   
@@ -298,63 +359,22 @@ const prepareAction = (type: 'upgrade' | 'checkaction' | 'mint' | 'feed') => {
 
 // 准备铸造猫咪
 const mintCat = async () => {
-  if (!prepareAction('mint')) return
-  
-  try {
-    // 查询用户余额，确保有足够的DFS
-    if (wallet) {
-      const balance = await wallet.dfsWallet.getbalance('eosio.token', accountName.value, 'DFS')
-      
-      // 解析余额字符串，例如 "10.0000 DFS"
-      const balanceValue = parseFloat(balance);
-      if (isNaN(balanceValue) || balanceValue < 1.0) {
-        message.warning(`您的DFS余额不足，铸造猫咪需要至少1.0000 DFS (当前余额: ${balance || '0.0000 DFS'})`)
-        return;
-      }
-      
-      // 显示当前余额和费用
-      // message.info(`铸造猫咪需要支付1.0000 DFS (当前余额: ${balance})`)
-    }
-  } catch (error) {
-    console.error('查询余额失败:', error)
-    // 即使查询余额失败，仍然可以尝试铸造
-    message.warning('查询余额失败，请确保有足够的DFS (至少1.0000 DFS)')
-  }
+  if (!prepareAction('mint')) return;
 }
 
 // 升级猫咪
 const upgradeCat = async () => {
-  if (!prepareAction('upgrade')) return
+  if (!prepareAction('upgrade')) return;
 }
 
 // 执行检查操作
 const checkCatAction = async () => {
-  if (!prepareAction('checkaction')) return
+  if (!prepareAction('checkaction')) return;
 }
 
 // 喂养猫咪
 const feedCat = async () => {
-  if (!prepareAction('feed')) return
-  
-  try {
-    // 查询用户余额，确保有足够的DFS
-    if (wallet) {
-      const balance = await wallet.dfsWallet.getbalance('eosio.token', accountName.value, 'DFS')
-      
-      // 解析余额字符串，例如 "10.0000 DFS"
-      const balanceValue = parseFloat(balance);
-      if (isNaN(balanceValue) || balanceValue < 0.01) {
-        message.warning(`您的DFS余额不足，喂养猫咪需要至少0.0100 DFS (当前余额: ${balance || '0.0000 DFS'})`)
-        return;
-      }
-      
-      // 显示当前余额和费用
-      // message.info(`喂养猫咪需要支付0.0100 DFS (当前余额: ${balance})`)
-    }
-  } catch (error) {
-    console.error('查询余额失败:', error)
-    message.warning('查询余额失败，请确保有足够的DFS (至少0.0100 DFS)')
-  }
+  if (!prepareAction('feed')) return;
 }
 
 // 处理密码输入确认
@@ -396,97 +416,65 @@ const handlePasswordConfirm = async () => {
       throw new Error('钱包未初始化或尚未连接')
     }
     
-    let result
-    walletUI.addDebugLog(`准备执行${actionType.value}操作`)
+    let result;
+    walletUI.addDebugLog(`准备执行${actionType.value}操作`);
     
-    // 根据不同操作类型准备交易数据
-    if (actionType.value === 'mint') {
-      // 铸造猫咪 - 使用转账交易
-      result = await wallet.transact({
-        actions: [{
-          account: 'eosio.token',
-          name: 'transfer',
-          authorization: [{
-            actor: accountName.value,
-            permission: 'active',
-          }],
-          data: {
-            from: accountName.value,
-            to: 'ifwzjalq2lg1',  // 合约账户
-            quantity: '1.00000000 DFS',  // 固定费用
-            memo: 'mint'  // 特定备注，标识为铸造操作
-          }
-        }]
-      }, { useFreeCpu: true })
-      
-      message.success('铸造猫咪交易已提交')
-      walletUI.addDebugLog('铸造猫咪交易已提交', result)
-    } else if (actionType.value === 'feed') {
-      // 喂养猫咪 - 使用转账交易和特定备注
-      result = await wallet.transact({
-        actions: [{
-          account: 'eosio.token',
-          name: 'transfer',
-          authorization: [{
-            actor: accountName.value,
-            permission: 'active',
-          }],
-          data: {
-            from: accountName.value,
-            to: 'ifwzjalq2lg1',  // 合约账户
-            quantity: '0.01000000 DFS',  // 固定费用
-            memo: `feed:${selectedCatId.value}`  // 特定备注，标识为喂养操作
-          }
-        }]
-      }, { useFreeCpu: true })
-      
-      message.success('喂养猫咪交易已提交')
-      walletUI.addDebugLog('喂养猫咪交易已提交', result)
-    } else {
-      // 升级或检查操作 - 直接调用合约方法
-      const actionData = actionType.value === 'upgrade' 
-        ? {
-            cat_id: selectedCatId.value,
-            owner: accountName.value
-          }
-        : {
-            owner: accountName.value,
-            cat_id: selectedCatId.value
-          }
-      
-      result = await wallet.transact({
-        actions: [{
-          account: 'ifwzjalq2lg1',
-          name: actionType.value,
-          authorization: [{
-            actor: accountName.value,
-            permission: 'active',
-          }],
-          data: actionData,
-        }],
-      }, { useFreeCpu: true })
-      
-      message.success(`操作成功：${actionType.value === 'upgrade' ? '猫咪升级' : '检查活动'}`)
+    // 根据不同操作类型执行相应的链上操作
+    switch (actionType.value) {
+      case 'mint':
+        result = await chainMintCat(
+          wallet,
+          accountName.value,
+          (message, data) => walletUI.addDebugLog(message, data)
+        );
+        break;
+      case 'feed':
+        if (!selectedCatId.value) throw new Error('未选择猫咪');
+        result = await chainFeedCat(
+          wallet,
+          accountName.value,
+          selectedCatId.value,
+          (message, data) => walletUI.addDebugLog(message, data)
+        );
+        break;
+      case 'upgrade':
+        if (!selectedCatId.value) throw new Error('未选择猫咪');
+        result = await chainUpgradeCat(
+          wallet,
+          accountName.value,
+          selectedCatId.value,
+          (message, data) => walletUI.addDebugLog(message, data)
+        );
+        break;
+      case 'checkaction':
+        if (!selectedCatId.value) throw new Error('未选择猫咪');
+        result = await chainCheckCatAction(
+          wallet,
+          accountName.value,
+          selectedCatId.value,
+          (message, data) => walletUI.addDebugLog(message, data)
+        );
+        break;
     }
-    
-    walletUI.addDebugLog(`${actionType.value}交易结果`, result)
     
     // 关闭密码对话框
-    showPasswordModal.value = false
-    password.value = ''
+    showPasswordModal.value = false;
+    password.value = '';
     
     // 刷新猫咪数据
-    await fetchUserCats()
+    await fetchUserCats();
     if (selectedCatId.value) {
-      await fetchCatInteractions(selectedCatId.value)
+      await fetchCatInteractions(selectedCatId.value);
     }
+    
+    // 重置经验检查状态
+    hasAvailableExp.value = false;
   } catch (err) {
-    walletUI.addDebugLog(`执行${actionType.value}操作失败`, err)
-    const errMsg = err instanceof Error ? err.message : '未知错误'
-    walletUI.addDebugLog(`执行${actionType.value}操作失败`, err)
-    message.error(`操作失败: ${errMsg}`)
+    const errMsg = err instanceof Error ? err.message : '未知错误';
+    walletUI.addDebugLog(`执行${actionType.value}操作失败`, err);
+    message.error(`操作失败: ${errMsg}`);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -547,6 +535,9 @@ onMounted(async () => {
       
       // 获取猫咪数据
       await fetchUserCats()
+      
+      // 开始检查经验
+      startCheckingForExp()
     } else if (isWalletConnected.value && isWalletLocked.value) {
       // 钱包已连接但锁定
       showErrorWithTimeout('钱包已锁定，请先解锁钱包')
@@ -667,6 +658,17 @@ onMounted(async () => {
          <div v-if="catsList.length > 0" class="cat-illustration mt-4 border rounded-lg p-4 flex justify-center items-center" style="min-height: 200px;">
             <div class="relative">
               <div class="cat-tooltip" v-show="isHovering">摸摸我</div>
+              <div class="exp-notification" v-if="hasAvailableExp">
+                <GiftOutlined class="mr-1" /> 有经验可以获取!
+                <a-button 
+                  type="primary" 
+                  size="small" 
+                  class="ml-2" 
+                  @click="checkCatAction"
+                >
+                  点击检查
+                </a-button>
+              </div>
               <svg 
                 width="180" 
                 height="140" 
@@ -982,7 +984,7 @@ onMounted(async () => {
                 </div>
                 
                 <!-- 基因详情 -->
-                <div class="gene-details bg-gray-50 p-4 rounded-lg mb-4">
+                <div class="gene-details bg-gray-50 p-4 rounded-lg mb-4" v-if="false">
                   <h3 class="text-lg font-medium mb-3">基因详情</h3>
                   
                   <div class="gene-section mb-3">
@@ -1236,6 +1238,34 @@ onMounted(async () => {
   font-size: 12px;
   z-index: 10;
   white-space: nowrap;
+}
+
+.exp-notification {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #1890ff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 20;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #1890ff;
+  display: flex;
+  align-items: center;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-5px);
+  }
 }
 
 /* 猫咪毛发特效样式 */

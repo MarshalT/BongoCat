@@ -475,7 +475,7 @@ export class DfsWallet {
   }
 
 //获取表数据
-  async getTableRows(code: string, scope: string, table: string, lower_bound: string, index_position: number, key_type: string, limit: number) {
+  async getTableRows(code: string, scope: string, table: string, lower_bound: string, index_position: number, key_type: string, limit: number, reverse: boolean = false) {
     if (!this.rpc) {
       throw new Error('RPC not initialized')
     }
@@ -488,6 +488,7 @@ export class DfsWallet {
       index_position: index_position,
       key_type: key_type,
       limit: limit, 
+      reverse: reverse,
     })
     return resp.rows
   }
