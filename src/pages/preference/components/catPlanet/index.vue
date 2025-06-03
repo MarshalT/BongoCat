@@ -19,6 +19,16 @@ import { useWalletUI } from '@/composables/wallet/useWalletUI'
 import { PasswordManager } from '@/utils/PasswordManager'
 // 添加解锁组件导入
 import WalletUnlockModal from '@/components/wallet/WalletUnlockModal.vue'
+// 导入猫咪基因处理工具
+import { 
+  parseGene, 
+  getCatGeneDetails, 
+  getCatAppearanceStyle, 
+  getCatColorClass,
+  type GeneParseResult,
+  type CatAppearance,
+  type CatGeneDetails
+} from '@/utils/catGeneParser'
 
 // 猫咪数据结构接口
 interface CatInfo {
@@ -42,28 +52,6 @@ interface InteractionInfo {
   timestamp: string
 }
 
-// 基因解析结果接口
-interface GeneParseResult {
-  appearance: {
-    baseColor: number,
-    furLength: number,
-    earShape: number,
-    eyeColor: number,
-    pattern: number
-  },
-  attributes: {
-    personality: number,
-    rarity: number,
-    growthPotential: number,
-    staminaRecovery: number,
-    luck: number
-  },
-  specialAbilities: {
-    abilities: number,
-    hiddenTrait: boolean
-  }
-}
-
 // 使用钱包hooks
 const wallet = useWallet()
 const walletUI = useWalletUI()
@@ -81,21 +69,16 @@ const refreshingCat = ref<number | null>(null)
 const interactionsLoading = ref(false)
 const catsLoading = ref(false)
 const isPatting = ref(false)
+const isHovering = ref(false)
 
 // 计算属性
 const isWalletConnected = computed(() => walletUI.isWalletConnected.value)
 const isWalletLocked = computed(() => walletUI.isWalletLocked.value)
 const accountName = computed(() => walletUI.walletAddress.value || '')
 
-// 生成基于基因的猫咪颜色
+// 生成基于基因的猫咪颜色CSS类
 const getCatColor = (genes: number) => {
-  const parsedGene = parseGene(genes)
-  const baseColorIndex = parsedGene.appearance.baseColor
-  const colors = [
-    'bg-orange-500', 'bg-blue-400', 'bg-yellow-500', 
-    'bg-purple-400', 'bg-green-500', 'bg-red-400', 'bg-indigo-500'
-  ]
-  return colors[genes % colors.length]
+  return getCatColorClass(genes);
 }
 
 // 格式化时间戳
@@ -528,130 +511,6 @@ const patCat = () => {
   }, 1000)
 }
 
-// 基因解析函数 - 将基因值解析为各种特征
-const parseGene = (gene: number): GeneParseResult => {
-  // 1. 外观部分 - 位操作提取
-  const appearance = {
-    // 基础颜色 (当前已实现的模7算法)
-    baseColor: gene % 7,
-    
-    // 毛发长度 (0-3: 短毛、中毛、长毛、卷毛)
-    furLength: (gene >> 4) & 0x3,
-    
-    // 耳朵形状 (0-3: 正常、下折、上折、圆形)
-    earShape: (gene >> 6) & 0x3,
-    
-    // 眼睛颜色 (0-7: 不同的眼睛颜色)
-    eyeColor: (gene >> 8) & 0x7,
-    
-    // 特殊标记 (0-15: 多种图案，如斑点、条纹等)
-    pattern: (gene >> 11) & 0xF
-  };
-  
-  // 2. 属性部分 - 使用基因的不同位段
-  const attributes = {
-    // 性格倾向 (0-7: 活泼、温顺、好奇、独立、谨慎、勇敢、调皮、高冷)
-    personality: (gene >> 15) & 0x7,
-    
-    // 稀有度 (0-15: 普通、少见、罕见、稀有、超稀有...)
-    rarity: (gene >> 18) & 0xF,
-    
-    // 成长潜力系数 (50-150之间的值，影响经验获取速率)
-    growthPotential: 50 + ((gene >> 22) & 0x3F) * 100/63,
-    
-    // 体力恢复速率 (0.5-1.5倍)
-    staminaRecovery: 0.5 + ((gene >> 28) & 0x7) / 10,
-    
-    // 幸运值 (1-10: 影响检查事件触发概率)
-    luck: 1 + ((gene >> 31) & 0x9)
-  };
-  
-  // 3. 特殊能力部分 - 使用基因的高位部分
-  const specialAbilities = {
-    // 特殊能力解锁 (每个位代表一种特殊能力)
-    abilities: (gene >> 40) & 0xFF,
-    
-    // 隐藏特质 (非常罕见的属性组合)
-    hiddenTrait: ((gene >> 48) & 0xFFFF) === 0x1234
-  };
-  
-  return {
-    appearance,
-    attributes,
-    specialAbilities
-  };
-}
-
-// 获取基因特征描述的辅助函数
-const getColorName = (colorIndex: number): string => {
-  const colorNames = [
-    '橙色系', '灰色系', '棕色系', '白色系', '黄色系', '黑色系', '蓝灰系'
-  ];
-  return colorNames[colorIndex];
-}
-
-const getFurLengthName = (furLengthIndex: number): string => {
-  const furLengthNames = ['短毛', '中等长度', '长毛', '卷毛'];
-  return furLengthNames[furLengthIndex];
-}
-
-const getEarShapeName = (earShapeIndex: number): string => {
-  const earShapeNames = ['正常', '下折', '上折', '圆形'];
-  return earShapeNames[earShapeIndex];
-}
-
-const getEyeColorName = (eyeColorIndex: number): string => {
-  const eyeColorNames = ['绿色', '蓝色', '黄色', '棕色', '琥珀色', '异色', '灰色', '紫色'];
-  return eyeColorNames[eyeColorIndex];
-}
-
-const getPatternName = (patternIndex: number): string => {
-  const patternNames = [
-    '无花纹', '虎斑', '斑点', '双色', '三色', '玳瑁', '重点色', '烟色',
-    '银色', '云纹', '大理石纹', '环纹', '扁平面纹', '条形', '单色', '特殊图案'
-  ];
-  return patternNames[patternIndex];
-}
-
-const getPersonalityName = (personalityIndex: number): string => {
-  const personalityNames = ['活泼', '温顺', '好奇', '独立', '谨慎', '勇敢', '调皮', '高冷'];
-  return personalityNames[personalityIndex] + '型';
-}
-
-const getRarityName = (rarityIndex: number): string => {
-  const rarityNames = [
-    '普通', '常见', '少见', '有趣', '不寻常', '稀有', '罕见',
-    '珍奇', '非常稀有', '超稀有', '传奇', '神话', '史诗', '独特', '限量', '绝版'
-  ];
-  return rarityNames[rarityIndex];
-}
-
-const getGrowthPotentialDesc = (value: number): string => {
-  let level = '';
-  if (value < 70) level = '低';
-  else if (value < 100) level = '中';
-  else if (value < 120) level = '高';
-  else level = '极高';
-  
-  return `${Math.round(value)}% (${level})`;
-}
-
-const getSpecialAbilities = (abilities: number): string[] => {
-  const allAbilities = [
-    '额外经验获取', '快速恢复', '幸运猫爪', '双倍奖励', '稀有物品探测',
-    '降低消耗', '连击技能', '隐藏宝藏'
-  ];
-  
-  const result: string[] = [];
-  for (let i = 0; i < 8; i++) {
-    if ((abilities & (1 << i)) !== 0) {
-      result.push(allAbilities[i]);
-    }
-  }
-  
-  return result;
-}
-
 // 计算猫咪详情
 const getSelectedCatGeneDetails = computed(() => {
   if (!selectedCatId.value || !catsList.value.length) return null
@@ -660,30 +519,7 @@ const getSelectedCatGeneDetails = computed(() => {
   if (!selectedCat) return null
   
   const geneValue = selectedCat.genes || 0
-  const parsedGene = parseGene(geneValue)
-  
-  return {
-    // 外观特征
-    baseColor: getColorName(parsedGene.appearance.baseColor),
-    furLength: getFurLengthName(parsedGene.appearance.furLength),
-    earShape: getEarShapeName(parsedGene.appearance.earShape),
-    eyeColor: getEyeColorName(parsedGene.appearance.eyeColor),
-    pattern: getPatternName(parsedGene.appearance.pattern),
-    
-    // 性格与能力
-    personality: getPersonalityName(parsedGene.attributes.personality),
-    rarity: getRarityName(parsedGene.attributes.rarity),
-    growthPotential: getGrowthPotentialDesc(parsedGene.attributes.growthPotential),
-    staminaRecovery: parsedGene.attributes.staminaRecovery.toFixed(1) + 'x',
-    luck: parsedGene.attributes.luck.toFixed(0),
-    
-    // 特殊能力
-    specialAbilities: getSpecialAbilities(parsedGene.specialAbilities.abilities),
-    hiddenTrait: parsedGene.specialAbilities.hiddenTrait,
-    
-    // 原始解析数据
-    rawGene: parsedGene
-  }
+  return getCatGeneDetails(geneValue);
 })
 
 // 获取猫咪外观样式
@@ -694,130 +530,7 @@ const getCatAppearance = computed(() => {
   if (!selectedCat) return null
   
   const geneValue = selectedCat.genes || 0
-  const parsedGene = parseGene(geneValue)
-  
-  // 基础颜色
-  const baseColorIndex = parsedGene.appearance.baseColor
-  const colorSchemes = [
-    { // 橙色系
-      body1: '#ffb84d', 
-      body2: '#e67700',
-      ear: '#ffb380',
-      stroke: '#e09112'
-    },
-    { // 灰色系
-      body1: '#b3b3cc', 
-      body2: '#666699',
-      ear: '#d1d1e0',
-      stroke: '#666699'
-    },
-    { // 棕色系
-      body1: '#bf8040', 
-      body2: '#734d26',
-      ear: '#d2a679',
-      stroke: '#734d26'
-    },
-    { // 白色系
-      body1: '#ffffff', 
-      body2: '#e6e6e6',
-      ear: '#f2f2f2',
-      stroke: '#cccccc'
-    },
-    { // 黄色系
-      body1: '#ffff99', 
-      body2: '#e6e600',
-      ear: '#ffffb3',
-      stroke: '#e6e600'
-    },
-    { // 黑色系
-      body1: '#666666', 
-      body2: '#1a1a1a',
-      ear: '#808080',
-      stroke: '#333333'
-    },
-    { // 蓝灰系
-      body1: '#99ccff', 
-      body2: '#3399ff',
-      ear: '#cce6ff',
-      stroke: '#3399ff'
-    },
-  ]
-  const colorScheme = colorSchemes[baseColorIndex]
-  
-  // 耳朵形状
-  const earShapeIndex = parsedGene.appearance.earShape
-  const earShapes = [
-    { // 正常
-      left: "M65,35 L60,10 Q75,15 85,30",
-      right: "M115,35 L120,10 Q105,15 95,30",
-      leftInner: "M67,30 L65,15 Q75,20 80,28",
-      rightInner: "M113,30 L115,15 Q105,20 100,28"
-    },
-    { // 下折
-      left: "M65,35 L60,20 Q65,10 75,15 Q80,25 85,30",
-      right: "M115,35 L120,20 Q115,10 105,15 Q100,25 95,30",
-      leftInner: "M67,30 L65,20 Q70,15 75,18 Q78,25 80,28",
-      rightInner: "M113,30 L115,20 Q110,15 105,18 Q102,25 100,28"
-    },
-    { // 上折
-      left: "M65,35 L55,15 Q65,5 75,10 Q80,20 85,30",
-      right: "M115,35 L125,15 Q115,5 105,10 Q100,20 95,30",
-      leftInner: "M67,30 L60,18 Q65,10 72,13 Q76,20 80,28",
-      rightInner: "M113,30 L120,18 Q115,10 108,13 Q104,20 100,28"
-    },
-    { // 圆形
-      left: "M65,35 Q55,20 60,10 Q70,5 80,15 Q85,25 85,30",
-      right: "M115,35 Q125,20 120,10 Q110,5 100,15 Q95,25 95,30",
-      leftInner: "M67,30 Q60,20 62,15 Q70,10 75,18 Q78,25 80,28",
-      rightInner: "M113,30 Q120,20 118,15 Q110,10 105,18 Q102,25 100,28"
-    }
-  ]
-  const earShape = earShapes[earShapeIndex]
-  
-  // 眼睛颜色
-  const eyeColorIndex = parsedGene.appearance.eyeColor
-  const eyeColors = [
-    '#4CAF50', // 绿色
-    '#2196F3', // 蓝色
-    '#FFEB3B', // 黄色
-    '#795548', // 棕色
-    '#FF9800', // 琥珀色
-    '#9C27B0', // 紫色 (异色瞳时左眼)
-    '#607D8B', // 灰色
-    '#673AB7'  // 紫色
-  ]
-  // 异色瞳特殊处理
-  const leftEyeColor = eyeColorIndex === 5 ? eyeColors[5] : eyeColors[eyeColorIndex]
-  const rightEyeColor = eyeColorIndex === 5 ? eyeColors[0] : eyeColors[eyeColorIndex]
-  
-  // 毛发长度
-  const furLengthIndex = parsedGene.appearance.furLength
-  // 0-短毛，1-中毛，2-长毛，3-卷毛
-  const furLength = ['short', 'medium', 'long', 'curly'][furLengthIndex]
-  
-  // 花纹
-  const patternIndex = parsedGene.appearance.pattern
-  // 花纹样式，0表示无花纹
-  const hasPattern = patternIndex > 0
-  
-  return {
-    colors: colorScheme,
-    ears: earShape,
-    eyes: {
-      leftColor: leftEyeColor,
-      rightColor: rightEyeColor
-    },
-    fur: {
-      type: furLength,
-      strokeWidth: furLengthIndex === 0 ? 1.5 : 
-                  furLengthIndex === 1 ? 2 : 
-                  furLengthIndex === 2 ? 2.5 : 3
-    },
-    pattern: {
-      type: patternIndex,
-      hasPattern: hasPattern
-    }
-  }
+  return getCatAppearanceStyle(geneValue);
 })
 
 // 组件挂载时获取数据
@@ -952,192 +665,197 @@ onMounted(async () => {
           
          <!-- 猫咪图形区域 -->
          <div v-if="catsList.length > 0" class="cat-illustration mt-4 border rounded-lg p-4 flex justify-center items-center" style="min-height: 200px;">
-            <svg 
-              width="180" 
-              height="140" 
-              viewBox="0 0 180 140" 
-              xmlns="http://www.w3.org/2000/svg"
-              @click="patCat"
-              :class="{ 'pat-animation': isPatting }"
-            >
-              <!-- 渐变定义 -->
-              <defs>
-                <linearGradient id="cat-body-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" :style="`stop-color:${getCatAppearance?.colors.body1 || '#ffb84d'};stop-opacity:1`" />
-                  <stop offset="100%" :style="`stop-color:${getCatAppearance?.colors.body2 || '#e67700'};stop-opacity:1`" />
-                </linearGradient>
+            <div class="relative">
+              <div class="cat-tooltip" v-show="isHovering">摸摸我</div>
+              <svg 
+                width="180" 
+                height="140" 
+                viewBox="0 0 180 140" 
+                xmlns="http://www.w3.org/2000/svg"
+                @click="patCat"
+                :class="{ 'pat-animation': isPatting }"
+                @mouseenter="isHovering = true"
+                @mouseleave="isHovering = false"
+              >
+                <!-- 渐变定义 -->
+                <defs>
+                  <linearGradient id="cat-body-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" :style="`stop-color:${getCatAppearance?.colors.body1 || '#ffb84d'};stop-opacity:1`" />
+                    <stop offset="100%" :style="`stop-color:${getCatAppearance?.colors.body2 || '#e67700'};stop-opacity:1`" />
+                  </linearGradient>
+                  
+                  <linearGradient id="cat-head-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" :style="`stop-color:${getCatAppearance?.colors.body1 || '#ffb84d'};stop-opacity:1`" />
+                    <stop offset="100%" :style="`stop-color:${getCatAppearance?.colors.body2 || '#e67700'};stop-opacity:1`" />
+                  </linearGradient>
+                  
+                  <!-- 花纹渐变 -->
+                  <pattern v-if="getCatAppearance?.pattern.hasPattern" id="cat-pattern" patternUnits="userSpaceOnUse" width="20" height="20">
+                    <rect width="20" height="20" fill="none"/>
+                    <g v-if="getCatAppearance?.pattern.type === 1"> <!-- 虎斑 -->
+                      <path d="M0,0 L20,20" stroke="rgba(0,0,0,0.2)" stroke-width="4"/>
+                      <path d="M20,0 L0,20" stroke="rgba(0,0,0,0.2)" stroke-width="4"/>
+                    </g>
+                    <g v-else-if="getCatAppearance?.pattern.type === 2"> <!-- 斑点 -->
+                      <circle cx="5" cy="5" r="3" fill="rgba(0,0,0,0.2)"/>
+                      <circle cx="15" cy="15" r="3" fill="rgba(0,0,0,0.2)"/>
+                    </g>
+                    <g v-else-if="getCatAppearance?.pattern.type === 3"> <!-- 双色 -->
+                      <rect x="0" y="0" width="10" height="20" fill="rgba(0,0,0,0.15)"/>
+                    </g>
+                  </pattern>
+                </defs>
                 
-                <linearGradient id="cat-head-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" :style="`stop-color:${getCatAppearance?.colors.body1 || '#ffb84d'};stop-opacity:1`" />
-                  <stop offset="100%" :style="`stop-color:${getCatAppearance?.colors.body2 || '#e67700'};stop-opacity:1`" />
-                </linearGradient>
+                <!-- 猫咪身体 - 更圆润的形状 -->
+                <ellipse 
+                  class="cat-body" 
+                  cx="90" 
+                  cy="95" 
+                  rx="55" 
+                  ry="40" 
+                  :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
+                  :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
+                  :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
+                />
                 
-                <!-- 花纹渐变 -->
-                <pattern v-if="getCatAppearance?.pattern.hasPattern" id="cat-pattern" patternUnits="userSpaceOnUse" width="20" height="20">
-                  <rect width="20" height="20" fill="none"/>
-                  <g v-if="getCatAppearance?.pattern.type === 1"> <!-- 虎斑 -->
-                    <path d="M0,0 L20,20" stroke="rgba(0,0,0,0.2)" stroke-width="4"/>
-                    <path d="M20,0 L0,20" stroke="rgba(0,0,0,0.2)" stroke-width="4"/>
-                  </g>
-                  <g v-else-if="getCatAppearance?.pattern.type === 2"> <!-- 斑点 -->
-                    <circle cx="5" cy="5" r="3" fill="rgba(0,0,0,0.2)"/>
-                    <circle cx="15" cy="15" r="3" fill="rgba(0,0,0,0.2)"/>
-                  </g>
-                  <g v-else-if="getCatAppearance?.pattern.type === 3"> <!-- 双色 -->
-                    <rect x="0" y="0" width="10" height="20" fill="rgba(0,0,0,0.15)"/>
-                  </g>
-                </pattern>
-              </defs>
-              
-              <!-- 猫咪身体 - 更圆润的形状 -->
-              <ellipse 
-                class="cat-body" 
-                cx="90" 
-                cy="95" 
-                rx="55" 
-                ry="40" 
-                :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
-                :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
-                :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
-              />
-              
-              <!-- 猫咪头部 - 更精致的形状 -->
-              <circle 
-                class="cat-body" 
-                cx="90" 
-                cy="60" 
-                r="38" 
-                :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-head-gradient)'" 
-                :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
-                :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
-              />
-              
-              <!-- 尾巴 -->
-              <path 
-                class="cat-tail" 
-                d="M30,90 Q35,60 45,80 Q55,95 40,105" 
-                :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
-                :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
-                :stroke-width="getCatAppearance?.fur.strokeWidth || 2" 
-                stroke-linecap="round"
-              />
-              
-              <!-- 耳朵 - 更自然的形状 -->
-              <path 
-                class="cat-body" 
-                :d="getCatAppearance?.ears.left || 'M65,35 L60,10 Q75,15 85,30'" 
-                :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
-                :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
-                :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
-              />
-              <path 
-                class="cat-body" 
-                :d="getCatAppearance?.ears.right || 'M115,35 L120,10 Q105,15 95,30'" 
-                :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
-                :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
-                :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
-              />
-              
-              <!-- 耳朵内部 -->
-              <path 
-                class="cat-body" 
-                :d="getCatAppearance?.ears.leftInner || 'M67,30 L65,15 Q75,20 80,28'" 
-                :fill="getCatAppearance?.colors.ear || '#ffb380'"
-              />
-              <path 
-                class="cat-body" 
-                :d="getCatAppearance?.ears.rightInner || 'M113,30 L115,15 Q105,20 100,28'" 
-                :fill="getCatAppearance?.colors.ear || '#ffb380'"
-              />
-              
-              <!-- 脸颊 -->
-              <ellipse 
-                class="cat-body" 
-                cx="65" 
-                cy="70" 
-                rx="12" 
-                ry="10" 
-                :fill="getCatAppearance?.colors.ear || '#ffb380'" 
-                opacity="0.6"
-              />
-              <ellipse 
-                class="cat-body" 
-                cx="115" 
-                cy="70" 
-                rx="12" 
-                ry="10" 
-                :fill="getCatAppearance?.colors.ear || '#ffb380'" 
-                opacity="0.6"
-              />
-              
-              <!-- 眼睛 - 更大更有神 -->
-              <g class="cat-eyes">
-                <ellipse cx="75" cy="55" rx="9" ry="11" fill="white" stroke="#333" stroke-width="1.5"/>
-                <ellipse cx="105" cy="55" rx="9" ry="11" fill="white" stroke="#333" stroke-width="1.5"/>
+                <!-- 猫咪头部 - 更精致的形状 -->
+                <circle 
+                  class="cat-body" 
+                  cx="90" 
+                  cy="60" 
+                  r="38" 
+                  :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-head-gradient)'" 
+                  :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
+                  :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
+                />
                 
-                <!-- 眼睛高光 -->
-                <circle cx="73" cy="51" r="3" fill="white"/>
-                <circle cx="103" cy="51" r="3" fill="white"/>
+                <!-- 尾巴 -->
+                <path 
+                  class="cat-tail" 
+                  d="M30,90 Q35,60 45,80 Q55,95 40,105" 
+                  :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
+                  :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
+                  :stroke-width="getCatAppearance?.fur.strokeWidth || 2" 
+                  stroke-linecap="round"
+                />
                 
-                <!-- 瞳孔 - 猫眼竖瞳 -->
-                <ellipse cx="75" cy="55" rx="4" ry="8" :fill="getCatAppearance?.eyes.leftColor || '#333'"/>
-                <ellipse cx="105" cy="55" rx="4" ry="8" :fill="getCatAppearance?.eyes.rightColor || '#333'"/>
-              </g>
-              
-              <!-- 鼻子 - 更精致 -->
-              <path class="cat-body" d="M87,65 Q90,67 93,65 L93,68 Q90,70 87,68 Z" fill="#ff9999" stroke="#d67979" stroke-width="0.5"/>
-              
-              <!-- 嘴 - 更自然的微笑 -->
-              <path class="cat-body" d="M85,72 Q90,77 95,72" stroke="#333" stroke-width="1.5" fill="none"/>
-              <path class="cat-body" d="M90,68 L90,72" stroke="#333" stroke-width="1" fill="none"/>
-              
-              <!-- 胡须 - 更自然的曲线 -->
-              <g class="cat-whiskers">
-                <path d="M65,70 Q72,71 78,70" stroke="#333" stroke-width="1" fill="none"/>
-                <path d="M65,75 Q73,75 80,74" stroke="#333" stroke-width="1" fill="none"/>
-                <path d="M65,80 Q72,79 78,78" stroke="#333" stroke-width="1" fill="none"/>
+                <!-- 耳朵 - 更自然的形状 -->
+                <path 
+                  class="cat-body" 
+                  :d="getCatAppearance?.ears.left || 'M65,35 L60,10 Q75,15 85,30'" 
+                  :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
+                  :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
+                  :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
+                />
+                <path 
+                  class="cat-body" 
+                  :d="getCatAppearance?.ears.right || 'M115,35 L120,10 Q105,15 95,30'" 
+                  :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
+                  :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
+                  :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
+                />
                 
-                <path d="M115,70 Q108,71 102,70" stroke="#333" stroke-width="1" fill="none"/>
-                <path d="M115,75 Q107,75 100,74" stroke="#333" stroke-width="1" fill="none"/>
-                <path d="M115,80 Q108,79 102,78" stroke="#333" stroke-width="1" fill="none"/>
-              </g>
-              
-              <!-- 前爪 - 更可爱的设计 -->
-              <path 
-                class="cat-body" 
-                d="M65,110 C60,115 62,125 70,125 Q72,120 70,115" 
-                :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
-                :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
-                :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
-              />
-              <path 
-                class="cat-body" 
-                d="M115,110 C120,115 118,125 110,125 Q108,120 110,115" 
-                :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
-                :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
-                :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
-              />
-              
-              <!-- 爪子细节 -->
-              <path class="cat-body" d="M65,123 L67,119" :stroke="getCatAppearance?.colors.stroke || '#e09112'" stroke-width="1.5"/>
-              <path class="cat-body" d="M68,123 L69,119" :stroke="getCatAppearance?.colors.stroke || '#e09112'" stroke-width="1.5"/>
-              <path class="cat-body" d="M115,123 L113,119" :stroke="getCatAppearance?.colors.stroke || '#e09112'" stroke-width="1.5"/>
-              <path class="cat-body" d="M112,123 L111,119" :stroke="getCatAppearance?.colors.stroke || '#e09112'" stroke-width="1.5"/>
-              
-              <!-- 毛发特效 -->
-              <g v-if="getCatAppearance?.fur.type === 'long'" class="cat-fur-effect">
-                <path d="M65,40 Q60,35 58,30" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
-                <path d="M115,40 Q120,35 122,30" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
-                <path d="M50,90 Q45,85 40,83" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
-                <path d="M130,90 Q135,85 140,83" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
-              </g>
-              <g v-if="getCatAppearance?.fur.type === 'curly'" class="cat-fur-effect">
-                <path d="M65,40 Q60,38 62,32 Q64,30 66,32" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
-                <path d="M115,40 Q120,38 118,32 Q116,30 114,32" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
-                <path d="M50,90 Q45,88 47,83 Q49,80 51,82" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
-                <path d="M130,90 Q135,88 133,83 Q131,80 129,82" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
-              </g>
-            </svg>
+                <!-- 耳朵内部 -->
+                <path 
+                  class="cat-body" 
+                  :d="getCatAppearance?.ears.leftInner || 'M67,30 L65,15 Q75,20 80,28'" 
+                  :fill="getCatAppearance?.colors.ear || '#ffb380'"
+                />
+                <path 
+                  class="cat-body" 
+                  :d="getCatAppearance?.ears.rightInner || 'M113,30 L115,15 Q105,20 100,28'" 
+                  :fill="getCatAppearance?.colors.ear || '#ffb380'"
+                />
+                
+                <!-- 脸颊 -->
+                <ellipse 
+                  class="cat-body" 
+                  cx="65" 
+                  cy="70" 
+                  rx="12" 
+                  ry="10" 
+                  :fill="getCatAppearance?.colors.ear || '#ffb380'" 
+                  opacity="0.6"
+                />
+                <ellipse 
+                  class="cat-body" 
+                  cx="115" 
+                  cy="70" 
+                  rx="12" 
+                  ry="10" 
+                  :fill="getCatAppearance?.colors.ear || '#ffb380'" 
+                  opacity="0.6"
+                />
+                
+                <!-- 眼睛 - 更大更有神 -->
+                <g class="cat-eyes">
+                  <ellipse cx="75" cy="55" rx="9" ry="11" fill="white" stroke="#333" stroke-width="1.5"/>
+                  <ellipse cx="105" cy="55" rx="9" ry="11" fill="white" stroke="#333" stroke-width="1.5"/>
+                  
+                  <!-- 眼睛高光 -->
+                  <circle cx="73" cy="51" r="3" fill="white"/>
+                  <circle cx="103" cy="51" r="3" fill="white"/>
+                  
+                  <!-- 瞳孔 - 猫眼竖瞳 -->
+                  <ellipse cx="75" cy="55" rx="4" ry="8" :fill="getCatAppearance?.eyes.leftColor || '#333'"/>
+                  <ellipse cx="105" cy="55" rx="4" ry="8" :fill="getCatAppearance?.eyes.rightColor || '#333'"/>
+                </g>
+                
+                <!-- 鼻子 - 更精致 -->
+                <path class="cat-body" d="M87,65 Q90,67 93,65 L93,68 Q90,70 87,68 Z" fill="#ff9999" stroke="#d67979" stroke-width="0.5"/>
+                
+                <!-- 嘴 - 更自然的微笑 -->
+                <path class="cat-body" d="M85,72 Q90,77 95,72" stroke="#333" stroke-width="1.5" fill="none"/>
+                <path class="cat-body" d="M90,68 L90,72" stroke="#333" stroke-width="1" fill="none"/>
+                
+                <!-- 胡须 - 更自然的曲线 -->
+                <g class="cat-whiskers">
+                  <path d="M65,70 Q72,71 78,70" stroke="#333" stroke-width="1" fill="none"/>
+                  <path d="M65,75 Q73,75 80,74" stroke="#333" stroke-width="1" fill="none"/>
+                  <path d="M65,80 Q72,79 78,78" stroke="#333" stroke-width="1" fill="none"/>
+                  
+                  <path d="M115,70 Q108,71 102,70" stroke="#333" stroke-width="1" fill="none"/>
+                  <path d="M115,75 Q107,75 100,74" stroke="#333" stroke-width="1" fill="none"/>
+                  <path d="M115,80 Q108,79 102,78" stroke="#333" stroke-width="1" fill="none"/>
+                </g>
+                
+                <!-- 前爪 - 更可爱的设计 -->
+                <path 
+                  class="cat-body" 
+                  d="M65,110 C60,115 62,125 70,125 Q72,120 70,115" 
+                  :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
+                  :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
+                  :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
+                />
+                <path 
+                  class="cat-body" 
+                  d="M115,110 C120,115 118,125 110,125 Q108,120 110,115" 
+                  :fill="getCatAppearance?.pattern.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'" 
+                  :stroke="getCatAppearance?.colors.stroke || '#e09112'" 
+                  :stroke-width="getCatAppearance?.fur.strokeWidth || 2"
+                />
+                
+                <!-- 爪子细节 -->
+                <path class="cat-body" d="M65,123 L67,119" :stroke="getCatAppearance?.colors.stroke || '#e09112'" stroke-width="1.5"/>
+                <path class="cat-body" d="M68,123 L69,119" :stroke="getCatAppearance?.colors.stroke || '#e09112'" stroke-width="1.5"/>
+                <path class="cat-body" d="M115,123 L113,119" :stroke="getCatAppearance?.colors.stroke || '#e09112'" stroke-width="1.5"/>
+                <path class="cat-body" d="M112,123 L111,119" :stroke="getCatAppearance?.colors.stroke || '#e09112'" stroke-width="1.5"/>
+                
+                <!-- 毛发特效 -->
+                <g v-if="getCatAppearance?.fur.type === 'long'" class="cat-fur-effect">
+                  <path d="M65,40 Q60,35 58,30" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
+                  <path d="M115,40 Q120,35 122,30" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
+                  <path d="M50,90 Q45,85 40,83" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
+                  <path d="M130,90 Q135,85 140,83" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
+                </g>
+                <g v-if="getCatAppearance?.fur.type === 'curly'" class="cat-fur-effect">
+                  <path d="M65,40 Q60,38 62,32 Q64,30 66,32" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
+                  <path d="M115,40 Q120,38 118,32 Q116,30 114,32" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
+                  <path d="M50,90 Q45,88 47,83 Q49,80 51,82" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
+                  <path d="M130,90 Q135,88 133,83 Q131,80 129,82" stroke-width="1" :stroke="getCatAppearance?.colors.stroke || '#e09112'" fill="none" />
+                </g>
+              </svg>
+            </div>
           </div>
         </a-card>
       </a-col>
@@ -1457,7 +1175,7 @@ onMounted(async () => {
 
 @keyframes blinkEyes {
   0% { transform: scaleY(1); }
-  5% { transform: scaleY(0.1); }
+  5% { transform: scaleY(0.8); }
   10% { transform: scaleY(1); }
   100% { transform: scaleY(1); }
 }
@@ -1506,25 +1224,18 @@ onMounted(async () => {
 }
 
 /* 添加词泡提示效果 */
-.cat-illustration svg::after {
-  content: "摸摸我";
+.cat-tooltip {
   position: absolute;
-  top: -10px;
+  top: -25px;
   left: 50%;
-  transform: translateX(-50%) scale(0);
+  transform: translateX(-50%);
   background-color: rgba(0, 0, 0, 0.7);
   color: white;
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 12px;
-  opacity: 0;
-  transition: all 0.3s ease;
-}
-
-.cat-illustration svg:hover::after {
-  transform: translateX(-50%) scale(1);
-  opacity: 1;
-  top: -25px;
+  z-index: 10;
+  white-space: nowrap;
 }
 
 /* 猫咪毛发特效样式 */
