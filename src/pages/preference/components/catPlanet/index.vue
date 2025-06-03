@@ -146,11 +146,19 @@ const canUpgrade = (exp: number, level: number) => {
   return exp >= nextLevelExp
 }
 
+// 在errorMessage赋值时添加自动关闭计时器的函数
+const showErrorWithTimeout = (message: any, timeout: number = 3000): void => {
+  errorMessage.value = typeof message === 'string' ? message : String(message);
+  setTimeout(() => {
+    errorMessage.value = '';
+  }, timeout);
+}
+
 // 获取用户的猫咪列表
 const fetchUserCats = async () => {
   if (!wallet) {
     console.error('钱包未连接或初始化失败');
-    message.error('钱包未连接，请先连接钱包');
+    showErrorWithTimeout('钱包未连接，请先连接钱包');
     return;
   }
 
@@ -259,8 +267,8 @@ const selectCat = (catId: number) => {
 // 执行合约操作前的检查
 const prepareAction = (type: 'upgrade' | 'checkaction' | 'mint' | 'feed') => {
   if (!isWalletConnected.value) {
-    message.error('请先连接钱包')
-    return false
+    showErrorWithTimeout('请先连接钱包');
+    return false;
   }
   
   if (isWalletLocked.value) {
@@ -298,7 +306,7 @@ const mintCat = async () => {
       }
       
       // 显示当前余额和费用
-      message.info(`铸造猫咪需要支付1.0000 DFS (当前余额: ${balance})`)
+      // message.info(`铸造猫咪需要支付1.0000 DFS (当前余额: ${balance})`)
     }
   } catch (error) {
     console.error('查询余额失败:', error)
@@ -334,7 +342,7 @@ const feedCat = async () => {
       }
       
       // 显示当前余额和费用
-      message.info(`喂养猫咪需要支付0.0100 DFS (当前余额: ${balance})`)
+      // message.info(`喂养猫咪需要支付0.0100 DFS (当前余额: ${balance})`)
     }
   } catch (error) {
     console.error('查询余额失败:', error)
@@ -553,7 +561,7 @@ onMounted(async () => {
     if (isWalletConnected.value && !isWalletLocked.value) {
       // 检查钱包对象是否正确初始化
       if (!wallet) {
-        errorMessage.value = '钱包实例未正确初始化，请刷新页面或重新连接钱包'
+        showErrorWithTimeout('钱包实例未正确初始化，请刷新页面或重新连接钱包')
         walletUI.addDebugLog('钱包组件挂载时发现 dfsWallet 未初始化')
         return
       }
@@ -562,16 +570,16 @@ onMounted(async () => {
       await fetchUserCats()
     } else if (isWalletConnected.value && isWalletLocked.value) {
       // 钱包已连接但锁定
-      errorMessage.value = '钱包已锁定，请先解锁钱包'
+      showErrorWithTimeout('钱包已锁定，请先解锁钱包')
       walletUI.addDebugLog('钱包组件挂载时发现钱包已锁定')
     } else {
       // 钱包未连接
-      errorMessage.value = '请先连接钱包'
+      showErrorWithTimeout('请先连接钱包')
       walletUI.addDebugLog('钱包组件挂载时发现钱包未连接')
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : '未知错误'
-    errorMessage.value = `初始化猫咪数据失败: ${errMsg}`
+    showErrorWithTimeout(`初始化猫咪数据失败: ${errMsg}`)
     walletUI.addDebugLog('钱包组件挂载时出错', err)
   }
 })
@@ -629,7 +637,7 @@ onMounted(async () => {
       <a-col :span="10">
         <a-card title="我的猫咪" :loading="loading">
           <template #extra>
-            <a-button type="primary" @click="mintCat" :disabled="!isWalletConnected || isWalletLocked">
+            <a-button v-if="catsList.length === 0" type="primary" @click="mintCat" :disabled="!isWalletConnected || isWalletLocked">
               <PlusOutlined /> 铸造猫咪
             </a-button>
           </template>
@@ -676,8 +684,8 @@ onMounted(async () => {
             </a-card>
           </div>
           
-          <!-- 猫咪图形区域 -->
-          <div class="cat-illustration mt-4 border rounded-lg p-4 flex justify-center items-center" style="min-height: 200px;">
+         <!-- 猫咪图形区域 -->
+         <div v-if="catsList.length > 0" class="cat-illustration mt-4 border rounded-lg p-4 flex justify-center items-center" style="min-height: 200px;">
             <svg 
               width="180" 
               height="140" 
