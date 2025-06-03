@@ -22,7 +22,7 @@ export const checkCatHasAvailableExp = async (
   debugLog?: (message: string, data?: any) => void
 ): Promise<boolean> => {
   try {
-    // 查询loglogloglog合约的logs表
+    // 首先检查loglogloglog合约的logs表
     const externalContract = 'loglogloglog';
     const logs = await wallet.getTableRows(
       externalContract,
@@ -35,24 +35,61 @@ export const checkCatHasAvailableExp = async (
       true // 反向查询，获取最新记录
     );
     
-    if (!logs || !Array.isArray(logs)) {
-      return false;
-    }
-    // 检查是否有该用户在上次检查后的新记录
-    const hasExp = logs.some(log => {
-      // 检查是否是目标用户的记录
-      if (log.user === owner) {;
-        // 检查是否是上次检查后的新记录
-        const logTime = (new Date(log.create_time).getTime() / 1000) + 8 * 3600;
-        if (logTime > lastCheckTime) {
-          // 检查是否有USDT交易
-          const inAmount = log.in || '';
-          return inAmount.includes('USDT');
+    if (logs && Array.isArray(logs)) {
+      // 检查是否有该用户在上次检查后的新记录
+      const hasExpFromLogs = logs.some(log => {
+        // 检查是否是目标用户的记录
+        if (log.user === owner) {
+          // 检查是否是上次检查后的新记录
+          const logTime = (new Date(log.create_time).getTime() / 1000) + 8 * 3600;
+          if (logTime > lastCheckTime) {
+            // 检查是否有USDT交易
+            const inAmount = log.in || '';
+            return inAmount.includes('USDT');
+          }
         }
+        return false;
+      });
+      
+      if (hasExpFromLogs) {
+        return true;
       }
-      return false;
-    });
-    return hasExp;
+    }
+
+    // 然后检查dfs3protocol合约的logs表
+    const pppContract = 'dfs3protocol';
+    const pppLogs = await wallet.getTableRows(
+      pppContract,
+      pppContract,
+      'logs',
+      '',
+      1, // index_position: 1表示主键索引
+      'i64',
+      50, // 限制查询数量
+      true // 反向查询，获取最新记录
+    );
+
+    if (pppLogs && Array.isArray(pppLogs)) {
+      // 检查是否有该用户在上次检查后的PPP相关操作记录
+      const hasExpFromPpp = pppLogs.some(log => {
+        // 检查是否是目标用户的记录（from或to字段）
+        if (log.from === owner || log.to === owner) {
+          // 检查是否是上次检查后的新记录
+          const logTime = (new Date(log.create_time).getTime() / 1000) + 8 * 3600;
+          if (logTime > lastCheckTime) {
+            // 检查是否有mint, burn或split类型的操作
+            return ['mint', 'burn', 'split'].includes(log.type);
+          }
+        }
+        return false;
+      });
+
+      if (hasExpFromPpp) {
+        return true;
+      }
+    }
+    
+    return false;
   } catch (error) {
     console.error('检查可获取经验失败:', error);
     debugLog?.(`检查可获取经验失败: ${error}`);
@@ -262,7 +299,7 @@ export const getUserCats = async (
     const result = await wallet.getTableRows(
       'ifwzjalq2lg1',      // code: 合约账户名
       'ifwzjalq2lg1',      // scope: 表的作用域
-      'cats',              // table: 表名
+      'cat1s',              // table: 表名
       accountName,         // lower_bound: 按所有者索引下限
       2,                   // index_position: 2表示secondary index
       'name',              // key_type: 索引键类型

@@ -1102,6 +1102,7 @@ onMounted(async () => {
                         interaction.action_type === 'feed' ? 'red' :
                         interaction.action_type === 'addxp' ? 'blue' :
                         interaction.action_type === 'external' ? 'purple' :
+                        interaction.action_type === 'ppp' ? 'gold' :
                         'gray'
                       "
                     >
@@ -1113,6 +1114,7 @@ onMounted(async () => {
                             interaction.action_type === 'feed' ? '喂养' :
                             interaction.action_type === 'external' ? '外部检查' :
                             interaction.action_type === 'checkaction' ? '检查活动' :
+                            interaction.action_type === 'ppp' ? 'PPP交易奖励' :
                             interaction.action_type 
                           }}
                         </span>
