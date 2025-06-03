@@ -633,9 +633,12 @@ onMounted(async () => {
               <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
                   <div 
-                    :class="['size-8 rounded-full flex items-center justify-center text-white', getCatColor(cat.genes)]"
+                    class="size-8 rounded-full flex items-center justify-center bg-yellow-500 text-white"
+                    style="position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.2); border: 1.5px solid rgba(255,255,255,0.4); aspect-ratio: 1/1;"
                   >
-                    #{{ cat.id }}
+                    <div class="cat-id-badge">
+                      <span class="cat-id-number">#{{ cat.id }}</span>
+                    </div>
                   </div>
                   <div class="flex flex-col">
                     <span class="font-medium">Lv.{{ cat.level }}</span>
@@ -880,14 +883,15 @@ onMounted(async () => {
                 <div class="flex justify-between items-start mb-4">
                   <div class="flex items-center gap-2">
                     <div 
-                      :class="[
-                        'size-16 rounded-full flex items-center justify-center text-xl font-bold text-white',
-                        getCatColor(catsList.find(c => c.id === selectedCatId)?.genes || 0)
-                      ]"
+                      class="size-16 rounded-full flex items-center justify-center text-xl font-bold bg-yellow-500 text-white"
+                      style="position: relative; box-shadow: 0 2px 6px rgba(0,0,0,0.25); border: 2px solid rgba(255,255,255,0.5); aspect-ratio: 1/1;"
                     >
-                      #{{ selectedCatId }}
+                      <div class="cat-id-badge-large">
+                        <span class="cat-id-number-large">#{{ selectedCatId }}</span>
+                      </div>
                     </div>
                     <div>
+                      <!-- <h3 class="text-lg font-medium">猫咪 #{{ selectedCatId }}</h3> -->
                       <h3 class="text-lg font-medium">猫咪 #{{ selectedCatId }}</h3>
                       <p class="text-sm text-gray-500">
                         出生于 {{ formatTime(catsList.find(c => c.id === selectedCatId)?.birth_time || 0) }}
@@ -1306,5 +1310,55 @@ onMounted(async () => {
 .gene-ability:hover {
   transform: translateY(-2px);
   box-shadow: 0 2px 6px rgba(24, 144, 255, 0.2);
+}
+
+/* 猫咪ID徽章渐变背景 */
+.cat-id-gradient {
+  background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 100%);
+  z-index: 1;
+}
+
+/* 猫咪ID徽章样式 - 小尺寸 */
+.cat-id-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-weight: bold;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+  letter-spacing: -0.5px;
+  position: relative;
+  z-index: 2;
+}
+
+.cat-id-number {
+  display: inline-block;
+  transform: scale(0.9);
+}
+
+/* 猫咪ID徽章渐变背景 - 大尺寸 */
+.cat-id-gradient-large {
+  background: linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.25) 100%);
+  z-index: 1;
+}
+
+/* 猫咪ID徽章样式 - 大尺寸 */
+.cat-id-badge-large {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  letter-spacing: -0.5px;
+  position: relative;
+  z-index: 2;
+}
+
+.cat-id-number-large {
+  display: inline-block;
+  transform: scale(0.95);
 }
 </style>

@@ -274,7 +274,7 @@ export const getUserCats = async (
     if (result && Array.isArray(result)) {
       // 过滤出属于当前用户的猫
       const userCats = result.filter(cat => cat.owner === accountName);
-      debugLog?.('过滤后的用户猫咪列表:', userCats);
+      debugLog?.(`过滤后的用户猫咪列表: ${JSON.stringify(userCats)}`);
       return userCats;
     } else {
       debugLog?.('获取猫咪数据返回格式不正确:', result);

@@ -29,7 +29,7 @@ const menus = [
   },
   {
     label: '猫星球',
-    icon: 'i-solar:cat-bold',
+    icon: 'i-solar:planet-bold', 
     component: CatPlanet,
   },
   {
