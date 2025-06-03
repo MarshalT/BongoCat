@@ -217,8 +217,9 @@ function createWalletInstance() {
         await initDfsWallet('BongoCat')
         console.log('useWallet.createWallet: DfsWallet初始化成功')
       } catch (error) {
-        console.error('useWallet.createWallet: DfsWallet初始化失败:', error)
-        throw new Error(`DfsWallet初始化失败: ${error instanceof Error ? error.message : '未知错误'}`)
+        const errMsg = JSON.stringify(error);
+        console.error('useWallet.createWallet: DfsWallet初始化失败:', errMsg)
+        throw new Error(`DfsWallet初始化失败: ${errMsg}`)
       }
 
       // 使用DfsWallet创建新钱包
@@ -296,12 +297,12 @@ function createWalletInstance() {
         address: result.accountName,
         privateKey: result.privateKey,
       }
-    } catch (err: any) {
-      console.error('useWallet.createWallet: 创建钱包过程失败:', err)
-      console.error('错误堆栈:', err.stack)
-      error.value = `创建钱包失败: ${err.message || '未知错误'}`
+    } catch (err: any) {  
+      const errMsg = JSON.stringify(err);
+      console.error('useWallet.createWallet: 创建钱包过程失败:', errMsg)
+      error.value = `创建钱包失败: ${errMsg}`
       walletStatus.value = WalletStatus.ERROR
-      message.error(`创建钱包失败: ${err.message || '未知错误'}`)
+      message.error(`创建钱包失败: ${errMsg}`)
       throw err
     } finally {
       isLoading.value = false
@@ -458,8 +459,9 @@ function createWalletInstance() {
         await initDfsWallet('BongoCat', privateKey)
         console.log('API连接初始化成功')
       } catch (error) {
-        console.error('API连接初始化失败:', error)
-        throw new Error(`API连接失败: ${error instanceof Error ? error.message : '未知错误'}`)
+        const errMsg = JSON.stringify(error);
+        console.error('API连接初始化失败:', errMsg)
+        throw new Error(`API连接失败: ${errMsg}`)
       }
 
       // 尝试获取真实余额
@@ -587,7 +589,8 @@ function createWalletInstance() {
           walletStatus.value = WalletStatus.CONNECTED
           return
         } catch (err) {
-          logError(`使用密码初始化钱包失败: ${err instanceof Error ? err.message : '未知错误'}`)
+          const errMsg = JSON.stringify(err);
+          logError(`使用密码初始化钱包失败: ${errMsg}`)
           throw err
         }
       } else {
@@ -633,8 +636,9 @@ function createWalletInstance() {
       isWalletLocked.value = true
       logInfo('钱包初始化完成，处于锁定状态，需要手动解锁')
     } catch (err: any) {
-      console.error('初始化钱包失败:', err)
-      error.value = `初始化钱包失败: ${err.message || '未知错误'}`
+      const errMsg = JSON.stringify(err);
+      console.error('初始化钱包失败:', errMsg)
+      error.value = `初始化钱包失败: ${errMsg}`
       walletStatus.value = WalletStatus.ERROR
     } finally {
       isLoading.value = false
@@ -726,8 +730,9 @@ function createWalletInstance() {
       console.log('钱包断开连接成功')
       return true // 返回成功状态
     } catch (err: any) {
-      console.error('断开钱包失败:', err)
-      error.value = `断开钱包失败: ${err.message || '未知错误'}`
+      const errMsg = JSON.stringify(err);
+      console.error('断开钱包失败:', errMsg)
+      error.value = `断开钱包失败: ${errMsg}`
       // 即使发生错误，也强制重置状态
       walletStatus.value = WalletStatus.DISCONNECTED
       currentWallet.value = null

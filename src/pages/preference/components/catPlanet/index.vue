@@ -201,14 +201,8 @@ const fetchUserCats = async () => {
       message.info('您还没有猫咪，请先获取一只猫咪');
     }
   } catch (error: any) {
-    console.error('获取猫咪失败:', error);
-    console.error('错误详情:', {
-      isWalletConnected: !!wallet,
-      accountName: accountName.value,
-      errorMessage: error?.message || '未知错误',
-      errorStack: error?.stack
-    });
-    showErrorWithTimeout(`获取猫咪失败: ${error?.message || '请检查网络连接'}`);
+    const errMsg = JSON.stringify(error);
+    showErrorWithTimeout(`获取猫咪失败: ${errMsg}`);
   } finally {
     loading.value = false;
     catsLoading.value = false;
@@ -232,14 +226,8 @@ const fetchCatInteractions = async (catId: number) => {
       (message, data) => walletUI.addDebugLog(message, data)
     );
   } catch (error: any) {
-    console.error('获取互动记录失败:', error);
-    console.error('错误详情:', {
-      isWalletConnected: !!wallet,
-      accountName: accountName.value,
-      errorMessage: error?.message || '未知错误',
-      errorStack: error?.stack
-    });
-    message.error(`获取互动记录失败: ${error?.message || '请检查网络连接'}`);
+    const errMsg = JSON.stringify(error);
+    showErrorWithTimeout(`获取互动记录失败: ${errMsg}`);
   } finally {
     interactionsLoading.value = false;
   }
@@ -470,8 +458,8 @@ const handlePasswordConfirm = async () => {
     // 重置经验检查状态
     hasAvailableExp.value = false;
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : '未知错误';
-    walletUI.addDebugLog(`执行${actionType.value}操作失败`, err);
+    const errMsg = JSON.stringify(err);
+    walletUI.addDebugLog(`执行${actionType.value}操作失败 ${errMsg}`);
     message.error(`操作失败: ${errMsg}`);
   } finally {
     loading.value = false;
@@ -548,7 +536,7 @@ onMounted(async () => {
       walletUI.addDebugLog('钱包组件挂载时发现钱包未连接')
     }
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : '未知错误'
+    const errMsg = JSON.stringify(err);
     showErrorWithTimeout(`初始化猫咪数据失败: ${errMsg}`)
     walletUI.addDebugLog('钱包组件挂载时出错', err)
   }

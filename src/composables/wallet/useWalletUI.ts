@@ -405,9 +405,9 @@ export function useWalletUI() {
 
       addDebugLog('交易发送成功:', { txId })
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '未知错误'
-      addDebugLog(`交易发送失败: ${errorMessage}`)
-      message.error(`交易发送失败: ${errorMessage}`)
+      const errMsg = JSON.stringify(err);
+      addDebugLog(`交易发送失败: ${errMsg}`)
+      message.error(`交易发送失败: ${errMsg}`)
     }
   }
 
@@ -453,9 +453,9 @@ export function useWalletUI() {
       message.success('交易发送成功')
       return true
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '未知错误'
-      addDebugLog(`交易发送失败: ${errorMessage}`)
-      message.error(`交易发送失败: ${errorMessage}`)
+      const errMsg = JSON.stringify(err);
+      addDebugLog(`交易发送失败: ${errMsg}`)
+      message.error(`交易发送失败: ${errMsg}`)
       throw err
     }
   }
@@ -512,9 +512,9 @@ export function useWalletUI() {
       // 如果没有提供密码，返回null (UI层需要处理密码输入)
       return null
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '未知错误'
-      addDebugLog(`获取私钥失败: ${errorMessage}`)
-      message.error(`获取私钥失败: ${errorMessage}`)
+      const errMsg = JSON.stringify(error);
+      addDebugLog(`获取私钥失败: ${errMsg}`)
+      message.error(`获取私钥失败: ${errMsg}`)
       return null
     }
   }
@@ -590,9 +590,9 @@ export function useWalletUI() {
         return false
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '未知错误'
-      addDebugLog(`解锁钱包出错: ${errorMessage}`)
-      message.error(`解锁钱包失败: ${errorMessage}`)
+      const errMsg = JSON.stringify(err);
+      addDebugLog(`解锁钱包出错: ${errMsg}`)
+      message.error(`解锁钱包失败: ${errMsg}`)
       throw err
     }
   }
