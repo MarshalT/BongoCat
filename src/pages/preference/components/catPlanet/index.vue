@@ -365,6 +365,12 @@ const feedCat = async () => {
   if (!prepareAction('feed')) return;
 }
 
+// 处理密码对话框取消
+const handlePasswordCancel = () => {
+  password.value = '';
+  actionType.value = null;
+}
+
 // 处理密码输入确认
 const handlePasswordConfirm = async () => {
   if (!password.value || !actionType.value) {
@@ -472,6 +478,25 @@ const refreshData = async () => {
   if (selectedCatId.value) {
     await fetchCatInteractions(selectedCatId.value)
   }
+}
+
+// 格式化体力值显示（将100-10000的值转换为1.00-100.00）
+const formatStamina = (stamina: number): number => {
+  if (!stamina && stamina !== 0) return 0;
+  return stamina / 100;
+}
+
+// 获取体力值百分比（用于进度条）
+const getStaminaPercent = (stamina: number): number => {
+  if (!stamina && stamina !== 0) return 0;
+  // 确保百分比不超过100%
+  return Math.min(100, formatStamina(stamina));
+}
+
+// 判断体力值颜色
+const getStaminaColor = (stamina: number): string => {
+  // 50%体力对应的原始值是5000
+  return (stamina >= 5000) ? '#52c41a' : '#faad14';
 }
 
 // 添加猫咪拍打互动函数
@@ -636,7 +661,7 @@ onMounted(async () => {
                   </div>
                 </div>
                 <div class="text-right">
-                  <div>体力: {{ cat.stamina }}/100</div>
+                  <div>体力: {{ formatStamina(cat.stamina).toFixed(2) }}/100</div>
                   <div class="text-xs text-gray-500">
                     {{ getHoursSinceLastCheck(cat.last_external_check) }}
                   </div>
@@ -657,7 +682,7 @@ onMounted(async () => {
                   class="ml-2" 
                   @click="checkCatAction"
                 >
-                  点击检查
+                  点击领取
                 </a-button>
               </div>
               <svg 
@@ -950,13 +975,13 @@ onMounted(async () => {
                       <div class="flex flex-col">
                         <div class="relative w-full" style="height: 24px;">
                           <a-progress
-                            :percent="catsList.find(c => c.id === selectedCatId)?.stamina || 0"
-                            :stroke-color="((catsList.find(c => c.id === selectedCatId)?.stamina || 0) >= 50) ? '#52c41a' : '#faad14'"
+                            :percent="getStaminaPercent(catsList.find(c => c.id === selectedCatId)?.stamina || 0)"
+                            :stroke-color="getStaminaColor(catsList.find(c => c.id === selectedCatId)?.stamina || 0)"
                             :stroke-width="24"
                             :format="() => ''"
                           />
                           <div class="absolute inset-0 flex items-center justify-center text-xs font-medium" style="line-height: 1;">
-                            {{ catsList.find(c => c.id === selectedCatId)?.stamina || 0 }}% 体力
+                            {{ formatStamina(catsList.find(c => c.id === selectedCatId)?.stamina || 0).toFixed(2) }} 体力
                           </div>
                           <a-button 
                             type="primary" 
@@ -1114,6 +1139,7 @@ onMounted(async () => {
       :title="actionType === 'upgrade' ? '升级猫咪' : actionType === 'mint' ? '铸造猫咪' : actionType === 'feed' ? '喂养猫咪' : '检查活动'"
       :confirm-loading="loading"
       @ok="handlePasswordConfirm"
+      @cancel="handlePasswordCancel"
     >
       <p>请输入钱包密码以确认操作</p>
       <a-input-password
