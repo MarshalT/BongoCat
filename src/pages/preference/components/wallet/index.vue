@@ -316,7 +316,7 @@ function handlePasswordCancel() {
 function handleDisconnectWallet() {
   walletUI.addDebugLog('点击断开钱包按钮')
   passwordAction.value = 'disconnect'
-  passwordPrompt.value = '请输入钱包密码以断开连接'
+  passwordPrompt.value = '请输入钱包密码以断开连接，断开钱包前请确认钱包已备份'
   showPasswordInput.value = true
   walletUI.addDebugLog('显示断开钱包密码输入对话框')
 }
@@ -708,7 +708,9 @@ onMounted(async () => {
     <WalletModal
       v-model:visible="walletUI.modals.backup"
       confirm-text="我已安全备份私钥"
+      cancel-text="稍后备份"
       title="备份私钥"
+      :confirm-disabled="!walletUI.forms.backup.backupConfirmed"
       @confirm="walletUI.completeBackup"
     >
       <div class="warning-box">
@@ -774,6 +776,7 @@ onMounted(async () => {
       <div class="checkbox-container">
         <label class="checkbox-label">
           <input
+            v-model="walletUI.forms.backup.backupConfirmed"
             class="checkbox-input"
             type="checkbox"
           >
@@ -786,7 +789,9 @@ onMounted(async () => {
     <WalletModal
       v-model:visible="walletUI.modals.exportPrivateKey"
       confirm-text="我已安全备份私钥"
+      cancel-text="稍后备份"
       title="导出私钥"
+      :confirm-disabled="!walletUI.forms.backup.backupConfirmed"
       @confirm="walletUI.modals.exportPrivateKey = false"
     >
       <div class="warning-box">
@@ -856,6 +861,17 @@ onMounted(async () => {
           <li>建议将私钥保存在离线安全的位置</li>
           <li>永远不要与他人分享您的私钥</li>
         </ul>
+      </div>
+      
+      <div class="checkbox-container">
+        <label class="checkbox-label">
+          <input
+            v-model="walletUI.forms.backup.backupConfirmed"
+            class="checkbox-input"
+            type="checkbox"
+          >
+            我了解私钥的重要性，并已安全备份
+        </label>
       </div>
     </WalletModal>
 

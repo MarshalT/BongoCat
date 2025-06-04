@@ -466,7 +466,8 @@ const handlePasswordConfirm = async () => {
     // 关闭密码对话框
     showPasswordModal.value = false;
     password.value = '';
-    
+    //延时1秒
+    await new Promise(resolve => setTimeout(resolve, 500));
     // 刷新猫咪数据
     await fetchUserCats();
     if (selectedCatId.value) {
@@ -479,6 +480,7 @@ const handlePasswordConfirm = async () => {
     const errMsg = JSON.stringify(err);
     walletUI.addDebugLog(`执行${actionType.value}操作失败 ${errMsg}`);
     message.error(`操作失败: ${errMsg}`);
+    password.value = '' 
   } finally {
     loading.value = false;
   }
@@ -1152,6 +1154,8 @@ onMounted(async () => {
       v-model:visible="showPasswordModal"
       :title="actionType === 'upgrade' ? '升级猫咪' : actionType === 'mint' ? '铸造猫咪' : actionType === 'feed' ? '喂养猫咪' : '检查活动'"
       :confirm-loading="loading"
+      ok-text="确定"
+      cancel-text="取消"
       @ok="handlePasswordConfirm"
       @cancel="handlePasswordCancel"
     >

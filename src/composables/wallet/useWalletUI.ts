@@ -80,9 +80,11 @@ export function useWalletUI() {
     backup: {
       privateKey: '',
       showPrivateKey: false,
+      backupConfirmed: false,
       reset() {
         this.privateKey = ''
         this.showPrivateKey = false
+        this.backupConfirmed = false
       },
     },
   })
