@@ -365,12 +365,15 @@ async function handleClearPassword() {
               >
                 修改密码
               </a-button>
+              <!-- 
+              清除密码按钮已隐藏，防止用户误操作
               <a-button
                 danger
                 @click="showClearPassword = true"
               >
                 清除密码
               </a-button>
+              -->
             </div>
           </div>
 
