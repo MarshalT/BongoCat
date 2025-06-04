@@ -63,9 +63,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVBRjJFMzE3MjEwMUZEMTAKUldRUS9RRWhGK1B5NmdkemhKcUFrVjZBQXlzdExpakdWVEJDeU9XckVsbzV2cFIycVJOempWa2UK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg2OTY1MzJEQjkwNEMzMEMKUldRTXd3UzVMVk9XaGpHRmFTQnEyd1pLYTROQ2RQRlhZVjhsWFF4ejVJNEdaUXZ3U1BOTFVWMHcK",
       "endpoints": [
-        "https://gh-proxy.com/github.com/ayangweb/BongoCat/releases/latest/download/latest.json"
+        "https://github.com/MarshalT/bongocatrelease/releases/latest/download/latest.json"
       ]
     }
   }

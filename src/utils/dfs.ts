@@ -178,9 +178,9 @@ export class DfsWallet {
     info(`init ${appName} ${this.rpc.endpoint} ${network}`)
 
     if (private_key) {
-      info(`init ${appName} ${this.rpc.endpoint} ${network} 使用私钥`)
+      info(`init ${appName} ${this.rpc.endpoint} ${network} 1`)
     } else {
-      info(`init ${appName} ${this.rpc.endpoint} ${network} 未提供私钥`)
+      info(`init ${appName} ${this.rpc.endpoint} ${network} 0`)
     }
     // 确保有可用的私钥
     let validPrivateKey = private_key
@@ -188,10 +188,10 @@ export class DfsWallet {
       try {
         // 如果配置文件没有私钥，使用my的私钥
         validPrivateKey = my.privateKey
-        info(`init ${appName} ${this.rpc.endpoint} ${network} 使用my私钥`)
+        info(`init ${appName} ${this.rpc.endpoint} ${network} 使用my`)
 
       } catch (e) {
-        console.log('无法读取配置私钥，使用my私钥')
+        console.log('无法读取配置私钥，使用my')
         validPrivateKey = my.privateKey
       }
     }

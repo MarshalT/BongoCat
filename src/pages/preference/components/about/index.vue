@@ -49,7 +49,20 @@ function feedbackIssue() {
       </template>
     </ProListItem>
 
-    <ProListItem title="开源地址">
+
+    <!-- <ProListItem 
+      title="关于BongoCat"
+      description="本软件基于ayangweb/BongoCat项目二次开发。感谢原作者的贡献。"
+    >
+      <template #description>
+        <div>
+          <p>本软件基于<a href="https://github.com/ayangweb/BongoCat" target="_blank">ayangweb/BongoCat</a>项目二次开发。</p>
+          <p>感谢原作者的贡献。</p>
+        </div>
+      </template>
+    </ProListItem> -->
+
+    <!-- <ProListItem title="开源地址">
       <Button
         danger
         @click="feedbackIssue"
@@ -62,7 +75,7 @@ function feedbackIssue() {
           {{ GITHUB_LINK }}
         </a>
       </template>
-    </ProListItem>
+    </ProListItem> -->
 
     <ProListItem
       :description="logDir"

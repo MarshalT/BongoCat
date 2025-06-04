@@ -179,18 +179,19 @@ function createWalletInstance() {
     // 初始化DfsWallet
     await dfsWallet.init(appName, nodeUrl ?? 'https://api.dfs.land', privateKey)
 
+    
     // 使用随机值覆盖私钥内存
-    if (typeof privateKey === 'string') {
-      const randomChars = Array.from({ length: privateKey.length }).fill(0).map(() => String.fromCharCode(Math.floor(Math.random() * 94) + 33)).join('')
+    // if (typeof privateKey === 'string') {
+    //   const randomChars = Array.from({ length: privateKey.length }).fill(0).map(() => String.fromCharCode(Math.floor(Math.random() * 94) + 33)).join('')
 
-      // 尝试覆盖原始变量内存
-      privateKey = randomChars
+    //   // 尝试覆盖原始变量内存
+    //   privateKey = randomChars
 
-      logInfo(`useWallet.initDfsWallet: 使用随机值覆盖私钥内存: ${randomChars}`)
-      logInfo(`useWallet.initDfsWallet: 覆盖后的私钥: ${privateKey}`)
-    } else {
-      logInfo(`useWallet.initDfsWallet: 未提供私钥`)
-    }
+    //   logInfo(`useWallet.initDfsWallet: 使用随机值覆盖私钥内存: ${randomChars}`)
+    //   logInfo(`useWallet.initDfsWallet: 覆盖后的私钥: ${privateKey}`)
+    // } else {
+    //   logInfo(`useWallet.initDfsWallet: 未提供私钥`)
+    // }
 
   }
 
@@ -739,7 +740,7 @@ function createWalletInstance() {
       return false
     }
   }
-  
+
 
   /**
    * 获取表数据

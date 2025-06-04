@@ -144,8 +144,8 @@ export class PasswordManager {
 
         // 转换为字符串并解析JSON
         const decryptedText = new TextDecoder().decode(decryptedBuffer)
-        logInfo(`解密数据: ${decryptedText}`)
-        logInfo(`解密数据: ${encryptedData}`)
+        // logInfo(`解密数据: ${decryptedText}`)
+        // logInfo(`解密数据: ${encryptedData}`)
         return JSON.parse(decryptedText)
       } catch (e) {
         // 如果新方法解密失败，尝试旧方法解密

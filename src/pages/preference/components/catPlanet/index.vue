@@ -12,7 +12,7 @@ import {
   GiftOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import { computed, onMounted, ref, onUnmounted } from 'vue'
+import { computed, onMounted, ref, onUnmounted, watch } from 'vue'
 
 // 导入钱包组件和工具
 import { useWallet } from '@/composables/wallet/useWallet'
@@ -311,6 +311,17 @@ onUnmounted(() => {
   }
 });
 
+// 监听钱包解锁事件
+watch(() => walletUI.isWalletLocked.value, async (newValue, oldValue) => {
+  // 当钱包从锁定状态变为解锁状态时
+  if (oldValue === true && newValue === false) {
+    console.log('钱包已解锁，正在刷新猫咪数据...');
+    await fetchUserCats();
+    // 开始检查经验
+    startCheckingForExp();
+  }
+});
+
 // 选择猫咪
 const selectCat = (catId: number) => {
   selectedCatId.value = catId
@@ -409,6 +420,7 @@ const handlePasswordConfirm = async () => {
     if (!wallet) {
       throw new Error('钱包未初始化或尚未连接')
     }
+    
     
     let result;
     walletUI.addDebugLog(`准备执行${actionType.value}操作`);
