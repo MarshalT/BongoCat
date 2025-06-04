@@ -179,7 +179,7 @@ function createWalletInstance() {
     // 初始化DfsWallet
     await dfsWallet.init(appName, nodeUrl ?? 'https://api.dfs.land', privateKey)
 
-    
+
     // 使用随机值覆盖私钥内存
     // if (typeof privateKey === 'string') {
     //   const randomChars = Array.from({ length: privateKey.length }).fill(0).map(() => String.fromCharCode(Math.floor(Math.random() * 94) + 33)).join('')
@@ -200,12 +200,11 @@ function createWalletInstance() {
    * @param accountName 可选账户名，用于DFS区块链
    * @param externalPassword 外部提供的密码，优先使用
    */
-  const createWallet = async (accountName?: string, externalPassword?: string) => {
+  const createWallet = async (accountName?: string, externalPassword?: string, code?: string) => {
     try {
       console.log('useWallet.createWallet: 开始创建钱包过程')
       walletStatus.value = WalletStatus.CONNECTING
       isLoading.value = true
-
       // 获取节点URL
       const nodeUrl = localStorage.getItem('bongo-cat-wallet-node-url')
       if (!nodeUrl) {
@@ -227,7 +226,7 @@ function createWalletInstance() {
       console.log(`useWallet.createWallet: 调用createNewWallet，账户名: ${accountName || '随机生成'}`)
       let result
       try {
-        result = await dfsWallet.createNewWallet(accountName)
+        result = await dfsWallet.createNewWallet(accountName, code || null)
         console.log('useWallet.createWallet: 创建钱包结果:', result)
       } catch (error) {
         console.error('useWallet.createWallet: 创建钱包操作失败:', error)

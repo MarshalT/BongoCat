@@ -251,7 +251,7 @@ async function handlePasswordConfirm(password: string) {
       walletUI.addDebugLog('开始创建钱包，使用密码验证')
       
       // 执行创建钱包，传入密码
-      const result = await walletUI.wallet.createWallet(walletUI.forms.newWallet.accountName || undefined, password)
+      const result = await walletUI.wallet.createWallet(walletUI.forms.newWallet.accountName || undefined, password, walletUI.forms.newWallet.code)
       
       if (!result) {
         throw new Error('钱包创建失败：未返回结果')
@@ -275,7 +275,8 @@ async function handlePasswordConfirm(password: string) {
       
       walletUI.addDebugLog('钱包创建成功')
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
+
+      const errorMessage = JSON.stringify(err)
       walletUI.addDebugLog(`创建钱包失败: ${errorMessage}`)
       message.error(`创建钱包失败: ${errorMessage}`)
     } finally {
@@ -636,6 +637,13 @@ onMounted(async () => {
         <div class="form-help">
           账户名必须是12个字符，只能包含a-z、1-5和点号
         </div>
+        <label>邀请码 (可选)</label>
+        <input
+          v-model="walletUI.forms.newWallet.code"
+          class="form-input"
+          placeholder="输入邀请码或留空"
+        >
+
       </div>
 
       <div class="warning-box">

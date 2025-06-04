@@ -55,9 +55,11 @@ export function useWalletUI() {
     // 新钱包表单
     newWallet: {
       accountName: '',
+      code: "",
       isCreating: false,
       reset() {
         this.accountName = ''
+        this.code = ""
         this.isCreating = false
       },
     },

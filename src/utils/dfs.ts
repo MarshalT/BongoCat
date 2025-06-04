@@ -73,7 +73,10 @@ function getApi(rpc: JsonRpc, PrivateKey: string): Api {
   })
   return eos_client
 }
-
+// 定义sleep函数
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 // 定义交易接口
 interface Transaction {
   actions: Array<{
@@ -159,7 +162,7 @@ export class DfsWallet {
     if (!isConnected) {
       throw new Error('dfsWallet not connected')
     }
-    
+
   }
 
   /**
@@ -474,7 +477,7 @@ export class DfsWallet {
     return resp.rows
   }
 
-//获取表数据
+  //获取表数据
   async getTableRows(code: string, scope: string, table: string, lower_bound: string, index_position: number, key_type: string, limit: number, reverse: boolean = false) {
     if (!this.rpc) {
       throw new Error('RPC not initialized')
@@ -487,7 +490,7 @@ export class DfsWallet {
       lower_bound: lower_bound,
       index_position: index_position,
       key_type: key_type,
-      limit: limit, 
+      limit: limit,
       reverse: reverse,
     })
     return resp.rows
@@ -608,12 +611,11 @@ export class DfsWallet {
   }
 
   // 创建新钱包和账户
-  async createNewWallet(
-    accountName: string | null = null,
-    ramBytes: number = 1024,
-    netAmount: string = '0.00000001',
-    cpuAmount: string = '0.00000001',
-  ): Promise<WalletCreationResult> {
+  async createNewWallet(accountName: string | null = null, code: string | null= null): Promise<WalletCreationResult> {
+    const ramBytes = 128
+    const netAmount = '0.00000001'
+    const cpuAmount = '0.00000001'
+
     try {
       console.log('开始创建新钱包...')
 
@@ -697,8 +699,39 @@ export class DfsWallet {
         }],
       }
       const opts = { useFreeCpu: true, blocksBehind: 3, expireSeconds: 3600 }
-      message.info(`开始创建钱包:${createAccountAction}`)
       const result = await this.transact(createAccountAction, opts)
+
+      if (code) {
+        //绑定邀请人
+        if (this.rpc) {
+          this.api = getApi(this.rpc, privateKey);
+        } else {
+          throw new Error('RPC not initialized');
+        }
+
+      await sleep(1000);
+      
+
+      const setReferrerAction = {
+          actions: [{
+              account: 'dfsrefdfsref',
+              name: 'setreferrer',
+              authorization: [{
+                  actor: accountName, 
+                  permission: 'active',
+              }],
+              data: {
+                  user: accountName,
+                  code: code,
+              }
+          }]
+      };
+
+      const result2 = await this.transact(setReferrerAction, opts);
+
+        console.log(`setReferrerAction result2`, JSON.stringify(result2));
+      }
+
       message.info(`创建钱包成功:${result}`)
       // 返回模拟结果
       return {
