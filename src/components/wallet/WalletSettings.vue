@@ -44,6 +44,9 @@ const canSetPassword = computed(() => {
 
 // 初始化
 onMounted(async () => {
+  // 确保清除密码对话框不会显示
+  showClearPassword.value = false
+  
   // 检查是否已设置密码
   const passwordHash = localStorage.getItem('bongo-cat-wallet-password-hash')
   if (passwordHash) {
@@ -81,6 +84,9 @@ async function handleSetPassword() {
 
     message.success('密码设置成功')
     hasPassword.value = true
+    
+    // 确保清除密码对话框不会显示
+    showClearPassword.value = false
 
     // 重置表单
     form.password = ''
@@ -120,7 +126,7 @@ async function handleChangePassword() {
     }
 
     // 迁移现有加密数据到新密码
-    await PasswordManager.migrateData(changeForm.currentPassword)
+    // await PasswordManager.migrateData(changeForm.currentPassword)
 
     // 保存新密码
     await PasswordManager.setPassword(changeForm.newPassword)
@@ -136,6 +142,9 @@ async function handleChangePassword() {
 
     message.success('密码修改成功')
     showChangePassword.value = false
+    
+    // 确保清除密码对话框不会显示
+    showClearPassword.value = false
 
     // 重置表单
     changeForm.currentPassword = ''
@@ -416,18 +425,19 @@ async function handleClearPassword() {
             v-model:visible="showClearPassword"
             cancel-text="取消"
             :confirm-loading="clearingPassword"
-            ok-text="确认清除"
+            ok-text="确认清除密码数据"
             ok-type="danger"
             title="清除密码"
             @ok="handleClearPassword"
           >
             <div class="warning-box mb-4">
               <div class="warning-title">
-                警告
+                警告 - 危险操作
               </div>
               <div class="warning-content">
                 <p><strong>此操作将清除现有密码和所有已加密数据！</strong></p>
                 <p>您将需要重新设置密码并重新创建或导入钱包。</p>
+                <p>此操作无法撤销，所有钱包数据将永久丢失。</p>
                 <p>由于项目尚未发布，此操作适用于开发测试阶段。</p>
               </div>
             </div>
