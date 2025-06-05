@@ -478,16 +478,19 @@ export class DfsWallet {
   }
 
   //获取表数据
-  async getTableRows(code: string, scope: string, table: string, lower_bound: string, index_position: number, key_type: string, limit: number, reverse: boolean = false) {
+  async getTableRows(code: string, scope: string, table: string, lower_bound: string, upper_bound: string, index_position: number, key_type: string, limit: number, reverse: boolean = false) {
     if (!this.rpc) {
       throw new Error('RPC not initialized')
     }
+    info(`getTableRows ${code} ${scope} ${table} ${lower_bound} ${upper_bound} ${index_position} ${key_type} ${limit} ${reverse}`)
+
     const resp = await this.rpc.get_table_rows({
       json: true, // Get the response as json
       code: code,
       scope: scope,
       table: table,
       lower_bound: lower_bound,
+      upper_bound: upper_bound,
       index_position: index_position,
       key_type: key_type,
       limit: limit,

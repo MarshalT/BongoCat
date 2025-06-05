@@ -762,8 +762,8 @@ function createWalletInstance() {
    * @param key_type 键类型
    * @param limit 限制
    */
-  const getTableRows = async (code: string, scope: string, table: string, lower_bound: string, index_position: number, key_type: string, limit: number, reverse: boolean = false) => {
-    const rows = await dfsWallet.getTableRows(code, scope, table, lower_bound, index_position, key_type, limit, reverse)
+  const getTableRows = async (code: string, scope: string, table: string, lower_bound: string, upper_bound: string, index_position: number, key_type: string, limit: number, reverse: boolean = false) => {
+    const rows = await dfsWallet.getTableRows(code, scope, table, lower_bound, upper_bound, index_position, key_type, limit, reverse)
     return rows
   }
 

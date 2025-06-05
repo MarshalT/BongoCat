@@ -1009,7 +1009,7 @@ onMounted(async () => {
                             :format="() => ''"
                           />
                           <div class="absolute inset-0 flex items-center justify-center text-xs font-medium" style="line-height: 1;">
-                            {{ formatStamina(catsList.find(c => c.id === selectedCatId)?.stamina || 0).toFixed(2) }} 体力
+                            {{ formatStamina(catsList.find(c => c.id === selectedCatId)?.stamina || 0).toFixed(2) }}/100 体力
                           </div>
                           <a-button 
                             type="primary" 

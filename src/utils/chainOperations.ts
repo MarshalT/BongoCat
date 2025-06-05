@@ -29,9 +29,10 @@ export const checkCatHasAvailableExp = async (
       externalContract,
       'logs',
       '',
+      '',
       1, // index_position: 1表示主键索引
       'i64',
-      50, // 限制查询数量
+      100, // 限制查询数量
       true // 反向查询，获取最新记录
     );
 
@@ -63,9 +64,10 @@ export const checkCatHasAvailableExp = async (
       pppContract,
       'logs',
       '',
+      '',
       1, // index_position: 1表示主键索引
       'i64',
-      50, // 限制查询数量
+      100, // 限制查询数量
       true // 反向查询，获取最新记录
     );
 
@@ -332,6 +334,7 @@ export const getUserCats = async (
       'ifwzjalq2lg1',      // scope: 表的作用域
       'cat1s',              // table: 表名
       accountName,         // lower_bound: 按所有者索引下限
+      '',
       2,                   // index_position: 2表示secondary index
       'name',              // key_type: 索引键类型
       100                  // limit: 最大结果数
@@ -372,9 +375,11 @@ export const getCatInteractions = async (
       'ifwzjalq2lg1',      // scope: 表的作用域
       'interactions',       // table: 表名
       catId.toString(),     // lower_bound: 按猫咪ID索引
+      catId.toString(),     // upper_bound: 按猫咪ID索引
       2,                   // index_position: 2表示secondary index (cat_id)
       'i64',               // key_type: 索引键类型
-      10                  // limit: 最大结果数
+      5,                  // limit: 最大结果数
+      true
     );
     if (result && Array.isArray(result)) {
       // 过滤并按时间戳降序排序
@@ -382,6 +387,7 @@ export const getCatInteractions = async (
         .filter(interaction => Number(interaction.cat_id) === catId)
         .sort((a, b) => b.timestamp - a.timestamp)
         .slice(-5);
+      debugLog?.(`获取互动记录: ${JSON.stringify(interactions)}`);
       return interactions;
     } else {
       debugLog?.('获取互动记录数据返回格式不正确:', result);
