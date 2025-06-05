@@ -8,6 +8,7 @@ export interface Asset {
   balance: string
   value: number
   color: string
+  logoUrl?: string // 添加 logo URL 字段
 }
 
 // 组件属性
@@ -37,6 +38,17 @@ const colorMap: Record<string, string> = {
 // 获取背景色
 function getBackgroundColor(color: string): string {
   return colorMap[color] || '#3b82f6' // 默认蓝色
+}
+
+// 检查图片是否存在
+function handleImageError(event: Event) {
+  const target = event.target as HTMLImageElement
+  target.style.display = 'none'
+  // 显示备用文本元素
+  const textElement = target.nextElementSibling
+  if (textElement) {
+    (textElement as HTMLElement).style.display = 'block'
+  }
 }
 
 // 刷新事件
@@ -73,7 +85,21 @@ function onRefresh() {
               class="asset-icon mr-3 h-10 w-10 flex items-center justify-center rounded-full text-lg font-bold"
               :style="{ backgroundColor: getBackgroundColor(asset.color) }"
             >
-              {{ asset.key.charAt(0) }}
+              <!-- 显示 logo 图片 (如果有) -->
+              <img
+                v-if="asset.logoUrl"
+                :src="asset.logoUrl"
+                :alt="`${asset.name} logo`"
+                class="token-logo"
+                @error="handleImageError"
+              >
+              <!-- 备用显示：代币首字母 -->
+              <span 
+                :style="{ display: asset.logoUrl ? 'none' : 'block' }"
+                class="token-letter"
+              >
+                {{ asset.key.charAt(0) }}
+              </span>
             </div>
             <div>
               <h3 class="font-medium">
@@ -129,5 +155,21 @@ function onRefresh() {
   justify-content: center;
   border: 1px solid rgba(0, 0, 0, 0.1);
   color: white;
+  overflow: hidden;
+}
+
+.token-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.token-letter {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

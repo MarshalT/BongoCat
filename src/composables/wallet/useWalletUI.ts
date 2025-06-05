@@ -96,6 +96,7 @@ export function useWalletUI() {
     balance: string
     value: number
     color: string
+    logoUrl?: string
   }>>([
     {
       key: 'DFS',
@@ -103,7 +104,16 @@ export function useWalletUI() {
       balance: wallet.balances[WalletType.DFS],
       value: Number.parseFloat(wallet.balances[WalletType.DFS]) * 0.5,
       color: 'bg-blue-500',
+      logoUrl: 'https://dfs.land/assets/tokens/eosio.token-DFS.png',
     },
+    {
+      key: 'USDT',
+      name: 'USDT',
+      balance: '0.00000000',
+      value: 0,
+      color: 'bg-green-500',
+      logoUrl: 'https://dfs.land/assets/tokens/usdtusdtusdt-USDT.png',
+    }
   ])
 
   // 计算属性
@@ -287,9 +297,12 @@ export function useWalletUI() {
             }
           }
 
+          // 确保保留 logoUrl 字段
           return {
             ...asset,
             value: calculatedValue,
+            // 如果资产中有 logoUrl 则使用，否则保持现有的 logoUrl（如果存在）
+            logoUrl: asset.logoUrl || assetList.value.find(a => a.key === asset.key)?.logoUrl
           }
         })
 

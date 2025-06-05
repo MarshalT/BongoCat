@@ -7,6 +7,7 @@ import DfsWallet from '@/utils/dfs'
 import { decryptWalletData, encryptWalletData } from '@/utils/Encrypt'
 import { PasswordManager } from '@/utils/PasswordManager'
 import { SecurePrivateKey } from '@/utils/SecurePrivateKey'
+import { getTokenLogo } from '@/utils/tokenLogo'
 
 // 导入DfsWallet
 // 导入私钥转公钥函数
@@ -50,6 +51,16 @@ export interface Transaction {
   date: string
   status: 'pending' | 'completed' | 'failed'
   memo?: string
+}
+
+// 更新 Asset 接口定义 (在 Transaction 接口之后)
+export interface Asset {
+  key: string
+  name: string
+  balance: string
+  value: number
+  color: string
+  logoUrl?: string // 添加 logoUrl 字段
 }
 
 // 存储在本地的钱包数据
@@ -1026,6 +1037,9 @@ function createWalletInstance() {
       // 创建包含所有代币的资产列表
       const assetsList = []
 
+      // 获取 DFS 代币的 logo URL
+      const dfsLogoUrl = await getTokenLogo('DFS')
+
       // 添加DFS资产 - 不计算价值，让UI层处理
       assetsList.push({
         key: 'DFS',
@@ -1033,6 +1047,7 @@ function createWalletInstance() {
         balance: balances[WalletType.DFS],
         value: 0, // 价值由UI层计算
         color: 'bg-blue-500',
+        logoUrl: dfsLogoUrl, // 添加 logo URL
       })
 
       // 处理USDT余额 - 从数组中提取正确的余额值
@@ -1046,6 +1061,9 @@ function createWalletInstance() {
         }
       }
 
+      // 获取 USDT 代币的 logo URL
+      const usdtLogoUrl = await getTokenLogo('USDT')
+
       // 添加USDT资产 - 不计算价值，让UI层处理
       assetsList.push({
         key: 'USDT',
@@ -1053,6 +1071,7 @@ function createWalletInstance() {
         balance: formattedUsdtBalance,
         value: 0, // 价值由UI层计算
         color: 'bg-green-500',
+        logoUrl: usdtLogoUrl, // 添加 logo URL
       })
 
       // 处理并添加其他代币，包括其他可能的USDT变体
@@ -1064,6 +1083,43 @@ function createWalletInstance() {
         'bg-indigo-500',
         'bg-pink-500',
       ]
+
+      // 收集所有代币符号以批量获取 logo
+      const tokenSymbols: string[] = []
+
+      // 处理来自dfsppptokens的代币
+      allTokens.forEach((item) => {
+        const parts = item.split(' ')
+        if (parts.length === 2) {
+          const symbol = parts[1]
+          tokenSymbols.push(symbol)
+        }
+      })
+
+      // 处理其他USDT变体（如果有）
+      if (usdtBalance && Array.isArray(usdtBalance)) {
+        usdtBalance.forEach((item) => {
+          const parts = item.split(' ')
+          if (parts.length === 2) {
+            const symbol = parts[1]
+            // 跳过已添加的标准USDT
+            if (symbol === 'USDT') return
+            tokenSymbols.push(symbol)
+          }
+        })
+      }
+
+      // 批量获取所有代币的 logo URL
+      const tokenLogos: Record<string, string> = {}
+      for (const symbol of tokenSymbols) {
+        try {
+          const logoUrl = await getTokenLogo(symbol)
+          tokenLogos[symbol] = logoUrl
+        } catch (error) {
+          console.error(`获取 ${symbol} logo 失败:`, error)
+          tokenLogos[symbol] = '' // 设置为空字符串表示获取失败
+        }
+      }
 
       // 处理来自dfsppptokens的代币
       allTokens.forEach((item, index) => {
@@ -1083,6 +1139,7 @@ function createWalletInstance() {
             balance: tokenBalance,
             value,
             color: colorClasses[colorIndex],
+            logoUrl: tokenLogos[symbol] || '', // 添加 logo URL，如果没有则使用空字符串
           })
         }
       })
@@ -1110,6 +1167,7 @@ function createWalletInstance() {
               balance: tokenBalance,
               value,
               color: colorClasses[colorIndex],
+              logoUrl: tokenLogos[symbol] || '', // 添加 logo URL，如果没有则使用空字符串
             })
           }
         })
@@ -1132,6 +1190,14 @@ function createWalletInstance() {
         currentWallet.value.balance = `${newBalance} DFS`
       }
 
+      // 获取 DFS logo URL
+      let dfsLogoUrl = ''
+      try {
+        dfsLogoUrl = await getTokenLogo('DFS')
+      } catch (error) {
+        console.error('获取 DFS logo 失败:', error)
+      }
+
       // 返回模拟数据
       return {
         dfsBalance: balances[WalletType.DFS],
@@ -1141,6 +1207,7 @@ function createWalletInstance() {
           balance: balances[WalletType.DFS],
           value: 0, // 价值由UI层计算
           color: 'bg-blue-500',
+          logoUrl: dfsLogoUrl,
         }],
       }
     } finally {
