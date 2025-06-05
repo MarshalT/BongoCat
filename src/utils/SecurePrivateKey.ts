@@ -100,7 +100,7 @@ export class SecurePrivateKey {
       this.keyBuffer = null;
       this.isCleared = true;
       
-      info('私钥已从内存中安全清除');
+      // info('私钥已从内存中安全清除');
     }
   }
   

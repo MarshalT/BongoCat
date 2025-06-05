@@ -91,6 +91,30 @@ const showRankingModal = ref(false)
 const rankingList = ref<CatInfo[]>([])
 const rankingLoading = ref(false)
 
+// 猫咪互动响应语句数组
+const catResponses = [
+  '喵~',
+  '喵喵~',
+  '喵？',
+  '喵！',
+  '喵呜~',
+  '咕噜噜~',
+  '呼噜噜~',
+  '喵哈~',
+  '喵嗷~',
+  '喵呜喵~',
+  '喵~❤',
+  '喵喵喵~',
+  '嗷呜~',
+  '喵...（打哈欠）',
+  '喵！（惊讶）',
+  '喵~（满足）',
+  '咪~',
+  '喵~（撒娇）',
+  '喵？（疑惑）',
+  '喵！（兴奋）'
+]
+
 // 计算属性
 const isWalletConnected = computed(() => walletUI.isWalletConnected.value)
 const isWalletLocked = computed(() => walletUI.isWalletLocked.value)
@@ -577,12 +601,24 @@ const patCat = () => {
   if (isPatting.value) return
   
   isPatting.value = true
-  message.success('喵~', 1)
   
-  // 1秒后重置状态
+  // 随机选择一个猫咪响应语句
+  const randomResponse = catResponses[Math.floor(Math.random() * catResponses.length)]
+  
+  // 使用自定义样式显示消息
+  message.success({
+    content: randomResponse,
+    duration: 2,
+    style: {
+      fontSize: '16px',
+      marginTop: '20px'
+    }
+  })
+  
+  // 1.5秒后重置状态，与动画时长匹配
   setTimeout(() => {
     isPatting.value = false
-  }, 1000)
+  }, 1500)
 }
 
 // 计算猫咪详情
