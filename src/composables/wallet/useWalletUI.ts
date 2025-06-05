@@ -377,57 +377,6 @@ export function useWalletUI() {
     }
   }
 
-  // 发送代币
-  const handleSendTokens = async () => {
-    if (!isWalletConnected.value) {
-      message.error('钱包未连接')
-      return false
-    }
-
-    // 检查钱包是否锁定
-    if (isWalletLocked.value) {
-      message.warning('钱包已锁定，请先解锁')
-      modals.unlockWallet = true
-      return false
-    }
-
-    // 重置自动锁定计时器
-    resetWalletLockTimer()
-
-    addDebugLog('开始执行发送交易', forms.send)
-
-    if (!forms.send.recipient || !forms.send.amount) {
-      message.error('请填写完整的交易信息')
-      return
-    }
-
-    try {
-      message.loading('正在处理交易...')
-      addDebugLog('发送交易参数:', {
-        to: forms.send.recipient,
-        amount: forms.send.amount,
-        currency: forms.send.currency,
-        memo: forms.send.memo,
-      })
-
-      const txId = await wallet.sendTransaction(
-        forms.send.recipient,
-        forms.send.amount,
-        forms.send.currency,
-        forms.send.memo,
-      )
-
-      modals.send = false
-      // forms.send.reset();
-
-      addDebugLog('交易发送成功:', { txId })
-    } catch (err) {
-      const errMsg = JSON.stringify(err);
-      addDebugLog(`交易发送失败: ${errMsg}`)
-      message.error(`交易发送失败: ${errMsg}`)
-    }
-  }
-
   // 使用密码发送代币（用于密码输入对话框）
   const handleSendTokensWithPassword = async (password: string) => {
     if (!isWalletConnected.value) {
@@ -660,7 +609,6 @@ export function useWalletUI() {
     formatAddress,
     formatTransactionDate,
     handleDisconnectWallet,
-    handleSendTokens,
     handleSendTokensWithPassword,
     completeBackup,
     togglePrivateKeyVisibility,
