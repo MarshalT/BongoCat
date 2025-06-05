@@ -130,7 +130,7 @@ const getHoursSinceLastCheck = (timestamp: number) => {
   if (!timestamp) return '从未检查'
   const now = Math.floor(Date.now() / 1000)
   const hours = Math.floor((now - timestamp) / 3600)
-  return `${hours}小时前`
+  return `${hours}`
 }
 
 // 计算指定等级所需的总经验值
@@ -666,41 +666,36 @@ onMounted(async () => {
           <a-empty v-else-if="catsList.length === 0" description="暂无猫咪" />
           
           <div v-else class="cat-list space-y-2">
-            <a-card
+            <div
               v-for="cat in catsList"
               :key="cat.id"
-              size="small"
-              :class="[
-                'cursor-pointer transition-all hover:shadow-md',
-                selectedCatId === cat.id ? 'border-primary-5 border-2' : ''
-              ]"
+              class="cursor-pointer transition-all mb-2"
               @click="selectCat(cat.id)"
             >
-              <div class="flex justify-between items-center">
-                <div class="flex items-center gap-2">
-                  <div 
-                    class="size-8 rounded-full flex items-center justify-center bg-yellow-500 text-white"
-                    style="position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.2); border: 1.5px solid rgba(255,255,255,0.4); aspect-ratio: 1/1;"
-                  >
+              <div class="cat-info-card" :class="{'cat-info-card-selected': selectedCatId === cat.id}">
+                <div class="flex items-center">
+                  <div class="cat-badge mr-3">
                     <div class="cat-id-badge">
                       <span class="cat-id-number">#{{ cat.id }}</span>
                     </div>
                   </div>
-                  <div class="flex flex-col">
-                    <span class="font-medium">Lv.{{ cat.level }}</span>
-                    <span class="text-xs text-gray-500">
-                      经验: {{ getExpDisplayText(cat.experience, cat.level) }}
-                    </span>
-                  </div>
-                </div>
-                <div class="text-right">
-                  <div>体力: {{ formatStamina(cat.stamina).toFixed(2) }}/100</div>
-                  <div class="text-xs text-gray-500">
-                    {{ getHoursSinceLastCheck(cat.last_external_check) }}
+                  <div class="flex-1">
+                    <div class="font-medium mb-1">Lv.{{ cat.level }}</div>
+                    <div class="flex justify-between text-xs">
+                      <span>体力:</span>
+                      <span class="ml-1">{{ formatStamina(cat.stamina).toFixed(2) }}/100</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                      <span>经验:</span>
+                      <span class="ml-1">{{ cat.experience }}/{{ xpForLevel(cat.level) }}</span>
+                    </div>
+                    <!-- <div class="text-xs text-gray-500">
+                      {{ getHoursSinceLastCheck(cat.last_external_check) }}小时前
+                    </div> -->
                   </div>
                 </div>
               </div>
-            </a-card>
+            </div>
           </div>
           
          <!-- 猫咪图形区域 -->
@@ -1213,7 +1208,7 @@ onMounted(async () => {
 .cat-list {
   max-height: 450px;
   overflow-y: auto;
-  padding-right: 5px;
+  padding-right: 8px;
 }
 
 /* 猫咪动画效果 */
@@ -1411,5 +1406,43 @@ onMounted(async () => {
 .cat-id-number-large {
   display: inline-block;
   transform: scale(0.95);
+}
+
+/* 添加猫咪信息卡片样式 */
+.cat-info-card {
+  border: 1px solid #91d5ff;
+  border-radius: 8px;
+  padding: 12px;
+  background-color: #f0f9ff;
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.cat-info-card:hover {
+  border-color: #1890ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.cat-info-card-selected {
+  border: 2px solid #1890ff;
+  background-color: #e6f7ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
+}
+
+.cat-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #ffc53d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(255, 169, 0, 0.3);
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  position: relative;
+  aspect-ratio: 1/1;
 }
 </style>
