@@ -177,15 +177,15 @@ export function useWalletUI() {
   // 添加调试日志
   const addDebugLog = (message: string, data?: any) => {
     info(message, data)
-    const timestamp = new Date().toLocaleTimeString()
-    const logMessage = data ? `${timestamp} - ${message}: ${JSON.stringify(data)}` : `${timestamp} - ${message}`
-    debugLogs.value.push(logMessage)
+    // const timestamp = new Date().toLocaleTimeString()
+    // const logMessage = data ? `${timestamp} - ${message}: ${JSON.stringify(data)}` : `${timestamp} - ${message}`
+    // debugLogs.value.push(logMessage)
 
-    console.log(message, data)
+    // console.log(message, data)
 
-    if (debugLogs.value.length > 300) {
-      debugLogs.value.shift()
-    }
+    // if (debugLogs.value.length > 300) {
+    //   debugLogs.value.shift()
+    // }
   }
 
   // 获取DFS实时价格

@@ -482,7 +482,7 @@ export class DfsWallet {
     if (!this.rpc) {
       throw new Error('RPC not initialized')
     }
-    info(`getTableRows ${code} ${scope} ${table} ${lower_bound} ${upper_bound} ${index_position} ${key_type} ${limit} ${reverse}`)
+    // info(`getTableRows ${code} ${scope} ${table} ${lower_bound} ${upper_bound} ${index_position} ${key_type} ${limit} ${reverse}`)
 
     const resp = await this.rpc.get_table_rows({
       json: true, // Get the response as json
