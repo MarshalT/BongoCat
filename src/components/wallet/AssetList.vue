@@ -78,11 +78,12 @@ function onRefresh() {
         :key="asset.key"
         :bordered="false"
         class="currency-card mb-2"
+        :body-style="{ padding: '12px' }"
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center">
             <div
-              class="asset-icon mr-3 h-10 w-10 flex items-center justify-center rounded-full text-lg font-bold"
+              class="asset-icon mr-3 h-8 w-8 flex items-center justify-center rounded-full text-lg font-bold"
               :style="{ backgroundColor: getBackgroundColor(asset.color) }"
             >
               <!-- 显示 logo 图片 (如果有) -->
@@ -101,17 +102,17 @@ function onRefresh() {
                 {{ asset.key.charAt(0) }}
               </span>
             </div>
-            <div>
-              <h3 class="font-medium">
+            <div class="asset-info">
+              <h3 class="font-medium text-sm mb-0">
                 {{ asset.name }}
               </h3>
-              <p class="text-gray-500">
+              <p class="text-gray-500 text-xs mb-0">
                 {{ asset.balance }} {{ asset.key }}
               </p>
             </div>
           </div>
           <div class="text-right">
-            <p class="font-bold">
+            <p class="font-bold mb-0">
               ${{ asset.value.toFixed(2) }}
             </p>
           </div>
@@ -149,7 +150,7 @@ function onRefresh() {
 
 .asset-icon {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  min-width: 2.5rem;
+  min-width: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -171,5 +172,11 @@ function onRefresh() {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 0.875rem;
+}
+
+/* 紧凑型资产信息样式 */
+.asset-info {
+  line-height: 1.2;
 }
 </style>

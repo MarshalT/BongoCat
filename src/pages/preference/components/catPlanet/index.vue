@@ -166,6 +166,12 @@ const canUpgrade = (exp: number, level: number) => {
   return exp >= nextLevelExp
 }
 
+// 判断猫咪体力是否已满
+const isStaminaFull = (stamina: number) => {
+  // 体力上限为10000（显示为100.00）
+  return stamina >= 10000
+}
+
 // 在errorMessage赋值时添加自动关闭计时器的函数
 const showErrorWithTimeout = (message: any, timeout: number = 3000): void => {
   errorMessage.value = typeof message === 'string' ? message : String(message);
@@ -1017,6 +1023,7 @@ onMounted(async () => {
                             size="small" 
                             shape="circle"
                             @click="feedCat"
+                            :disabled="isStaminaFull(catsList.find(c => c.id === selectedCatId)?.stamina || 0)"
                             class="absolute flex items-center justify-center"
                             style="top: 0; margin-top: 0; right: -4px; z-index: 10; transform: translateY(0);"
                           >
