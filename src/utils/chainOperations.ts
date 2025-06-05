@@ -400,6 +400,55 @@ export const getCatInteractions = async (
 };
 
 /**
+ * 获取所有猫咪数据并按等级排序(用于排行榜)
+ * @param wallet 钱包实例
+ * @param limit 最大结果数
+ * @param debugLog 调试日志函数
+ * @returns 按等级排序的猫咪列表
+ */
+export const getAllCats = async (
+  wallet: any,
+  limit: number = 50,
+  debugLog?: (message: string, data?: any) => void
+): Promise<any[]> => {
+  try {
+    const result = await wallet.getTableRows(
+      'ifwzjalq2lg1',      // code: 合约账户名
+      'ifwzjalq2lg1',      // scope: 表的作用域
+      'cat1s',             // table: 表名
+      '',                  // lower_bound: 不限制下限
+      '',                  // upper_bound: 不限制上限
+      1,                   // index_position: 1表示主键索引
+      'i64',               // key_type: 索引键类型
+      limit                // limit: 最大结果数
+    );
+
+    debugLog?.('获取所有猫咪API调用结果:', result);
+
+    if (result && Array.isArray(result)) {
+      // 按等级降序排序
+      const sortedCats = [...result].sort((a, b) => {
+        // 首先按等级降序排序
+        if (b.level !== a.level) {
+          return b.level - a.level;
+        }
+        // 如果等级相同，按经验值降序排序
+        return b.experience - a.experience;
+      });
+      
+      debugLog?.(`获取到${sortedCats.length}只猫咪，已按等级排序`);
+      return sortedCats;
+    } else {
+      debugLog?.('获取所有猫咪数据返回格式不正确:', result);
+      throw new Error('获取所有猫咪数据格式不正确');
+    }
+  } catch (error) {
+    debugLog?.('获取所有猫咪失败:', error);
+    throw error;
+  }
+};
+
+/**
  * 记录猫咪相关交易到钱包交易记录
  * @param wallet 钱包实例
  * @param txId 交易ID

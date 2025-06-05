@@ -9,7 +9,9 @@ import {
   ReloadOutlined,
   PlusOutlined,
   HeartOutlined,
-  GiftOutlined
+  GiftOutlined,
+  QuestionCircleOutlined,
+  TrophyOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { computed, onMounted, ref, onUnmounted, watch } from 'vue'
@@ -38,7 +40,8 @@ import {
   upgradeCat as chainUpgradeCat,
   checkCatAction as chainCheckCatAction,
   getUserCats as chainGetUserCats,
-  getCatInteractions as chainGetCatInteractions
+  getCatInteractions as chainGetCatInteractions,
+  getAllCats
 } from '@/utils/chainOperations'
 
 // 猫咪数据结构接口
@@ -83,6 +86,10 @@ const isPatting = ref(false)
 const isHovering = ref(false)
 const hasAvailableExp = ref(false)
 const checkInterval = ref<number | null>(null)
+const showHelpModal = ref(false)
+const showRankingModal = ref(false)
+const rankingList = ref<CatInfo[]>([])
+const rankingLoading = ref(false)
 
 // 计算属性
 const isWalletConnected = computed(() => walletUI.isWalletConnected.value)
@@ -519,6 +526,33 @@ const refreshData = async () => {
   }
 }
 
+// 获取排行榜数据
+const fetchRankingData = async () => {
+  if (!wallet) {
+    console.error('钱包未连接或初始化失败');
+    showErrorWithTimeout('钱包未连接，请先连接钱包');
+    return;
+  }
+
+  rankingLoading.value = true;
+  showRankingModal.value = true;
+
+  try {
+    rankingList.value = await getAllCats(
+      wallet, 
+      50, // 最多显示50只猫咪
+      (message, data) => walletUI.addDebugLog(message, data)
+    );
+    
+    walletUI.addDebugLog(`获取到${rankingList.value.length}只猫咪排行数据`);
+  } catch (error: any) {
+    const errMsg = JSON.stringify(error);
+    showErrorWithTimeout(`获取排行榜数据失败: ${errMsg}`);
+  } finally {
+    rankingLoading.value = false;
+  }
+};
+
 // 格式化体力值显示（将100-10000的值转换为1.00-100.00）
 const formatStamina = (stamina: number): number => {
   if (!stamina && stamina !== 0) return 0;
@@ -610,10 +644,22 @@ onMounted(async () => {
 <template>
   <div class="cat-planet p-4">
     <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-xl font-bold">喵星球</h2>
+      <div class="flex items-center" style="display: flex; align-items: center;">
+        <span class="text-xl font-bold" style="display: inline-block;">喵星球</span>
+        <span 
+          class="question-icon" 
+          style="display: inline-flex; cursor: pointer; margin-left: 4px; color: #1890ff;"
+          @click="showHelpModal = true"
+        >
+          <QuestionCircleOutlined />
+        </span>
+      </div>
       <div class="flex gap-2">
         <a-button @click="refreshData" :loading="loading">
           <ReloadOutlined /> 刷新数据
+        </a-button>
+        <a-button @click="fetchRankingData" :loading="rankingLoading">
+          <TrophyOutlined /> 排行榜
         </a-button>
         <a-button v-if="isWalletLocked" @click="walletUI.showUnlockDialog" type="primary">
           <UnlockOutlined /> 解锁钱包
@@ -1208,6 +1254,172 @@ onMounted(async () => {
       v-model:visible="walletUI.modals.unlockWallet"
       @unlock="walletUI.handleUnlockWallet"
     />
+    
+    <!-- 玩法介绍弹窗 -->
+    <a-modal
+      v-model:visible="showHelpModal"
+      title="喵星球玩法介绍"
+      width="600px"
+      :footer="null"
+      :maskClosable="true"
+    >
+      <div class="help-content">
+        <h3 class="text-lg font-medium mb-4">欢迎来到喵星球！</h3>
+        
+        <div class="mb-4">
+          <h4 class="font-medium mb-2">基本概念</h4>
+          <p>喵星球是一个基于区块链的猫咪养成游戏。每只猫咪都有独特的基因、等级、经验和体力值。</p>
+        </div>
+        
+        <div class="mb-4">
+          <h4 class="font-medium mb-2">获取猫咪</h4>
+          <p>您可以通过铸造(Mint)获得您的第一只猫咪，铸造需要消耗 1.0000 DFS。</p>
+        </div>
+        
+        <div class="mb-4">
+          <h4 class="font-medium mb-2">猫咪属性</h4>
+          <ul class="list-disc pl-5 space-y-1">
+            <li><span class="font-medium">等级(Level)</span>：猫咪的当前等级，等级越高，获得的奖励越多。</li>
+            <li><span class="font-medium">经验(Experience)</span>：积累足够的经验可以升级猫咪。</li>
+            <li><span class="font-medium">体力(Stamina)</span>：体力值影响猫咪的活动能力，最大值为100.00。</li>
+          </ul>
+        </div>
+        
+        <div class="mb-4">
+          <h4 class="font-medium mb-2">主要操作</h4>
+          <ul class="list-disc pl-5 space-y-1">
+            <li><span class="font-medium">检查(Check)</span>：检查猫咪是否有可获取的经验或奖励。</li>
+            <li><span class="font-medium">升级(Upgrade)</span>：当经验值足够时，可以升级猫咪。</li>
+            <li><span class="font-medium">喂养(Feed)</span>：消耗 0.0100 BGCAT 为猫咪恢复体力。</li>
+            <li><span class="font-medium">互动(Pat)</span>：点击猫咪图像可以与猫咪互动。</li>
+          </ul>
+        </div>
+        
+        <div class="mb-4">
+          <h4 class="font-medium mb-2">获取经验</h4>
+          <p>猫咪可以通过以下方式获得经验：</p>
+          <ul class="list-disc pl-5 space-y-1">
+            <li>定期检查（每隔一段时间）</li>
+            <li>参与链上活动</li>
+            <li>完成特定任务</li>
+          </ul>
+        </div>
+        
+        <div class="mb-4">
+          <h4 class="font-medium mb-2">提示</h4>
+          <ul class="list-disc pl-5 space-y-1">
+            <li>当有经验可以获取时，会在猫咪图像上方显示提示。</li>
+            <li>升级猫咪可以提高获取奖励的几率。</li>
+            <li>保持足够的体力值以确保猫咪能够正常活动。</li>
+          </ul>
+        </div>
+        
+        <div class="text-center mt-6">
+          <a-button type="primary" @click="showHelpModal = false">我知道了</a-button>
+        </div>
+      </div>
+    </a-modal>
+    
+    <!-- 排行榜弹窗 -->
+    <a-modal
+      v-model:visible="showRankingModal"
+      title="猫咪排行榜"
+      width="800px"
+      :footer="null"
+      :maskClosable="true"
+    >
+      <div class="ranking-content">
+        <a-spin :spinning="rankingLoading">
+          <div v-if="rankingList.length > 0">
+            <a-table 
+              :dataSource="rankingList" 
+              :columns="[
+                {
+                  title: '排名',
+                  key: 'rank',
+                  width: 80,
+                  customRender: ({ index }) => index + 1
+                },
+                {
+                  title: '猫咪ID',
+                  dataIndex: 'id',
+                  key: 'id',
+                  width: 100,
+                },
+                {
+                  title: '主人',
+                  dataIndex: 'owner',
+                  key: 'owner',
+                  width: 150,
+                  ellipsis: true,
+                },
+                {
+                  title: '等级',
+                  dataIndex: 'level',
+                  key: 'level',
+                  width: 80,
+                  sorter: (a, b) => a.level - b.level,
+                  defaultSortOrder: 'descend'
+                },
+                {
+                  title: '经验',
+                  dataIndex: 'experience',
+                  key: 'experience',
+                  width: 120,
+                  sorter: (a, b) => a.experience - b.experience
+                },
+                {
+                  title: '体力',
+                  key: 'stamina',
+                  width: 120,
+                  customRender: ({ record }) => `${formatStamina(record.stamina).toFixed(2)}`
+                },
+                // {
+                //   title: '出生时间',
+                //   key: 'birth_time',
+                //   customRender: ({ record }) => formatTime(record.birth_time)
+                // }
+              ]"
+              :pagination="{ pageSize: 10 }"
+              :rowKey="record => record.id"
+            >
+              <template #bodyCell="{ column, record, index }">
+                <template v-if="column.key === 'rank'">
+                  <div class="flex items-center">
+                    <div 
+                      v-if="index < 3" 
+                      class="rank-badge mr-2"
+                      :class="{
+                        'rank-1': index === 0,
+                        'rank-2': index === 1,
+                        'rank-3': index === 2,
+                      }"
+                    >
+                      {{ index + 1 }}
+                    </div>
+                    <span v-else>{{ index + 1 }}</span>
+                  </div>
+                </template>
+                
+                <template v-if="column.key === 'owner'">
+                  <span :class="{ 'font-bold text-blue-500': record.owner === accountName }">
+                    {{ record.owner }}
+                  </span>
+                </template>
+              </template>
+            </a-table>
+          </div>
+          <a-empty v-else description="暂无排行数据" />
+        </a-spin>
+        
+        <div class="text-center mt-6">
+          <a-button type="primary" @click="showRankingModal = false">关闭</a-button>
+          <a-button class="ml-2" @click="fetchRankingData" :loading="rankingLoading">
+            <ReloadOutlined /> 刷新数据
+          </a-button>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -1330,130 +1542,39 @@ onMounted(async () => {
   animation: furWave 3s infinite ease-in-out;
 }
 
-@keyframes furWave {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-1px); }
-  100% { transform: translateY(0); }
+.help-content .font-medium {
+  color: #1890ff;
 }
 
-/* 基因详情样式 */
-.gene-details {
-  border: 1px solid #f0f0f0;
-  transition: all 0.3s ease;
+/* 排行榜样式 */
+.ranking-content {
+  max-height: 600px;
+  overflow-y: auto;
 }
 
-.gene-details:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
-}
-
-.gene-section {
-  border-bottom: 1px dashed #f0f0f0;
-  padding-bottom: 12px;
-}
-
-.gene-section:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.gene-ability {
-  transition: all 0.3s ease;
-}
-
-.gene-ability:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.2);
-}
-
-/* 猫咪ID徽章渐变背景 */
-.cat-id-gradient {
-  background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 100%);
-  z-index: 1;
-}
-
-/* 猫咪ID徽章样式 - 小尺寸 */
-.cat-id-badge {
-  display: flex;
+.rank-badge {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-weight: bold;
-  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
-  letter-spacing: -0.5px;
-  position: relative;
-  z-index: 2;
-}
-
-.cat-id-number {
-  display: inline-block;
-  transform: scale(0.9);
-}
-
-/* 猫咪ID徽章渐变背景 - 大尺寸 */
-.cat-id-gradient-large {
-  background: linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.25) 100%);
-  z-index: 1;
-}
-
-/* 猫咪ID徽章样式 - 大尺寸 */
-.cat-id-badge-large {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-weight: bold;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-  letter-spacing: -0.5px;
-  position: relative;
-  z-index: 2;
-}
-
-.cat-id-number-large {
-  display: inline-block;
-  transform: scale(0.95);
-}
-
-/* 添加猫咪信息卡片样式 */
-.cat-info-card {
-  border: 1px solid #91d5ff;
-  border-radius: 8px;
-  padding: 12px;
-  background-color: #f0f9ff;
-  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.1);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: visible;
-}
-
-.cat-info-card:hover {
-  border: 2px solid #1890ff;
-  padding: 11px; /* Adjust padding to maintain the same size */
-  background-color: #e6f7ff;
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
-}
-
-.cat-info-card-selected {
-  border: 2px solid #1890ff;
-  padding: 11px; /* Adjust padding to maintain the same size */
-  background-color: #e6f7ff;
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
-}
-
-.cat-badge {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  background-color: #ffc53d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
   font-weight: bold;
-  box-shadow: 0 2px 4px rgba(255, 169, 0, 0.3);
-  border: 1.5px solid rgba(255, 255, 255, 0.5);
-  position: relative;
-  aspect-ratio: 1/1;
+  color: white;
+}
+
+.rank-1 {
+  background-color: #f5222d;
+  box-shadow: 0 2px 4px rgba(245, 34, 45, 0.3);
+}
+
+.rank-2 {
+  background-color: #fa8c16;
+  box-shadow: 0 2px 4px rgba(250, 140, 22, 0.3);
+}
+
+.rank-3 {
+  background-color: #faad14;
+  box-shadow: 0 2px 4px rgba(250, 173, 20, 0.3);
 }
 </style>
