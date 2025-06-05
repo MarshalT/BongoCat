@@ -78,7 +78,7 @@ export const checkCatHasAvailableExp = async (
           const logTime = (new Date(log.create_time).getTime() / 1000) + 8 * 3600;
           if (logTime > lastCheckTime) {
             // 检查是否有mint, burn或split类型的操作
-            return ['mint', 'burn', 'split'].includes(log.type);
+            return ['mint', 'burn', 'split','buy'].includes(log.type);
           }
         }
         return false;

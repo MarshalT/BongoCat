@@ -1008,6 +1008,9 @@ function createWalletInstance() {
       // 获取所有其他代币余额
       const allTokens = await dfsWallet.get_currency_balance('dfsppptokens', currentWallet.value.address)
 
+      const usdtBalance = await dfsWallet.get_currency_balance('usdtusdtusdt', currentWallet.value.address)
+
+      // message.info(`USDT余额: ${usdtBalance}`)
       // 更新DFS余额
       if (balance) {
         // 更新余额数据
@@ -1029,6 +1032,26 @@ function createWalletInstance() {
         balance: balances[WalletType.DFS],
         value: 0, // 价值由UI层计算
         color: 'bg-blue-500',
+      })
+
+      // 处理USDT余额 - 从数组中提取正确的余额值
+      let formattedUsdtBalance = '0.00000000'
+      if (usdtBalance && Array.isArray(usdtBalance) && usdtBalance.length > 0) {
+        // 找到第一个USDT余额条目并提取数值部分
+        const usdtEntry = usdtBalance[0]
+        const parts = usdtEntry.split(' ')
+        if (parts.length === 2) {
+          formattedUsdtBalance = parts[0]
+        }
+      }
+
+      // 添加USDT资产 - 不计算价值，让UI层处理
+      assetsList.push({
+        key: 'USDT',
+        name: 'USDT',
+        balance: formattedUsdtBalance,
+        value: 0, // 价值由UI层计算
+        color: 'bg-green-500',
       })
 
       // 处理并添加其他代币
