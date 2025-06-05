@@ -988,7 +988,7 @@ onMounted(async () => {
                               catsList.find(c => c.id === selectedCatId)?.level || 1
                             )"
                             class="absolute flex items-center justify-center"
-                            style="top: -4px; right: -4px; z-index: 10;"
+                            style="top: 0; margin-top: 0; right: -4px; z-index: 10; transform: translateY(0);"
                           >
                             <UpCircleOutlined />
                           </a-button>
@@ -1018,7 +1018,7 @@ onMounted(async () => {
                             shape="circle"
                             @click="feedCat"
                             class="absolute flex items-center justify-center"
-                            style="top: -4px; right: -4px; z-index: 10;"
+                            style="top: 0; margin-top: 0; right: -4px; z-index: 10; transform: translateY(0);"
                           >
                             <HeartOutlined />
                           </a-button>
