@@ -1174,7 +1174,7 @@ onMounted(async () => {
           铸造猫咪将从您的钱包中扣除 <span class="font-bold text-red-500">1.0000 DFS</span>
         </template>
         <template v-else-if="actionType === 'feed'">
-          喂养猫咪将从您的钱包中扣除 <span class="font-bold text-red-500">0.0100 DFS</span>
+          喂养猫咪将从您的钱包中扣除 <span class="font-bold text-red-500">0.0100 BGCAT</span>
         </template>
         <template v-else>
           检查活动可能会发现新的经验或属性增长

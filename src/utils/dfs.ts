@@ -439,14 +439,14 @@ export class DfsWallet {
    * @param code 合约账户
    * @param symbol 币种符号
    */
-  async get_currency_balance(code: string, account: string): Promise<any[]> {
+  async get_currency_balance(code: string, account: string, symbol: string = ''): Promise<any[]> {
     if (!this.rpc) {
       console.error('RPC未初始化，无法获取余额')
       message.error('获取余额失败: RPC未初始化')
       throw new Error('RPC not initialized')
     }
     try {
-      const resp = await this.rpc.get_currency_balance(code, account)
+      const resp = await this.rpc.get_currency_balance(code, account, symbol||undefined)
       // 确保返回数组类型
       if (!resp || !Array.isArray(resp)) {
         console.warn('返回的余额数据不是数组格式', resp)
@@ -564,8 +564,22 @@ export class DfsWallet {
     }
 
     try {
+      // 获取指定代币余额
       const response = await this.rpc.get_currency_balance(code, account, symbol)
       console.log(response)
+      
+      // 如果找不到指定的代币，但请求的是特定代币
+      if ((!response || response.length === 0) && symbol) {
+        // 尝试获取所有代币余额
+        const allTokens = await this.rpc.get_currency_balance(code, account, '')
+        
+        // 从所有代币中查找匹配的代币
+        const matchingToken = allTokens.find(token => token.includes(` ${symbol}`))
+        if (matchingToken) {
+          return matchingToken
+        }
+      }
+      
       return response[0] || ''
     } catch (error) {
       console.error(`Error fetching balance for ${account}:`, error)

@@ -34,7 +34,7 @@ export const checkCatHasAvailableExp = async (
       50, // 限制查询数量
       true // 反向查询，获取最新记录
     );
-    
+
     if (logs && Array.isArray(logs)) {
       // 检查是否有该用户在上次检查后的新记录
       const hasExpFromLogs = logs.some(log => {
@@ -50,7 +50,7 @@ export const checkCatHasAvailableExp = async (
         }
         return false;
       });
-      
+
       if (hasExpFromLogs) {
         return true;
       }
@@ -78,7 +78,7 @@ export const checkCatHasAvailableExp = async (
           const logTime = (new Date(log.create_time).getTime() / 1000) + 8 * 3600;
           if (logTime > lastCheckTime) {
             // 检查是否有mint, burn或split类型的操作
-            return ['mint', 'burn', 'split','buy'].includes(log.type);
+            return ['mint', 'burn', 'split', 'buy'].includes(log.type);
           }
         }
         return false;
@@ -88,7 +88,7 @@ export const checkCatHasAvailableExp = async (
         return true;
       }
     }
-    
+
     return false;
   } catch (error) {
     console.error('检查可获取经验失败:', error);
@@ -112,7 +112,7 @@ export const mintCat = async (
   try {
     // 查询用户余额，确保有足够的DFS
     const balance = await wallet.dfsWallet.getbalance('eosio.token', accountName, 'DFS');
-    
+
     // 解析余额字符串，例如 "10.0000 DFS"
     const balanceValue = parseFloat(balance);
     if (isNaN(balanceValue) || balanceValue < 1.0) {
@@ -121,7 +121,7 @@ export const mintCat = async (
       debugLog?.('铸造猫咪余额不足:', { balance, required: '1.0000 DFS' });
       throw new Error(errorMsg);
     }
-    
+
     // 执行铸造操作
     const result = await wallet.transact({
       actions: [{
@@ -139,7 +139,7 @@ export const mintCat = async (
         }
       }]
     }, { useFreeCpu: true });
-    
+
     message.success('铸造猫咪交易已提交');
     debugLog?.('铸造猫咪交易已提交', result);
     return result;
@@ -164,22 +164,23 @@ export const feedCat = async (
   debugLog?: (message: string, data?: any) => void
 ): Promise<any> => {
   try {
-    // 查询用户余额，确保有足够的DFS
-    const balance = await wallet.dfsWallet.getbalance('eosio.token', accountName, 'DFS');
-    
-    // 解析余额字符串，例如 "10.0000 DFS"
-    const balanceValue = parseFloat(balance);
-    if (isNaN(balanceValue) || balanceValue < 0.01) {
-      const errorMsg = `DFS余额不足，喂养猫咪需要至少0.0100 DFS (当前余额: ${balance || '0.0000 DFS'})`;
+
+    // 为其他代币类型检查余额
+    const assetBalance = await wallet.dfsWallet.get_currency_balance('dfsppptokens', accountName, 'BGCAT')
+
+    // 解析余额字符串，例如 "10.0000 bgcat"
+    const balance = parseFloat(assetBalance)
+    if (isNaN(balance) || balance < 0.01) {
+      const errorMsg = `BGCAT余额不足，喂养猫咪需要至少0.0100 BGCAT (当前余额: ${balance || '0.0000 BGCAT'})`;
       message.warning(errorMsg);
-      debugLog?.('喂养猫咪余额不足:', { balance, required: '0.0100 DFS' });
+      debugLog?.('喂养猫咪余额不足:', { balance, required: '0.0100 BGCAT' });
       throw new Error(errorMsg);
-    }
-    
+    } 
+
     // 执行喂养操作
     const result = await wallet.transact({
       actions: [{
-        account: 'eosio.token',
+        account: 'dfsppptokens',
         name: 'transfer',
         authorization: [{
           actor: accountName,
@@ -188,17 +189,17 @@ export const feedCat = async (
         data: {
           from: accountName,
           to: 'ifwzjalq2lg1',  // 合约账户
-          quantity: '0.01000000 DFS',  // 固定费用
+          quantity: '0.01000000 BGCAT',  // 固定费用
           memo: `feed:${catId}`  // 特定备注，标识为喂养操作
         }
       }]
     }, { useFreeCpu: true });
-    
+
     message.success('喂养猫咪交易已提交');
     debugLog?.('喂养猫咪交易已提交', result);
     return result;
   } catch (error) {
-    debugLog?.('喂养猫咪失败:', error);
+    debugLog?.(`喂养猫咪失败:${error}`);
     throw error;
   }
 };
@@ -233,7 +234,7 @@ export const upgradeCat = async (
         },
       }],
     }, { useFreeCpu: true });
-    
+
     message.success('猫咪升级成功');
     debugLog?.('猫咪升级成功', result);
     return result;
@@ -273,7 +274,7 @@ export const checkCatAction = async (
         },
       }],
     }, { useFreeCpu: true });
-    
+
     message.success('检查活动成功');
     debugLog?.('检查活动成功', result);
     return result;

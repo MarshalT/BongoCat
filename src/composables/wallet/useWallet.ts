@@ -1008,7 +1008,8 @@ function createWalletInstance() {
       // 获取所有其他代币余额
       const allTokens = await dfsWallet.get_currency_balance('dfsppptokens', currentWallet.value.address)
 
-      const usdtBalance = await dfsWallet.get_currency_balance('usdtusdtusdt', currentWallet.value.address)
+      // 获取USDT余额 - 传递空字符串以获取所有USDT代币
+      const usdtBalance = await dfsWallet.get_currency_balance('usdtusdtusdt', currentWallet.value.address, '')
 
       // message.info(`USDT余额: ${usdtBalance}`)
       // 更新DFS余额
@@ -1038,7 +1039,7 @@ function createWalletInstance() {
       let formattedUsdtBalance = '0.00000000'
       if (usdtBalance && Array.isArray(usdtBalance) && usdtBalance.length > 0) {
         // 找到第一个USDT余额条目并提取数值部分
-        const usdtEntry = usdtBalance[0]
+        const usdtEntry = usdtBalance.find(entry => entry.includes('USDT')) || usdtBalance[0]
         const parts = usdtEntry.split(' ')
         if (parts.length === 2) {
           formattedUsdtBalance = parts[0]
@@ -1054,7 +1055,7 @@ function createWalletInstance() {
         color: 'bg-green-500',
       })
 
-      // 处理并添加其他代币
+      // 处理并添加其他代币，包括其他可能的USDT变体
       const colorClasses = [
         'bg-green-500',
         'bg-purple-500',
@@ -1064,6 +1065,7 @@ function createWalletInstance() {
         'bg-pink-500',
       ]
 
+      // 处理来自dfsppptokens的代币
       allTokens.forEach((item, index) => {
         const parts = item.split(' ')
         if (parts.length === 2) {
@@ -1084,6 +1086,34 @@ function createWalletInstance() {
           })
         }
       })
+
+      // 处理其他USDT变体（如果有）
+      if (usdtBalance && Array.isArray(usdtBalance)) {
+        usdtBalance.forEach((item, index) => {
+          const parts = item.split(' ')
+          if (parts.length === 2) {
+            const tokenBalance = parts[0]
+            const symbol = parts[1]
+            
+            // 跳过已添加的标准USDT
+            if (symbol === 'USDT') return
+            
+            const randomPrice = (Math.random() * 10).toFixed(2)
+            const value = Number.parseFloat(tokenBalance) * Number.parseFloat(randomPrice)
+            
+            // 使用循环颜色系统
+            const colorIndex = (index + allTokens.length) % colorClasses.length
+
+            assetsList.push({
+              key: symbol,
+              name: `${symbol}`,
+              balance: tokenBalance,
+              value,
+              color: colorClasses[colorIndex],
+            })
+          }
+        })
+      }
 
       // 返回资产列表和当前DFS余额
       return {
