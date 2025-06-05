@@ -1416,16 +1416,20 @@ onMounted(async () => {
   background-color: #f0f9ff;
   box-shadow: 0 2px 6px rgba(24, 144, 255, 0.1);
   transition: all 0.3s ease;
+  position: relative;
+  overflow: visible;
 }
 
 .cat-info-card:hover {
-  border-color: #1890ff;
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
-  transform: translateY(-2px);
+  border: 2px solid #1890ff;
+  padding: 11px; /* Adjust padding to maintain the same size */
+  background-color: #e6f7ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
 }
 
 .cat-info-card-selected {
   border: 2px solid #1890ff;
+  padding: 11px; /* Adjust padding to maintain the same size */
   background-color: #e6f7ff;
   box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
 }
