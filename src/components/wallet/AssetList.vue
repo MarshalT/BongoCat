@@ -3,6 +3,7 @@ import { SyncOutlined } from '@ant-design/icons-vue'
 
 // 定义资产类型
 export interface Asset {
+  contract: string
   key: string
   name: string
   balance: string

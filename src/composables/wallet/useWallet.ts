@@ -61,6 +61,7 @@ export interface Asset {
   value: number
   color: string
   logoUrl?: string // 添加 logoUrl 字段
+  contract: string // 添加合约地址字段
 }
 
 // 存储在本地的钱包数据
@@ -831,17 +832,32 @@ function createWalletInstance() {
           throw new Error('余额不足')
         }
       } else {
-        // 为其他代币类型检查余额
-        const assetBalance = await dfsWallet.get_currency_balance('dfsppptokens', currentWallet.value.address)
-        const token = assetBalance.find(item => item.includes(currency))
-        if (!token) {
-          throw new Error(`找不到${currency}代币余额`)
+        // 为其他代币类型检查余额和确定合约
+        let tokenBalance = 0;
+        let tokenContract = '';
+        
+        // 首先刷新余额以获取最新的资产列表
+        const balanceResult = await refreshBalance();
+        if (!balanceResult || !balanceResult.assetsList) {
+          throw new Error('无法获取资产列表');
         }
-
-        const tokenBalance = Number.parseFloat(token.split(' ')[0])
+        
+        // 在资产列表中查找对应的代币
+        const tokenAsset = balanceResult.assetsList.find(asset => asset.key === currency);
+        if (!tokenAsset) {
+          throw new Error(`找不到${currency}代币信息`);
+        }
+        
+        // 获取代币合约和余额
+        tokenContract = tokenAsset.contract;
+        tokenBalance = Number.parseFloat(tokenAsset.balance);
+        
         if (amountNum > tokenBalance) {
-          throw new Error('余额不足')
+          throw new Error('余额不足');
         }
+        
+        // 记录日志
+        logInfo(`发送${currency}代币，合约: ${tokenContract}, 余额: ${tokenBalance}`);
       }
 
       // 获取交易密码 - 现在支持外部传入密码
@@ -873,7 +889,7 @@ function createWalletInstance() {
 
       try {
         // 构建发送代币的交易
-        let transaction
+        let transaction;
 
         if (currency === 'DFS') {
           // 发送DFS代币
@@ -894,10 +910,25 @@ function createWalletInstance() {
             }],
           }
         } else {
-          // 发送其他代币
+          // 获取代币合约
+          const balanceResult = await refreshBalance();
+          if (!balanceResult || !balanceResult.assetsList) {
+            throw new Error('无法获取资产列表');
+          }
+          
+          // 在资产列表中查找对应的代币
+          const tokenAsset = balanceResult.assetsList.find(asset => asset.key === currency);
+          if (!tokenAsset) {
+            throw new Error(`找不到${currency}代币信息`);
+          }
+          
+          // 获取代币合约
+          const tokenContract = tokenAsset.contract;
+          
+          // 发送代币交易
           transaction = {
             actions: [{
-              account: 'dfsppptokens',
+              account: tokenContract,
               name: 'transfer',
               authorization: [{
                 actor: currentWallet.value.address,
@@ -950,6 +981,9 @@ function createWalletInstance() {
         // 直接以明文方式存储交易历史
         localStorage.setItem('bongo-cat-transactions', JSON.stringify(transactions.value))
         logInfo('交易历史已更新并保存')
+
+        // 延时1秒
+        await new Promise(resolve => setTimeout(resolve, 1000))
 
         // 更新余额
         await refreshBalance()
@@ -1048,6 +1082,7 @@ function createWalletInstance() {
         value: 0, // 价值由UI层计算
         color: 'bg-blue-500',
         logoUrl: dfsLogoUrl, // 添加 logo URL
+        contract: 'eosio.token',
       })
 
       // 处理USDT余额 - 从数组中提取正确的余额值
@@ -1072,6 +1107,7 @@ function createWalletInstance() {
         value: 0, // 价值由UI层计算
         color: 'bg-green-500',
         logoUrl: usdtLogoUrl, // 添加 logo URL
+        contract: 'usdtusdtusdt',
       })
 
       // 处理并添加其他代币，包括其他可能的USDT变体
@@ -1140,6 +1176,7 @@ function createWalletInstance() {
             value,
             color: colorClasses[colorIndex],
             logoUrl: tokenLogos[symbol] || '', // 添加 logo URL，如果没有则使用空字符串
+            contract: 'dfsppptokens',
           })
         }
       })
@@ -1168,6 +1205,7 @@ function createWalletInstance() {
               value,
               color: colorClasses[colorIndex],
               logoUrl: tokenLogos[symbol] || '', // 添加 logo URL，如果没有则使用空字符串
+              contract: 'dfsppptokens',
             })
           }
         })
@@ -1208,6 +1246,7 @@ function createWalletInstance() {
           value: 0, // 价值由UI层计算
           color: 'bg-blue-500',
           logoUrl: dfsLogoUrl,
+          contract: 'eosio.token',
         }],
       }
     } finally {
