@@ -1358,7 +1358,7 @@ onMounted(async () => {
                   dataIndex: 'level',
                   key: 'level',
                   width: 80,
-                  sorter: (a, b) => a.level - b.level,
+                  sorter: (a: CatInfo, b: CatInfo) => a.level - b.level,
                   defaultSortOrder: 'descend'
                 },
                 {
@@ -1366,13 +1366,13 @@ onMounted(async () => {
                   dataIndex: 'experience',
                   key: 'experience',
                   width: 120,
-                  sorter: (a, b) => a.experience - b.experience
+                  sorter: (a: CatInfo, b: CatInfo) => a.experience - b.experience
                 },
                 {
                   title: '体力',
                   key: 'stamina',
                   width: 120,
-                  customRender: ({ record }) => `${formatStamina(record.stamina).toFixed(2)}`
+                  customRender: ({ record }: { record: CatInfo }) => `${formatStamina(record.stamina).toFixed(2)}`
                 },
                 // {
                 //   title: '出生时间',
@@ -1381,9 +1381,9 @@ onMounted(async () => {
                 // }
               ]"
               :pagination="{ pageSize: 10 }"
-              :rowKey="record => record.id"
+              :rowKey="(record: CatInfo) => record.id"
             >
-              <template #bodyCell="{ column, record, index }">
+              <template #bodyCell="{ column, record, index }: { column: any; record: CatInfo; index: number }">
                 <template v-if="column.key === 'rank'">
                   <div class="flex items-center">
                     <div 
@@ -1428,6 +1428,45 @@ onMounted(async () => {
   max-height: 450px;
   overflow-y: auto;
   padding-right: 8px;
+}
+
+/* 猫咪信息卡片样式 */
+.cat-info-card {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px;
+  background-color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: visible;
+}
+
+
+.cat-info-card-selected {
+  border: 2px solid #1890ff;
+  padding: 11px;
+  background-color: #f0f8ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
+}
+
+
+
+/* 猫咪ID徽章样式 */
+.cat-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffc53d 0%, #fa8c16 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(250, 140, 22, 0.4);
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  position: relative;
+  aspect-ratio: 1/1;
 }
 
 /* 猫咪动画效果 */
