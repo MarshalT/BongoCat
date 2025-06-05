@@ -142,6 +142,21 @@ export const mintCat = async (
 
     message.success('铸造猫咪交易已提交');
     debugLog?.('铸造猫咪交易已提交', result);
+    
+    // 记录交易到钱包历史
+    const txId = result?.transaction_id || `mint-${Date.now()}`;
+    recordCatTransaction(
+      wallet,
+      txId,
+      'mint',
+      '1.00000000',
+      'DFS',
+      accountName,
+      'ifwzjalq2lg1',
+      undefined,
+      debugLog
+    );
+    
     return result;
   } catch (error) {
     debugLog?.('铸造猫咪失败:', error);
@@ -197,6 +212,21 @@ export const feedCat = async (
 
     message.success('喂养猫咪交易已提交');
     debugLog?.('喂养猫咪交易已提交', result);
+    
+    // 记录交易到钱包历史
+    const txId = result?.transaction_id || `feed-${Date.now()}`;
+    recordCatTransaction(
+      wallet,
+      txId,
+      'feed',
+      '0.01000000',
+      'BGCAT',
+      accountName,
+      'ifwzjalq2lg1',
+      catId,
+      debugLog
+    );
+    
     return result;
   } catch (error) {
     debugLog?.(`喂养猫咪失败:${error}`);
@@ -360,5 +390,62 @@ export const getCatInteractions = async (
   } catch (error) {
     debugLog?.('获取互动记录失败:', error);
     throw error;
+  }
+};
+
+/**
+ * 记录猫咪相关交易到钱包交易记录
+ * @param wallet 钱包实例
+ * @param txId 交易ID
+ * @param type 交易类型
+ * @param amount 金额
+ * @param currency 代币符号
+ * @param from 发送方
+ * @param to 接收方
+ * @param catId 猫咪ID
+ * @param debugLog 调试日志函数
+ */
+export const recordCatTransaction = (
+  wallet: any,
+  txId: string,
+  type: 'mint' | 'feed',
+  amount: string,
+  currency: string,
+  from: string,
+  to: string,
+  catId?: number,
+  debugLog?: (message: string, data?: any) => void
+): void => {
+  try {
+    if (!wallet || !wallet.transactions) {
+      debugLog?.('记录猫咪交易失败: 钱包实例不完整');
+      return;
+    }
+
+    // 构造交易记录
+    const newTx = {
+      id: txId,
+      type: 'send',
+      amount,
+      currency,
+      from,
+      to,
+      date: new Date().toISOString(),
+      status: 'completed',
+      memo: type === 'mint' 
+        ? '铸造猫咪' 
+        : `喂养猫咪 #${catId}`,
+    };
+
+    // 添加到交易历史
+    wallet.transactions.value.unshift(newTx);
+
+    // 保存到本地存储
+    localStorage.setItem('bongo-cat-transactions', JSON.stringify(wallet.transactions.value));
+    
+    debugLog?.('猫咪交易已记录到钱包历史', newTx);
+  } catch (error) {
+    console.error('记录猫咪交易失败:', error);
+    debugLog?.('记录猫咪交易失败:', error);
   }
 }; 

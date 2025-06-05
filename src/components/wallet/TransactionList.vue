@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Transaction } from '@/composables/wallet/useWallet'
 
-import { PlusOutlined, SwapOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, SwapOutlined, HeartOutlined, GiftOutlined } from '@ant-design/icons-vue'
 
 // 组件属性
 interface Props {
@@ -39,6 +39,45 @@ function openTransaction(id: string) {
   // 此处可以添加查看交易详情的逻辑
   //   window.open(`https://dfstool.github.io/#/query/transaction?tab=summary&txid=${id}`, '_blank')
 }
+
+// 添加一个函数来获取交易图标和颜色
+const getTransactionIconAndColor = (transaction) => {
+  // 根据交易类型和备注确定图标和颜色
+  if (transaction.memo?.includes('铸造猫咪')) {
+    return {
+      icon: 'gift',
+      color: '#722ed1', // 紫色
+    };
+  } else if (transaction.memo?.includes('喂养猫咪')) {
+    return {
+      icon: 'heart',
+      color: '#eb2f96', // 粉色
+    };
+  } else if (transaction.type === 'send') {
+    return {
+      icon: 'arrow-up',
+      color: '#f5222d', // 红色
+    };
+  } else {
+    return {
+      icon: 'arrow-down',
+      color: '#52c41a', // 绿色
+    };
+  }
+};
+
+// 获取交易类型显示文本
+const getTransactionTypeText = (transaction) => {
+  if (transaction.memo?.includes('铸造猫咪')) {
+    return '铸造猫咪';
+  } else if (transaction.memo?.includes('喂养猫咪')) {
+    return '喂养猫咪';
+  } else if (transaction.type === 'send') {
+    return '发送';
+  } else {
+    return '接收';
+  }
+};
 </script>
 
 <template>
@@ -55,14 +94,16 @@ function openTransaction(id: string) {
           <div class="flex items-center">
             <div
               class="mr-3 h-10 w-10 flex items-center justify-center rounded-full"
-              :class="transaction.type === 'receive' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'"
+              :style="{ backgroundColor: `${getTransactionIconAndColor(transaction).color}15`, color: getTransactionIconAndColor(transaction).color }"
             >
-              <SwapOutlined v-if="transaction.type === 'send'" />
-              <PlusOutlined v-else />
+              <SwapOutlined v-if="getTransactionIconAndColor(transaction).icon === 'arrow-up'" />
+              <PlusOutlined v-else-if="getTransactionIconAndColor(transaction).icon === 'arrow-down'" />
+              <HeartOutlined v-else-if="getTransactionIconAndColor(transaction).icon === 'heart'" />
+              <GiftOutlined v-else-if="getTransactionIconAndColor(transaction).icon === 'gift'" />
             </div>
             <div>
               <h3 class="font-medium">
-                {{ transaction.type === 'receive' ? '收到' : '发送' }} {{ transaction.currency }}
+                {{ getTransactionTypeText(transaction) }} {{ transaction.currency }}
               </h3>
               <p class="text-sm text-gray-500">
                 {{ formatDate(transaction.date) }}
@@ -78,7 +119,7 @@ function openTransaction(id: string) {
           <div class="text-right">
             <p
               class="font-bold"
-              :class="transaction.type === 'receive' ? 'text-green-600' : 'text-orange-600'"
+              :style="{ color: getTransactionIconAndColor(transaction).color }"
             >
               {{ transaction.type === 'receive' ? '+' : '-' }}{{ transaction.amount }} {{ transaction.currency }}
             </p>

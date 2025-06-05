@@ -466,12 +466,31 @@ const handlePasswordConfirm = async () => {
     // 关闭密码对话框
     showPasswordModal.value = false;
     password.value = '';
-    //延时1秒
+    
+    // 延时500ms
     await new Promise(resolve => setTimeout(resolve, 500));
+    
     // 刷新猫咪数据
     await fetchUserCats();
     if (selectedCatId.value) {
       await fetchCatInteractions(selectedCatId.value);
+    }
+    
+    // 刷新钱包余额和交易记录
+    if (actionType.value === 'mint' || actionType.value === 'feed') {
+      try {
+        // 刷新钱包余额
+        await walletUI.refreshWalletBalance();
+        
+        // 从本地存储重新加载交易记录
+        const storedTx = localStorage.getItem('bongo-cat-transactions');
+        if (storedTx) {
+          wallet.transactions.value = JSON.parse(storedTx);
+          walletUI.addDebugLog('已更新钱包交易记录');
+        }
+      } catch (refreshErr) {
+        walletUI.addDebugLog('刷新钱包数据失败', refreshErr);
+      }
     }
     
     // 重置经验检查状态
