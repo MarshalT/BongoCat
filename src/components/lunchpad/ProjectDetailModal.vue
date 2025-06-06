@@ -207,8 +207,8 @@ const batchBuySelectedNfts = async () => {
       return;
     }
     
-    message.loading({ content: `正在批量购买 ${ids.length} 个NFT...`, key: 'batch-buy' });
-    info(`开始批量购买 ${ids.length} 个NFT`);
+    message.loading({ content: `正在并发批量购买 ${ids.length} 个NFT (带重试功能)...`, key: 'batch-buy' });
+    info(`开始并发批量购买 ${ids.length} 个NFT (带重试功能)`);
     
     // 调用批量购买函数
     const result = await executeBatchBuy(
@@ -219,7 +219,7 @@ const batchBuySelectedNfts = async () => {
     );
     
     message.success({ 
-      content: `批量购买完成，成功: ${result.success}，失败: ${result.failed}，总计: ${result.total}`, 
+      content: `并发批量购买完成，成功: ${result.success}，失败: ${result.failed}，总计: ${result.total}`, 
       key: 'batch-buy' 
     });
     

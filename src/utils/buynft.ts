@@ -346,7 +346,7 @@ export const recordTransaction = (
 };
 
 /**
- * 批量购买NFT
+ * 批量购买NFT（并发执行，保留重试功能）
  * @param wallet 钱包实例
  * @param ids NFT ID数组
  * @param prices 价格数组
@@ -379,7 +379,7 @@ export const executeBatchBuy = async (
       throw new Error('未找到用户账号');
     }
 
-    debugLog?.(`开始批量购买 ${ids.length} 个NFT`);
+    debugLog?.(`开始并发批量购买 ${ids.length} 个NFT (带重试功能)`);
 
     // 交易结果统计
     const results = {
@@ -388,98 +388,119 @@ export const executeBatchBuy = async (
       total: ids.length
     };
 
-    // 遍历数据并执行购买
-    for (let i = 0; i < ids.length; i++) {
-      const id = ids[i];
-      const currentPrice = prices[i];
-      
-      debugLog?.(`尝试购买 NFT #${id}，当前价格: ${currentPrice}`);
+    // 创建购买任务数组
+    const purchaseTasks = ids.map((id, index) => {
+      const currentPrice = prices[index];
+      return buyNFTWithRetry(wallet, id, currentPrice, accountName, results, debugLog);
+    });
 
-      // 检查价格格式是否正确
-      if (!currentPrice || typeof currentPrice !== 'string' || !currentPrice.includes(' ')) {
-        debugLog?.(`NFT #${id} 价格格式不正确: ${currentPrice}，跳过`);
-        results.failed++;
-        continue;
-      }
-
-      // 准备交易数据
-      const transaction = {
-        actions: [{
-          account: 'eosio.token',
-          name: 'transfer',
-          authorization: [{
-            actor: accountName,
-            permission: 'active',
-          }],
-          data: {
-            from: accountName,
-            to: 'dfs3protocol',
-            quantity: currentPrice,
-            memo: `buy:${id}`
-          }
-        }]
-      };
-
-      // 尝试执行交易，支持自动重试
-      const attemptTransfer = async (startTime: number) => {
-        try {
-          // 执行购买操作
-          const result = await wallet.transact(transaction, { useFreeCpu: true });
-          
-          // 购买成功
-          message.success(`成功购买 NFT #${id}，价格: ${currentPrice}`);
-          debugLog?.(`成功购买 NFT #${id}，价格: ${currentPrice}，交易ID: ${result?.transaction_id}`);
-          results.success++;
-          
-          // 记录交易到钱包历史
-          recordTransaction(
-            wallet,
-            result?.transaction_id || `buy-${Date.now()}`,
-            'buy',
-            currentPrice.split(' ')[0],
-            currentPrice.split(' ')[1],
-            accountName,
-            'dfs3protocol',
-            typeof id === 'number' ? id : parseInt(id),
-            debugLog
-          );
-          
-          return true;
-        } catch (error: any) {
-          // 检查是否需要重试
-          const currentTime = new Date().getTime();
-          const elapsedTime = currentTime - startTime;
-          
-          if (elapsedTime < 2 * 60 * 1000) { // 如果未超过2分钟
-            // 购买失败，记录错误
-            debugLog?.(`购买 NFT #${id} 失败，尝试重试: ${error.message || '未知错误'}`);
-            
-            // 设置定时器再次尝试购买
-            await new Promise(resolve => setTimeout(resolve, 400)); // 400毫秒后重试
-            return attemptTransfer(startTime);
-          } else {
-            // 超过重试时间，标记为失败
-            message.error(`购买 NFT #${id} 失败: ${error.message || '未知错误'}`);
-            debugLog?.(`购买 NFT #${id} 失败，已超过重试时间:`, error);
-            results.failed++;
-            return false;
-          }
-        }
-      };
-      
-      // 记录开始时间并尝试执行交易
-      const startTime = new Date().getTime();
-      await attemptTransfer(startTime);
-      
-      // 添加延迟，避免频繁请求
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    debugLog?.(`批量购买完成，成功: ${results.success}，失败: ${results.failed}，总计: ${results.total}`);
+    // 并发执行所有购买任务
+    await Promise.all(purchaseTasks);
+    
+    debugLog?.(`并发批量购买完成，成功: ${results.success}，失败: ${results.failed}，总计: ${results.total}`);
     return results;
   } catch (error) {
     debugLog?.('批量购买失败:', error);
     throw error;
+  }
+};
+
+/**
+ * 购买单个NFT（用于并发批量购买，带重试功能）
+ * @param wallet 钱包实例
+ * @param id NFT ID
+ * @param currentPrice 当前价格
+ * @param accountName 账户名
+ * @param results 结果统计对象
+ * @param debugLog 调试日志函数
+ * @returns 购买结果
+ */
+const buyNFTWithRetry = async (
+  wallet: any,
+  id: string | number,
+  currentPrice: string,
+  accountName: string,
+  results: { success: number; failed: number; total: number },
+  debugLog?: (message: string, data?: any) => void
+): Promise<void> => {
+  try {
+    // 检查价格格式是否正确
+    if (!currentPrice || typeof currentPrice !== 'string' || !currentPrice.includes(' ')) {
+      debugLog?.(`NFT #${id} 价格格式不正确: ${currentPrice}，跳过`);
+      results.failed++;
+      return;
+    }
+
+    debugLog?.(`尝试购买 NFT #${id}，当前价格: ${currentPrice}`);
+
+    // 准备交易数据
+    const transaction = {
+      actions: [{
+        account: 'eosio.token',
+        name: 'transfer',
+        authorization: [{
+          actor: accountName,
+          permission: 'active',
+        }],
+        data: {
+          from: accountName,
+          to: 'dfs3protocol',
+          quantity: currentPrice,
+          memo: `buy:${id}`
+        }
+      }]
+    };
+
+    // 尝试执行交易，支持自动重试
+    const attemptTransfer = async (startTime: number): Promise<void> => {
+      try {
+        // 执行购买操作
+        const result = await wallet.transact(transaction, { useFreeCpu: true });
+        
+        // 购买成功
+        debugLog?.(`成功购买 NFT #${id}，价格: ${currentPrice}，交易ID: ${result?.transaction_id}`);
+        
+        // 记录交易到钱包历史
+        recordTransaction(
+          wallet,
+          result?.transaction_id || `buy-${Date.now()}`,
+          'buy',
+          currentPrice.split(' ')[0],
+          currentPrice.split(' ')[1],
+          accountName,
+          'dfs3protocol',
+          typeof id === 'number' ? id : parseInt(id),
+          debugLog
+        );
+        
+        results.success++;
+      } catch (error: any) {
+        // 检查是否需要重试
+        const currentTime = new Date().getTime();
+        const elapsedTime = currentTime - startTime;
+        
+        if (elapsedTime < 2 * 60 * 1000) { // 如果未超过2分钟
+          // 购买失败，记录错误
+          debugLog?.(`购买 NFT #${id} 失败，尝试重试: ${error.message || '未知错误'}`);
+          
+          // 设置定时器再次尝试购买
+          await new Promise(resolve => setTimeout(resolve, 400)); // 400毫秒后重试
+          return attemptTransfer(startTime);
+        } else {
+          // 超过重试时间，标记为失败
+          debugLog?.(`购买 NFT #${id} 失败，已超过重试时间:`, error);
+          results.failed++;
+        }
+      }
+    };
+    
+    // 记录开始时间并尝试执行交易
+    const startTime = new Date().getTime();
+    await attemptTransfer(startTime);
+    
+  } catch (error: any) {
+    debugLog?.(`购买 NFT #${id} 异常: ${error.message || '未知错误'}`);
+    results.failed++;
   }
 };
 
