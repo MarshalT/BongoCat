@@ -115,7 +115,10 @@ async function fetchProjects() {
       if (fundingPool) {
         const reserve0 = fundingPool.reserve0 ? fundingPool.reserve0.split(' ')[0] : '0.00'
         const reserve1 = fundingPool.reserve1 ? fundingPool.reserve1.split(' ')[0] : '0.00'
-        fundingPoolFormatted = `${reserve0} / ${reserve1}`
+        //符号
+        const symbol0 = fundingPool.reserve0 ? fundingPool.reserve0.split(' ')[1] : ''
+        const symbol1 = fundingPool.reserve1 ? fundingPool.reserve1.split(' ')[1] : ''
+        fundingPoolFormatted = `${Number(reserve0).toFixed(2)} ${symbol0} / ${Number(reserve1).toFixed(2)} ${symbol1}`
       }
 
       // 处理时区问题
@@ -192,9 +195,9 @@ async function fetchProjects() {
       processedProjects.push({
         ...project,
         tokenSymbol,
-        marketCap: `$${volume || 0}`, // 使用交易量作为市值
-        volume: `$${volume || 0}`,
-        volume24h: `$${volume24h || 0}`,
+        marketCap: `$${0 || 0}`, // 使用交易量作为市值
+        volume: `$${0 || 0}`,
+        volume24h: `$${0 || 0}`,
         transactions: transactions || 0,
         transactions24h: transactions24h || 0,
         round: `Round#${project.round}`,
@@ -210,8 +213,6 @@ async function fetchProjects() {
         sec_per_round: project.sec_per_round || 43200,
         // 设置发行量
         issuance: issuance,
-        // 设置最新的 last_trade 时间
-        latest_last_trade: latestLastTrade,
         isStop: isStop,
         isHot: Math.random() > 0.7, // 30%的项目标记为热门
         // 添加奖池和资金池数据
@@ -418,26 +419,46 @@ async function fetchTransactionData() {
   }
 }
 
-// 获取奖池数据
 async function fetchRewardPoolsData() {
-  rewardPoolsLoading.value = true
+  rewardPoolsLoading.value = true;
+  info(`开始获取奖池数据...`);
+  
   try {
-    const response = await fetch('https://api.dfs.land/sse/reward_pools')
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
-    info(`获取奖池数据: ${JSON.stringify(data)}`)
-    rewardPoolsData.value = data
-    info(`获取奖池数据成功: ${Object.keys(data).length} 个项目`)
-  } catch (error) {
-    console.error('获取奖池数据失败:', error)
-    info(`获取奖池数据失败1: ${JSON.stringify(error)}`)
+  //   const response = await fetch('https://api.dfs.land/sse/reward_pools', {
+  //     // Add some basic fetch options for better error handling
+  //     mode: 'cors', // explicitly set CORS mode
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //     },
+  //   });
+
+  //   if (!response.ok) {
+  //     const errorData = await response.text(); // Try to read error response
+  //     throw new Error(`HTTP error! Status: ${response.status}, Response: ${errorData}`);
+  //   }
+    
+  //   const data = await response.json();
+  //   info(`获取奖池数据: ${JSON.stringify(data)}`);
+  //   rewardPoolsData.value = data;
+  //   info(`获取奖池数据成功: ${Object.keys(data).length} 个项目`);
+  //   return data;
+  // } catch (error) {
+  //   console.error('获取奖池数据失败:', error);
+    
+  //   // More detailed error information
+  //   const errorMsg = error instanceof TypeError && error.message === 'Failed to fetch' 
+  //     ? '网络连接失败，请检查您的网络连接或API服务是否可用'
+  //     : error.message;
+    
+  //   info(`获取奖池数据失败: ${errorMsg}`);
+    
+  //   // Set default empty object
+  //   rewardPoolsData.value = {};
+    return {};
   } finally {
-    rewardPoolsLoading.value = false
+    rewardPoolsLoading.value = false;
   }
 }
-
 // 获取资金池数据
 async function fetchFundingPoolsData() {
   fundingPoolsLoading.value = true
@@ -453,7 +474,7 @@ async function fetchFundingPoolsData() {
       1000,
       false
     )
-    info(`获取资金池数据: ${JSON.stringify(response)}`)
+    // info(`获取资金池数据: ${JSON.stringify(response)}`)
 
     // 将数据转换为以 mid 为键的对象
     const poolsMap: Record<string, any> = {}
@@ -592,8 +613,8 @@ onMounted(() => {
           <div class="project-header">
             <div class="project-logo-large">
               <img
-                v-if="selectedProject?.logo_ipfs"
-                :src="selectedProject.logo_ipfs"
+                v-if="selectedProject?.nft_img"
+                :src="selectedProject.nft_img"
                 alt="项目Logo"
                 class="logo-image"
               />
@@ -603,7 +624,7 @@ onMounted(() => {
             </div>
             <div class="project-info">
               <h2>{{ selectedProject?.title || `项目 #${selectedProject?.id || ''}` }}</h2>
-              <p class="project-description">{{ selectedProject?.description || '暂无描述' }}</p>
+              <p class="project-description">{{ selectedProject?.desc || '暂无描述' }}</p>
               <div class="project-meta">
                 <span class="meta-item">
                   <strong>创建者:</strong> {{ selectedProject?.creator || selectedProject?.owner || 'Unknown' }}
@@ -626,19 +647,7 @@ onMounted(() => {
                 dataIndex: 'id',
                 key: 'id',
                 customRender: ({ text }) => text || '无'
-              },
-              {
-                title: 'NFT ID',
-                dataIndex: 'cid',
-                key: 'cid',
-                customRender: ({ text }) => text || '无'
-              },
-              {
-                title: '项目ID',
-                dataIndex: 'pid',
-                key: 'pid',
-                customRender: ({ text }) => text || '无'
-              },
+              },            
               {
                 title: '所有者',
                 dataIndex: 'owner',

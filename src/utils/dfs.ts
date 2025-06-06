@@ -499,6 +499,8 @@ export class DfsWallet {
     return resp.rows
   }
 
+ 
+
   assetidtohex(num: number, isLittleEndian = true): string {
     // 创建一个 8 字节的缓冲区
     const buffer = new ArrayBuffer(8)
