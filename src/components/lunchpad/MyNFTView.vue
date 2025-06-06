@@ -140,16 +140,7 @@ onMounted(() => {
       </h1>
 
       <div class="my-nft-actions">
-        <!-- 搜索框 -->
-        <div class="search-bar">
-          <a-input-search
-            v-model:value="searchQuery"
-            placeholder="搜索NFT ID或项目名称"
-            style="width: 200px"
-          />
-        </div>
-
-        <!-- 刷新按钮 - 已移除 -->
+        <!-- 搜索框已移至父组件 -->
       </div>
     </div>
 

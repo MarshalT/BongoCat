@@ -738,17 +738,6 @@ onMounted(() => {
       <div class="lunchpad-actions">
         <!-- 项目列表视图的操作按钮 -->
         <template v-if="currentView === 'projects'">
-          <!-- 搜索框 -->
-          <div class="search-bar">
-            <SearchOutlined />
-            <input
-              v-model="searchQuery"
-              placeholder="Search ID or Project Name"
-              type="text"
-              style="width: 200px;"
-            >
-          </div>
-
           <!-- 排序选择器 -->
           <a-dropdown>
             <a-button>
@@ -795,6 +784,17 @@ onMounted(() => {
             </template>
           </a-dropdown>
         </template>
+
+        <!-- 搜索框 - 移动到刷新按钮左侧，所有视图都显示 -->
+        <div class="search-bar">
+          <SearchOutlined />
+          <input
+            v-model="searchQuery"
+            :placeholder="currentView === 'projects' ? 'Search ID or Project Name' : '搜索NFT ID或项目名称'"
+            type="text"
+            style="width: 200px;"
+          >
+        </div>
 
         <!-- 刷新按钮 -->
         <a-button
