@@ -655,7 +655,7 @@ onMounted(() => {
                 customRender: ({ text }) => text || '无'
               },
               {
-                title: '当前轮次',
+                title: '轮次',
                 dataIndex: 'current_round',
                 key: 'current_round',
                 customRender: ({ text }) => text || '无'
@@ -775,14 +775,16 @@ onMounted(() => {
 }
 
 :deep(.project-detail-modal .ant-modal-content) {
-  background-color: #a57a7a;
+  background-color: #1a1a1a;
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  border: 1px solid #333;
 }
 
 :deep(.project-detail-modal .ant-modal-header) {
-  background-color: #b48585;
-  border-bottom: 1px solid #977171;
+  background-color: #222;
+  border-bottom: 1px solid #333;
   padding: 16px 24px;
 }
 
@@ -793,6 +795,10 @@ onMounted(() => {
 }
 
 :deep(.project-detail-modal .ant-modal-close) {
+  color: #999;
+}
+
+:deep(.project-detail-modal .ant-modal-close:hover) {
   color: #fff;
 }
 
@@ -800,6 +806,7 @@ onMounted(() => {
   padding: 24px;
   max-height: 70vh;
   overflow-y: auto;
+  background-color: #1a1a1a;
 }
 
 .project-header {
@@ -818,6 +825,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1px solid #444;
 }
 
 .logo-image {
@@ -843,7 +851,7 @@ onMounted(() => {
 }
 
 .project-description {
-  color: #ddd;
+  color: #aaa;
   margin-bottom: 16px;
   font-size: 14px;
 }
@@ -855,12 +863,12 @@ onMounted(() => {
 }
 
 .meta-item {
-  color: #ddd;
+  color: #aaa;
   font-size: 14px;
 }
 
 .meta-item strong {
-  color: #fff;
+  color: #1677ff;
 }
 
 .modal-footer {
@@ -876,77 +884,77 @@ onMounted(() => {
 }
 
 :deep(.ant-table-thead > tr > th) {
-  background-color: #977171;
+  background-color: #222;
   color: #fff;
-  border-bottom: 1px solid #977171;
+  border-bottom: 1px solid #333;
+  font-weight: 600;
 }
 
 :deep(.ant-table-tbody > tr > td) {
-  border-bottom: 1px solid #977171;
-  color: #fff;
-  background-color: rgba(0, 0, 0, 0.3); /* 添加背景色，增强对比度 */
+  border-bottom: 1px solid #333;
+  color: #ddd;
+  background-color: #1a1a1a;
 }
 
 :deep(.ant-table-tbody > tr:hover > td) {
-  background-color: rgba(255, 255, 255, 0.2); /* 悬停时背景色更亮 */
+  background-color: #2a2a2a;
 }
 
 :deep(.ant-table-tbody > tr:nth-child(odd) > td) {
-  background-color: rgba(0, 0, 0, 0.5); /* 奇数行更深的背景色 */
+  background-color: #222;
 }
 
 :deep(.ant-empty-description) {
-  color: #ddd;
+  color: #999;
 }
 
 :deep(.ant-divider) {
-  border-color: #977171;
+  border-color: #333;
 }
 
 :deep(.ant-pagination-item a) {
-  color: #fff;
+  color: #ddd;
 }
 
 :deep(.ant-pagination-item-active) {
-  background-color: #977171;
-  border-color: #977171;
+  background-color: #1677ff;
+  border-color: #1677ff;
 }
 
 :deep(.ant-btn) {
-  background: #222;
-  border-color: #333;
-  color: #fff;
+  background: #333;
+  border-color: #444;
+  color: #ddd;
 }
 
 :deep(.ant-btn:hover) {
-  background: #333;
-  border-color: #444;
+  background: #444;
+  border-color: #555;
   color: #fff;
 }
 
 :deep(.ant-btn-primary) {
-  background: #977171;
-  border-color: #977171;
+  background: #1677ff;
+  border-color: #1677ff;
 }
 
 :deep(.ant-btn-primary:hover) {
-  background: #b48585;
-  border-color: #b48585;
+  background: #4096ff;
+  border-color: #4096ff;
 }
 
-:deep(.ant-dropdown-menu) {
-  background: #222;
+/* 调试信息区域样式 */
+.debug-info {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid #333;
 }
 
-:deep(.ant-dropdown-menu-item) {
-  color: #fff;
-}
-
-:deep(.ant-dropdown-menu-item:hover) {
-  background: #333;
-}
-
-:deep(.ant-checkbox-wrapper) {
-  color: #fff;
+.debug-info h4 {
+  color: #1677ff;
+  margin-top: 0;
+  margin-bottom: 10px;
 }
 </style>
