@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { info } from '@tauri-apps/plugin-log'
 import { message } from 'ant-design-vue'
-import { computed, h, ref, watch } from 'vue'
+import { computed, h, nextTick, ref, watch } from 'vue'
 
 import { useWallet } from '@/composables/wallet/useWallet'
 import { checkBatchBuyEligibility } from '@/utils/batchBuyEligibility'
 import { executeBatchBuy, executeBuyNftByid } from '@/utils/buynft'
+import { PasswordManager } from '@/utils/PasswordManager'
 
 // Props
 const props = defineProps({
@@ -49,6 +50,13 @@ const eligibilityResult = ref<{
   eligible: false,
   reason: '正在检查资格...',
 })
+
+// 密码确认相关状态
+const showPasswordModal = ref(false)
+const password = ref('')
+const actionType = ref<'buy' | 'batchBuy' | null>(null)
+const pendingBuyId = ref<number | null>(null)
+const pendingBuyPrice = ref<string | null>(null)
 
 // 定义表格列的类型
 interface TableColumnRenderProps {
@@ -164,15 +172,45 @@ function toggleNftSelection(id: number) {
   }
 }
 
+// 执行合约操作前的检查
+function prepareAction(type: 'buy' | 'batchBuy', id?: number, price?: string) {
+  if (!wallet) {
+    message.error('钱包未初始化')
+    info('购买NFT失败: 钱包未初始化')
+    return false
+  }
+
+  // 检查钱包是否连接
+  const currentWallet = wallet.currentWallet?.value
+  if (!currentWallet || !currentWallet.address) {
+    const errorMsg = '钱包未连接或未找到用户账号'
+    message.error(errorMsg)
+    info(`购买NFT失败: ${errorMsg}`)
+    return false
+  }
+
+  // 如果是批量购买，检查资格
+  if (type === 'batchBuy' && !eligibilityResult.value.eligible) {
+    message.warning(eligibilityResult.value.reason)
+    info(`批量购买NFT失败: ${eligibilityResult.value.reason}`)
+    return false
+  }
+
+  // 设置待处理的购买信息
+  actionType.value = type
+  if (type === 'buy' && id !== undefined && price !== undefined) {
+    pendingBuyId.value = id
+    pendingBuyPrice.value = price
+  }
+
+  // 显示密码确认对话框
+  showPasswordModal.value = true
+  return true
+}
+
 // 购买单个NFT
 async function buyNft(id: string | number, price: string) {
   try {
-    if (!wallet) {
-      message.error('钱包未初始化')
-      info('购买NFT失败: 钱包未初始化')
-      return
-    }
-
     // 检查价格格式是否正确
     if (!price || typeof price !== 'string' || !price.includes(' ')) {
       const errorMsg = `价格格式不正确: ${price}`
@@ -181,38 +219,8 @@ async function buyNft(id: string | number, price: string) {
       return
     }
 
-    // 检查钱包是否连接
-    const currentWallet = wallet.currentWallet?.value
-    if (!currentWallet || !currentWallet.address) {
-      const errorMsg = '钱包未连接或未找到用户账号'
-      message.error(errorMsg)
-      info(`购买NFT失败: ${errorMsg}`)
-      return
-    }
-
-    info(`开始购买NFT #${id}, 价格: ${price}, 账户: ${currentWallet.address}`)
-    message.loading({ content: `正在购买 NFT #${id}...`, key: `buy-${id}` })
-
-    const txId = await executeBuyNftByid(
-      wallet,
-      id,
-      price,
-      (msg, data) => info(msg),
-    )
-
-    if (txId) {
-      message.success({ content: `成功购买 NFT #${id}`, key: `buy-${id}` })
-      info(`成功购买 NFT #${id}, 交易ID: ${txId}`)
-      // 刷新项目详情
-      if (props.project) {
-        await fetchProjectDetails(props.project)
-        emit('refresh')
-      }
-    } else {
-      const errorMsg = `购买 NFT #${id} 失败: 未返回交易ID`
-      message.error({ content: errorMsg, key: `buy-${id}` })
-      info(errorMsg)
-    }
+    // 准备购买操作，显示密码确认对话框
+    prepareAction('buy', Number(id), price)
   } catch (error: any) {
     console.error('购买NFT失败:', error)
     const errorMsg = `购买 NFT #${id} 失败: ${error.message || '未知错误'}`
@@ -247,77 +255,8 @@ async function batchBuySelectedNfts() {
     return
   }
 
-  try {
-    if (!wallet) {
-      message.error('钱包未初始化')
-      info('批量购买NFT失败: 钱包未初始化')
-      return
-    }
-
-    // 准备ID和价格数组
-    const ids: number[] = []
-    const prices: string[] = []
-
-    // 从项目详情中获取选中的NFT信息
-    projectDetails.value.forEach((nft) => {
-      if (selectedNfts.value.has(nft.id)) {
-        ids.push(nft.id)
-        prices.push(nft.current_price)
-      }
-    })
-
-    if (ids.length === 0) {
-      message.warning('未找到选中NFT的数据')
-      return
-    }
-
-    // 创建取消控制器
-    abortController.value = new AbortController()
-    batchBuyInProgress.value = true
-
-    message.loading({ content: `正在并发批量购买 ${ids.length} 个NFT (带重试功能)...`, key: 'batch-buy' })
-    info(`开始并发批量购买 ${ids.length} 个NFT (带重试功能)`)
-
-    // 调用批量购买函数
-    const result = await executeBatchBuy(
-      wallet,
-      ids,
-      prices,
-      (msg, data) => info(msg),
-      abortController.value.signal,
-    )
-
-    message.success({
-      content: `并发批量购买完成，成功: ${result.success}，失败: ${result.failed}，总计: ${result.total}`,
-      key: 'batch-buy',
-    })
-
-    // 清空选择和状态
-    selectedNfts.value.clear()
-    batchBuyInProgress.value = false
-    abortController.value = null
-
-    // 刷新项目详情
-    if (props.project) {
-      await fetchProjectDetails(props.project)
-      emit('refresh')
-    }
-  } catch (error: any) {
-    console.error('批量购买NFT失败:', error)
-
-    // 检查是否是用户取消
-    if (error.message === '批量购买已被用户取消') {
-      message.warning({ content: '批量购买已被用户取消', key: 'batch-buy' })
-    } else {
-      const errorMsg = `批量购买NFT失败: ${error.message || '未知错误'}`
-      message.error({ content: errorMsg, key: 'batch-buy' })
-      info(errorMsg)
-    }
-
-    // 重置状态
-    batchBuyInProgress.value = false
-    abortController.value = null
-  }
+  // 准备批量购买操作，显示密码确认对话框
+  prepareAction('batchBuy')
 }
 
 // 关闭模态框
@@ -328,6 +267,243 @@ function closeModal() {
   }
 
   modalVisible.value = false
+}
+
+// 处理密码确认取消
+function handlePasswordCancel() {
+  // 重置状态
+  showPasswordModal.value = false
+  password.value = ''
+  actionType.value = null
+  pendingBuyId.value = null
+  pendingBuyPrice.value = null
+}
+
+// 处理密码确认
+async function handlePasswordConfirm() {
+  if (!password.value || !actionType.value) {
+    message.error('请输入密码')
+    return
+  }
+
+  try {
+    detailsLoading.value = true
+
+    // 验证密码
+    const isValid = await PasswordManager.verifyPassword(password.value)
+    if (!isValid) {
+      message.error('密码不正确')
+      return
+    }
+
+    // 获取加密的钱包数据
+    const encryptedWallet = localStorage.getItem('bongo-cat-wallet-encrypted')
+    if (!encryptedWallet) {
+      message.error('找不到钱包数据')
+      return
+    }
+
+    // 在解密前立即关闭密码对话框
+    showPasswordModal.value = false
+    
+    // 保存操作类型和购买信息，因为它们会在关闭对话框后被重置
+    const currentActionType = actionType.value
+    const currentPendingBuyId = pendingBuyId.value
+    const currentPendingBuyPrice = pendingBuyPrice.value
+    
+    // 保存密码，因为我们需要用它来解密数据
+    const currentPassword = password.value
+    
+    // 重置密码和操作类型
+    password.value = ''
+    actionType.value = null
+    pendingBuyId.value = null
+    pendingBuyPrice.value = null
+
+    // 解密获取私钥
+    const walletData = await PasswordManager.decryptData(encryptedWallet, currentPassword)
+    
+    const privateKey = walletData.privateKey
+
+    // 检查钱包对象是否可用
+    if (!wallet) {
+      throw new Error('钱包未初始化或尚未连接')
+    }
+
+    // 根据操作类型执行相应的购买操作
+    if (currentActionType === 'buy') {
+      // 单个NFT购买
+      if (currentPendingBuyId === null || currentPendingBuyPrice === null) {
+        throw new Error('购买信息不完整')
+      }
+
+      const id = currentPendingBuyId
+      const price = currentPendingBuyPrice
+      const currentWallet = wallet.currentWallet?.value
+
+      info(`开始购买NFT #${id}, 价格: ${price}, 账户: ${currentWallet?.address}`)
+      message.loading({ content: `正在购买 NFT #${id}...`, key: `buy-${id}` })
+
+      const txId = await executeBuyNftByid(
+        wallet,
+        id,
+        price,
+        (msg, data) => info(msg),
+      )
+
+      if (txId) {
+        message.success({ content: `成功购买 NFT #${id}`, key: `buy-${id}` })
+        info(`成功购买 NFT #${id}, 交易ID: ${txId}`)
+        // 刷新项目详情
+        if (props.project) {
+          await fetchProjectDetails(props.project)
+          emit('refresh')
+        }
+      } else {
+        const errorMsg = `购买 NFT #${id} 失败: 未返回交易ID`
+        message.error({ content: errorMsg, key: `buy-${id}` })
+        info(errorMsg)
+      }
+    } else if (currentActionType === 'batchBuy') {
+      // 批量NFT购买
+      // 准备ID和价格数组
+      const ids: number[] = []
+      const prices: string[] = []
+
+      // 从项目详情中获取选中的NFT信息
+      projectDetails.value.forEach((nft) => {
+        if (selectedNfts.value.has(nft.id)) {
+          ids.push(nft.id)
+          prices.push(nft.current_price)
+        }
+      })
+
+      if (ids.length === 0) {
+        throw new Error('未找到选中NFT的数据')
+      }
+
+      try {
+        // 创建取消控制器
+        abortController.value = new AbortController()
+        batchBuyInProgress.value = true
+
+        message.loading({ content: `正在并发批量购买 ${ids.length} 个NFT (带重试功能)...`, key: 'batch-buy' })
+        info(`开始并发批量购买 ${ids.length} 个NFT (带重试功能)`)
+        
+        // 调用批量购买函数
+        const result = await executeBatchBuy(
+          wallet,
+          ids,
+          prices,
+          (msg, data) => info(msg),
+          abortController.value.signal,
+        ).catch((error) => {
+          // 检查是否是用户取消
+          if (error.message === '批量购买已被用户取消') {
+            message.warning({ content: '批量购买已被用户取消', key: 'batch-buy' })
+          } else {
+            const errorMsg = `批量购买NFT失败: ${error.message || '未知错误'}`
+            message.error({ content: errorMsg, key: 'batch-buy' })
+            info(errorMsg)
+          }
+          
+          // 确保在错误处理中也重置状态
+          batchBuyInProgress.value = false
+          if (abortController.value) {
+            abortController.value = null
+          }
+          
+          // 抛出错误，让外部的catch块捕获
+          throw error;
+        });
+
+        message.success({
+          content: `并发批量购买完成，成功: ${result.success}，失败: ${result.failed}，总计: ${result.total}`,
+          key: 'batch-buy',
+        })
+
+        // 清空选择
+        selectedNfts.value.clear()
+        
+        // 刷新项目详情
+        if (props.project) {
+          await fetchProjectDetails(props.project)
+          emit('refresh')
+        }
+      } catch (error) {
+        // 这里不需要额外处理，因为错误已经在上面的catch块中处理过了
+        // 但我们需要确保状态被重置，这会在finally块中完成
+        info(`批量购买过程中捕获到错误: ${error}`)
+        
+        // 在catch块中也重置状态，确保多重保障
+        batchBuyInProgress.value = false
+        if (abortController.value) {
+          abortController.value = null
+        }
+      } finally {
+        // 确保批量购买状态被重置
+        batchBuyInProgress.value = false
+        if (abortController.value) {
+          abortController.value = null
+        }
+        info('批量购买状态已重置')
+        
+        // 使用 nextTick 确保界面更新
+        nextTick(() => {
+          batchBuyInProgress.value = false
+          if (abortController.value) {
+            abortController.value = null
+          }
+          info('批量购买操作完成后，界面状态应该已更新')
+        })
+      }
+    }
+  } catch (err: any) {
+    const errMsg = err.message || JSON.stringify(err)
+    info(`执行操作失败: ${errMsg}`)
+    message.error(`操作失败: ${errMsg}`)
+  } finally {
+    detailsLoading.value = false
+    
+    // 确保批量购买状态被重置（再次确认，防止任何情况下没有重置）
+    batchBuyInProgress.value = false
+    if (abortController.value) {
+      abortController.value = null
+    }
+    
+    // 使用 nextTick 确保状态更改后界面更新
+    nextTick(() => {
+      // 再次确认状态已正确重置
+      detailsLoading.value = false
+      batchBuyInProgress.value = false
+      if (abortController.value) {
+        abortController.value = null
+      }
+      
+      info('状态重置已确认，界面应该已更新')
+    })
+    
+    // 添加延迟检查，确保状态被正确重置
+    setTimeout(() => {
+      if (detailsLoading.value) {
+        info('检测到加载状态未正确重置，强制重置')
+        detailsLoading.value = false
+      }
+      if (batchBuyInProgress.value) {
+        info('检测到批量购买状态未正确重置，强制重置')
+        batchBuyInProgress.value = false
+      }
+      if (abortController.value) {
+        info('检测到取消控制器未正确重置，强制重置')
+        abortController.value = null
+      }
+      
+      // 再次使用 nextTick 确保界面更新
+      nextTick(() => {
+        info('延迟检查后，界面应该已更新')
+      })
+    }, 500)
+  }
 }
 </script>
 
@@ -476,7 +652,7 @@ function closeModal() {
               type="primary"
               @click="batchBuyInProgress ? stopBatchBuy() : batchBuySelectedNfts()"
             >
-              {{ batchBuyInProgress ? '停止批量购买' : '批量购买选中NFT' }}
+              {{ batchBuyInProgress ? '关闭窗口停止批量购买' : '批量购买选中NFT' }}
             </a-button>
           </a-tooltip>
         </div>
@@ -524,6 +700,33 @@ function closeModal() {
         </div>
       </div>
     </a-spin>
+  </a-modal>
+
+  <!-- 密码确认模态框 -->
+  <a-modal
+    v-model:visible="showPasswordModal"
+    cancel-text="取消"
+    :confirm-loading="detailsLoading"
+    ok-text="确定"
+    :title="actionType === 'buy' ? '购买NFT' : '批量购买NFT'"
+    @cancel="handlePasswordCancel"
+    @ok="handlePasswordConfirm"
+  >
+    <p>请输入钱包密码以确认操作</p>
+    <a-input-password
+      v-model:value="password"
+      class="mt-4"
+      placeholder="输入钱包密码"
+      @keyup.enter="handlePasswordConfirm"
+    />
+    <div class="mt-2 text-sm text-gray-500">
+      <template v-if="actionType === 'buy'">
+        购买NFT将从您的钱包中扣除 <span class="text-red-500 font-bold">{{ pendingBuyPrice || '未知金额' }}</span>
+      </template>
+      <template v-else-if="actionType === 'batchBuy'">
+        批量购买将从您的钱包中扣除多笔款项，请确认您有足够的余额
+      </template>
+    </div>
   </a-modal>
 </template>
 

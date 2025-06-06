@@ -711,7 +711,7 @@ function openLunchpad() {
           :loading="rankingLoading"
           @click="openLunchpad"
         >
-          <RocketOutlined /> lunchpad
+          <RocketOutlined /> Lunchpad
         </a-button>
         <a-button
           :loading="rankingLoading"
@@ -757,6 +757,7 @@ function openLunchpad() {
     <a-alert
       v-if="errorMessage"
       class="mb-4"
+
       closable
       :message="errorMessage"
       show-icon

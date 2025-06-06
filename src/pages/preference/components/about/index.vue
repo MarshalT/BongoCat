@@ -49,8 +49,7 @@ function feedbackIssue() {
       </template>
     </ProListItem>
 
-
-    <!-- <ProListItem 
+    <!-- <ProListItem
       title="关于BongoCat"
       description="本软件基于ayangweb/BongoCat项目二次开发。感谢原作者的贡献。"
     >

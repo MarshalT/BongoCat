@@ -50,12 +50,12 @@ function handleCancel() {
 <template>
   <a-modal
     cancel-text="取消"
-    :confirm-loading="loading"
     class="password-input-modal"
-    :mask-style="{ zIndex: 199999 }"
-    get-container="body"
-    ok-text="确认"
+    :confirm-loading="loading"
     :destroy-on-close="true"
+    get-container="body"
+    :mask-style="{ zIndex: 199999 }"
+    ok-text="确认"
     :open="visible"
     :title="title || '请输入密码'"
     :z-index="200000"
