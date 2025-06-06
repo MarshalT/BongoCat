@@ -4,7 +4,7 @@ import { message } from 'ant-design-vue'
 import { computed, onMounted, ref } from 'vue'
 
 import { useWallet } from '@/composables/wallet/useWallet'
-// 销毁或分裂NFT
+// 销毁或拆分NFT
 import { executeburnorsplieNftByid } from '@/utils/buynft'
 import { PasswordManager } from '@/utils/PasswordManager'
 // 获取钱包实例
@@ -57,7 +57,7 @@ function canBurnNft(nft: any): boolean {
   return (currentTime - lastTradeTime) > secToBurnNft
 }
 
-// 判断NFT是否可以分裂
+// 判断NFT是否可以拆分
 function canSplitNft(nft: any): boolean {
   if (!nft || !nft.current_price || !nft.project_info?.init_nft_price) return false
   
@@ -68,7 +68,7 @@ function canSplitNft(nft: any): boolean {
   // 获取当前价格
   const currentPrice = parseFloat(nft.current_price)
   return true
-  // 当前价格超过初始价格的200%时可以分裂
+  // 当前价格超过初始价格的200%时可以拆分
   return currentPrice > (initPrice * 2)
 }
 
@@ -99,7 +99,7 @@ function getRemainingBurnTime(nft: any): string {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
-// 获取分裂进度百分比
+// 获取拆分进度百分比
 function getSplitProgressPercent(nft: any): number {
   if (!nft || !nft.current_price || !nft.project_info?.init_nft_price) return 0
   
@@ -119,7 +119,7 @@ function getSplitProgressPercent(nft: any): number {
 function prepareAction(type: 'burn' | 'split', nftId: number) {
   if (!wallet) {
     message.error('钱包未初始化')
-    info(`${type === 'burn' ? '销毁' : '分裂'}NFT失败: 钱包未初始化`)
+    info(`${type === 'burn' ? '销毁' : '拆分'}NFT失败: 钱包未初始化`)
     return false
   }
 
@@ -128,7 +128,7 @@ function prepareAction(type: 'burn' | 'split', nftId: number) {
   if (!currentWallet || !currentWallet.address) {
     const errorMsg = '钱包未连接或未找到用户账号'
     message.error(errorMsg)
-    info(`${type === 'burn' ? '销毁' : '分裂'}NFT失败: ${errorMsg}`)
+    info(`${type === 'burn' ? '销毁' : '拆分'}NFT失败: ${errorMsg}`)
     return false
   }
 
@@ -218,22 +218,22 @@ async function handlePasswordConfirm() {
       message.success({ content: `NFT #${currentNftId} 销毁成功`, key: `burn-${currentNftId}` })
       info(`NFT #${currentNftId} 销毁成功: ${result}`)
     } else if (currentActionType === 'split') {
-      // 执行分裂操作
-      info(`开始分裂NFT #${currentNftId}`)
-      message.loading({ content: `正在分裂 NFT #${currentNftId}...`, key: `split-${currentNftId}` })
+      // 执行拆分操作
+      info(`开始拆分NFT #${currentNftId}`)
+      message.loading({ content: `正在拆分 NFT #${currentNftId}...`, key: `split-${currentNftId}` })
       
       const result = await executeburnorsplieNftByid(
         wallet,
         currentNftId,
         'split',
         (msg, data) => {
-          console.log(`分裂NFT调试日志: ${msg}`, data)
-          info(`分裂NFT调试: ${msg}`)
+          console.log(`拆分NFT调试日志: ${msg}`, data)
+          info(`拆分NFT调试: ${msg}`)
         }
       )
       
-      message.success({ content: `NFT #${currentNftId} 分裂成功`, key: `split-${currentNftId}` })
-      info(`NFT #${currentNftId} 分裂成功: ${result}`)
+      message.success({ content: `NFT #${currentNftId} 拆分成功`, key: `split-${currentNftId}` })
+      info(`NFT #${currentNftId} 拆分成功: ${result}`)
     }
     
     // 刷新NFT列表
@@ -263,7 +263,7 @@ async function handleBurnNft(nft: any) {
   prepareAction('burn', nft.id)
 }
 
-// 处理分裂NFT
+// 处理拆分NFT
 async function handleSplitNft(nft: any) {
   if (operationInProgress.value) {
     message.warning('操作进行中，请稍后再试')
@@ -271,11 +271,11 @@ async function handleSplitNft(nft: any) {
   }
   
   if (!canSplitNft(nft)) {
-    message.warning('此NFT尚未达到可分裂条件')
+    message.warning('此NFT尚未达到可拆分条件')
     return
   }
   
-  // 准备分裂操作，显示密码确认对话框
+  // 准备拆分操作，显示密码确认对话框
   prepareAction('split', nft.id)
 }
 
@@ -438,7 +438,7 @@ onMounted(() => {
                 @click="handleSplitNft(nft)"
                 :disabled="!canSplitNft(nft)"
               >
-                分裂
+                拆分
               </a-button>
             </div>
           </div>
@@ -453,7 +453,7 @@ onMounted(() => {
     cancel-text="取消"
     :confirm-loading="operationInProgress"
     ok-text="确定"
-    :title="actionType === 'burn' ? '销毁NFT' : '分裂NFT'"
+    :title="actionType === 'burn' ? '销毁NFT' : '拆分NFT'"
     @cancel="handlePasswordCancel"
     @ok="handlePasswordConfirm"
   >
@@ -469,7 +469,7 @@ onMounted(() => {
         销毁NFT将从您的NFT列表中移除该NFT，并获得相应的代币奖励
       </template>
       <template v-else-if="actionType === 'split'">
-        分裂NFT将生成两个新的NFT，原NFT将被销毁
+        拆分NFT将生成两个新的NFT，原NFT将被销毁
       </template>
     </div>
   </a-modal>
@@ -666,6 +666,8 @@ onMounted(() => {
 .burn-button {
   background-color: #ff3b30;
   border-color: #ff3b30;
+  color: #fff;
+  font-weight: bold;
 }
 
 .split-button {
