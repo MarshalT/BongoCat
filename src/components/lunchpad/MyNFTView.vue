@@ -121,6 +121,11 @@ function refreshNfts() {
   fetchMyNfts();
 }
 
+// 暴露方法供父组件调用
+defineExpose({
+  refreshNfts
+});
+
 // 组件挂载时获取NFT列表
 onMounted(() => {
   fetchMyNfts();
@@ -144,15 +149,7 @@ onMounted(() => {
           />
         </div>
 
-        <!-- 刷新按钮 -->
-        <a-button
-          :loading="loading"
-          @click="refreshNfts"
-        >
-          <template #icon>
-            <reload-outlined />
-          </template>
-        </a-button>
+        <!-- 刷新按钮 - 已移除 -->
       </div>
     </div>
 

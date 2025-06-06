@@ -34,6 +34,13 @@ const sortOrder = ref('desc') // 默认降序
 // 视图切换状态
 const currentView = ref<'projects' | 'myNfts'>('projects')
 
+// 创建对MyNFTView组件的引用
+// 定义组件实例类型，包含refreshNfts方法
+interface MyNFTViewInstance {
+  refreshNfts: () => void;
+}
+const myNFTViewRef = ref<MyNFTViewInstance | null>(null)
+
 // 项目详情相关状态
 const selectedProject = ref<any>(null)
 const showProjectDetail = ref(false)
@@ -686,14 +693,13 @@ const refreshData = () => {
     fetchProjects();
   } else {
     // 刷新我的NFT列表
-    message.info('刷新我的NFT列表');
-    // 触发MyNFTView组件的刷新
-    // 由于我们没有直接的ref引用，使用事件总线或者重新渲染组件的方式
-    const timestamp = Date.now(); // 生成时间戳强制组件重新渲染
-    currentView.value = 'projects';
-    setTimeout(() => {
-      currentView.value = 'myNfts';
-    }, 10);
+    // 使用ref引用调用子组件的刷新方法
+    if (myNFTViewRef.value && typeof myNFTViewRef.value.refreshNfts === 'function') {
+      myNFTViewRef.value.refreshNfts();
+      message.info('正在刷新我的NFT列表');
+    } else {
+      message.warning('无法刷新NFT列表，请尝试切换视图后再试');
+    }
   }
 };
 
@@ -829,7 +835,7 @@ onMounted(() => {
     
     <!-- 我的NFT视图 -->
     <div v-else>
-      <MyNFTView :key="Date.now()" />
+      <MyNFTView ref="myNFTViewRef" />
     </div>
     
     <!-- 使用抽离出的项目详情模态框组件 -->
