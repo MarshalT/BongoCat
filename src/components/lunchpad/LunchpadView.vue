@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// @ts-ignore
 import {
   FilterOutlined,
   ReloadOutlined,
@@ -29,6 +30,18 @@ const showProjectDetail = ref(false)
 const projectDetails = ref<any[]>([])
 const detailsLoading = ref(false)
 
+// 交易量数据
+const txsData = ref<Record<string, any>>({})
+const txsLoading = ref(false)
+
+// 奖池数据
+const rewardPoolsData = ref<Record<string, any>>({})
+const rewardPoolsLoading = ref(false)
+
+// 资金池数据
+const fundingPoolsData = ref<Record<string, any>>({})
+const fundingPoolsLoading = ref(false)
+
 // 排序选项
 const sortOptions = [
   { label: '最新', value: 'newest' },
@@ -44,10 +57,24 @@ const sortOptions = [
 const filterActive = ref(false)
 const showHot = ref(true)
 
+// 定义表格列的类型
+interface TableColumnRenderProps {
+  text: any;
+  record: any;
+  index: number;
+}
+
 // 获取项目列表
 async function fetchProjects() {
   loading.value = true
   try {
+    // 并行获取所有数据
+    await Promise.all([
+      fetchTransactionData(),
+      fetchRewardPoolsData(),
+      fetchFundingPoolsData()
+    ]);
+    
     const projectList = await getAllProjects()
     
     // 处理项目数据，添加所需字段
@@ -63,10 +90,33 @@ async function fetchProjects() {
       const tokenParts = project.token_per_nft ? project.token_per_nft.split(' ') : ['0', '']
       const tokenSymbol = tokenParts.length > 1 ? tokenParts[1] : ''
 
-      // 计算随机市值（实际应用中应该从API获取）
-      const randomMarketCap = Math.floor(Math.random() * 100000) / 100
-      const randomVolume = Math.floor(Math.random() * 100000) / 100
-      const randomVolume24h = Math.floor(Math.random() * 10000) / 100
+      // 获取交易量数据
+      const projectTxs = txsData.value[project.id]
+      const transactions = projectTxs ? projectTxs.total_txs : 0
+      const transactions24h = projectTxs ? projectTxs.txs_24 : 0
+      const volume = projectTxs ? projectTxs.total_volume : 0
+      const volume24h = projectTxs ? projectTxs.volume_24h : 0
+      
+      // 获取奖池数据
+      const rewardPool = rewardPoolsData.value[project.id] || []
+      let rewardPoolFormatted = '$0'
+      if (rewardPool && rewardPool.length > 0) {
+        // 找到DFS代币的奖池
+        const dfsReward = rewardPool.find((item: any) => item.cnt === 'eosio.token' && item.balance.includes('DFS'))
+        if (dfsReward) {
+          const dfsAmount = parseFloat(dfsReward.balance.split(' ')[0])
+          rewardPoolFormatted = `$${dfsAmount.toFixed(2)}`
+        }
+      }
+      
+      // 获取资金池数据
+      const fundingPool = fundingPoolsData.value[project.mid]
+      let fundingPoolFormatted = '0.00 / 0.00'
+      if (fundingPool) {
+        const reserve0 = fundingPool.reserve0 ? fundingPool.reserve0.split(' ')[0] : '0.00'
+        const reserve1 = fundingPool.reserve1 ? fundingPool.reserve1.split(' ')[0] : '0.00'
+        fundingPoolFormatted = `${reserve0} / ${reserve1}`
+      }
 
       // 处理时区问题
       const lastRoundDate = new Date(project.last_round);
@@ -115,13 +165,13 @@ async function fetchProjects() {
 
             const stopCount = lastTrade.filter(item => {
               const lastRoundMs = new Date().getTime();
-              const lastTradeMs = new Date(item).getTime();
+              const lastTradeMs = new Date(item).getTime()+8*3600*1000;
               const diffMs = Math.abs(lastRoundMs - lastTradeMs);
               const diffHours = diffMs / (3600 * 1000);
               const hoursPerRound = project.sec_per_round / 3600;
               
-              // 输出详细的时间差计算信息
-              info(`项目 #${pid} 的时间差计算: last_round=${lastRoundMs}, last_trade=${lastTradeMs}, 差值=${diffMs}毫秒, ${diffHours}小时, 阈值=${hoursPerRound}小时`);
+              // // 输出详细的时间差计算信息
+              // info(`项目 #${pid} 的时间差计算: last_round=${lastRoundMs}, last_trade=${lastTradeMs}, 差值=${diffMs}毫秒, ${diffHours}小时, 阈值=${hoursPerRound}小时`);
               
               return diffHours > hoursPerRound;
             }).length;
@@ -129,7 +179,7 @@ async function fetchProjects() {
             info(`项目 #${pid} 的停止数量: ${stopCount}`)
             if(stopCount == issuance) {
               isStop = true
-              info(`项目 #${pid} 的 isStop: ${isStop}`)
+
             }            
             }
           }
@@ -142,10 +192,11 @@ async function fetchProjects() {
       processedProjects.push({
         ...project,
         tokenSymbol,
-        marketCap: `$${randomMarketCap}`,
-        volume: `$${randomVolume}`,
-        volume24h: `$${randomVolume24h}`,
-        transactions: Math.floor(Math.random() * 1000),
+        marketCap: `$${volume || 0}`, // 使用交易量作为市值
+        volume: `$${volume || 0}`,
+        volume24h: `$${volume24h || 0}`,
+        transactions: transactions || 0,
+        transactions24h: transactions24h || 0,
         round: `Round#${project.round}`,
         // 保留 nextRound 字段以兼容旧代码，但实际计算将使用 last_round 和 sec_per_round
         nextRound: {
@@ -163,6 +214,9 @@ async function fetchProjects() {
         latest_last_trade: latestLastTrade,
         isStop: isStop,
         isHot: Math.random() > 0.7, // 30%的项目标记为热门
+        // 添加奖池和资金池数据
+        rewardPool: rewardPoolFormatted,
+        fundingPool: fundingPoolFormatted
       })
     }
     
@@ -345,6 +399,82 @@ async function fetchProjectDetails(project: any) {
   }
 }
 
+// 获取交易量数据
+async function fetchTransactionData() {
+  txsLoading.value = true
+  try {
+    const response = await fetch('https://api.dfs.land/dfschain/pppvolume2')
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    const data = await response.json()
+    txsData.value = data
+    info(`获取交易量数据成功: ${Object.keys(data).length} 个项目`)
+  } catch (error) {
+    console.error('获取交易量数据失败:', error)
+    info(`获取交易量数据失败: ${JSON.stringify(error)}`)
+  } finally {
+    txsLoading.value = false
+  }
+}
+
+// 获取奖池数据
+async function fetchRewardPoolsData() {
+  rewardPoolsLoading.value = true
+  try {
+    const response = await fetch('https://api.dfs.land/sse/reward_pools')
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    const data = await response.json()
+    info(`获取奖池数据: ${JSON.stringify(data)}`)
+    rewardPoolsData.value = data
+    info(`获取奖池数据成功: ${Object.keys(data).length} 个项目`)
+  } catch (error) {
+    console.error('获取奖池数据失败:', error)
+    info(`获取奖池数据失败1: ${JSON.stringify(error)}`)
+  } finally {
+    rewardPoolsLoading.value = false
+  }
+}
+
+// 获取资金池数据
+async function fetchFundingPoolsData() {
+  fundingPoolsLoading.value = true
+  try {
+    const response = await wallet.getTableRows(
+      'swapswapswap',
+      'swapswapswap',
+      'markets',
+      '',
+      '',
+      1,
+      '',
+      1000,
+      false
+    )
+    info(`获取资金池数据: ${JSON.stringify(response)}`)
+
+    // 将数据转换为以 mid 为键的对象
+    const poolsMap: Record<string, any> = {}
+    if (Array.isArray(response)) {
+      response.forEach((row: any) => {
+        if (row.mid) {
+          poolsMap[row.mid] = row
+        }
+      })
+    }
+    
+    fundingPoolsData.value = poolsMap
+    info(`获取资金池数据成功: ${Object.keys(poolsMap).length} 个项目`)
+  } catch (error) {
+    console.error('获取资金池数据失败:', error)
+    info(`获取资金池数据失败2: ${JSON.stringify(error)}`)
+  } finally {
+    fundingPoolsLoading.value = false
+  }
+}
+
 onMounted(() => {
   fetchProjects()
 })
@@ -495,65 +625,49 @@ onMounted(() => {
                 title: 'ID',
                 dataIndex: 'id',
                 key: 'id',
-                customRender: (obj) => {
-                  return obj.text || '无';
-                }
+                customRender: ({ text }) => text || '无'
               },
               {
                 title: 'NFT ID',
                 dataIndex: 'cid',
                 key: 'cid',
-                customRender: (obj) => {
-                  return obj.text || '无';
-                }
+                customRender: ({ text }) => text || '无'
               },
               {
                 title: '项目ID',
                 dataIndex: 'pid',
                 key: 'pid',
-                customRender: (obj) => {
-                  return obj.text || '无';
-                }
+                customRender: ({ text }) => text || '无'
               },
               {
                 title: '所有者',
                 dataIndex: 'owner',
                 key: 'owner',
-                customRender: (obj) => {
-                  return obj.text || '无';
-                }
+                customRender: ({ text }) => text || '无'
               },
               {
                 title: '当前轮次',
                 dataIndex: 'current_round',
                 key: 'current_round',
-                customRender: (obj) => {
-                  return obj.text || '无';
-                }
+                customRender: ({ text }) => text || '无'
               },
               {
                 title: '当前价格',
                 dataIndex: 'current_price',
                 key: 'current_price',
-                customRender: (obj) => {
-                  return obj.text || '无';
-                }
+                customRender: ({ text }) => text || '无'
               },
               {
                 title: '最后交易',
                 dataIndex: 'last_trade',
                 key: 'last_trade',
-                customRender: (obj) => {
-                  return obj.text || '无';
-                }
+                customRender: ({ text }) => text || '无'
               },
               {
                 title: '创建时间',
                 dataIndex: 'create_time',
                 key: 'create_time',
-                customRender: (obj) => {
-                  return obj.text ? new Date(obj.text).toLocaleString() : '无';
-                }
+                customRender: ({ text }) => text ? new Date(text).toLocaleString() : '无'
               }
             ]"
             :pagination="{ pageSize: 10 }"

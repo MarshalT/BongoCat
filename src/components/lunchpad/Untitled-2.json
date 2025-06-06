@@ -1,0 +1,84 @@
+{
+  "api_endpoints": {
+    "transactions": {
+      "url": "https://api.dfs.land/dfschain/pppvolume2",
+      "description": "获取交易量数据，包括 txs_24 和 total_txs",
+      "method": "GET",
+      "response_format": {
+        "project_id": {
+          "total_txs": "总交易数量",
+          "txs_24": "24小时交易数量",
+          "total_volume": "总交易量",
+          "volume_24h": "24小时交易量"
+        }
+      }
+    },
+    "reward_pools": {
+      "url": "https://api.dfs.land/sse/reward_pools",
+      "description": "获取奖池数据",
+      "method": "GET",
+      "response_format": {
+        "project_id": [
+          {
+            "cnt": "代币合约",
+            "balance": "奖池金额"
+          }
+        ]
+      }
+    },
+    "funding_pools": {
+      "url": "https://api.dfs.land/v1/chain/get_table_rows",
+      "description": "获取资金池数据",
+      "method": "POST",
+      "request_body": {
+        "json": true,
+        "code": "swapswapswap",
+        "scope": "swapswapswap",
+        "table": "markets",
+        "lower_bound": "",
+        "upper_bound": "",
+        "index_position": 1,
+        "key_type": "",
+        "limit": 1000,
+        "reverse": false,
+        "show_payer": false
+      },
+      "response_format": {
+        "rows": [
+          {
+            "mid": "市场ID",
+            "reserve0": "资金池第一种代币余额",
+            "reserve1": "资金池第二种代币余额"
+          }
+        ]
+      }
+    }
+  },
+  "examples": {
+    "transactions_response": {
+      "1": {
+        "total_txs": 1234,
+        "txs_24": 123,
+        "total_volume": 5000,
+        "volume_24h": 500
+      }
+    },
+    "reward_pools_response": {
+      "1": [
+        {
+          "cnt": "eosio.token",
+          "balance": "1000.0000 DFS"
+        }
+      ]
+    },
+    "funding_pools_response": {
+      "rows": [
+        {
+          "mid": 1,
+          "reserve0": "1000.0000 DFS",
+          "reserve1": "2000.0000 USDT"
+        }
+      ]
+    }
+  }
+}

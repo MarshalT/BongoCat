@@ -85,7 +85,7 @@ function calculateNextRound() {
       return '已停止';
     }else{
       isStopped.value = false;
-      info(`项目 #${props.project.id} 的 isStop: ${props.project.isStop}`)
+      // info(`项目 #${props.project.id} 的 isStop: ${props.project.isStop}`)
     }
 
     // 计算下一轮时间 = 上一轮时间 + 轮次间隔秒数
