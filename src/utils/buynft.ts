@@ -107,6 +107,52 @@ export async function executeBuyNftByid(wallet: any, id: string | number, curren
 }
 
 /**
+ * 执行销毁或分裂NFT操作
+ * @param wallet 钱包实例
+ * @param id NFT ID
+ * @param op 销毁或分裂 字符串 burn or split
+ * @param debugLog 调试日志函数
+ * @returns 购买结果
+ */
+export async function executeburnorsplieNftByid(wallet: any, id: string | number, op: string, debugLog?: (message: string, data?: any) => void): Promise<string> {
+  try {
+    // 获取当前用户账号
+    const accountName = wallet.currentWallet?.value?.address
+
+    if (!accountName) {
+      throw new Error('未找到用户账号')
+    }
+
+     const data=wallet.dfsWallet.assetidtohex(id)
+    // 准备交易数据
+    const transaction = {
+      actions: [{
+        account: 'dfs3protocol',
+        name: op,
+        authorization: [{
+          actor: accountName,
+          permission: 'active',
+        }],
+        data: data,
+      }],
+    }
+
+    debugLog?.(`发送交易: ${JSON.stringify(transaction)}`)
+
+    const result = await wallet.transact(transaction, { useFreeCpu: true })
+    if (result) {
+      debugLog?.(`NFT #${id} ${op} 成功: ${result.transaction_id}`)
+      return result.transaction_id
+    } else {
+      debugLog?.(`NFT #${id} ${op} 失败: ${result}`)
+      return ''
+    }
+  } catch (error: any) {
+    debugLog?.(`NFT #${id} ${op} 失败: ${error.message || '未知错误'}`)
+    throw error
+  }
+}
+/**
  * 执行自动购买操作
  * @param wallet 钱包实例
  * @param projectId 项目ID
@@ -462,6 +508,8 @@ async function buyNFTWithRetry(wallet: any, id: string | number, currentPrice: s
           debugLog?.(`NFT #${id} 购买已取消`)
           throw new Error('操作已取消')
         }
+
+
 
         // 检查是否需要重试
         const currentTime = new Date().getTime()
