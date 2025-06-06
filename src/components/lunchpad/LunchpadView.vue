@@ -18,6 +18,9 @@ import { info } from '@tauri-apps/plugin-log'
 // 导入购买NFT函数
 import { executeBuyNftByid, executeBatchBuy } from '@/utils/buynft'
 
+// 导入我的NFT视图组件
+import MyNFTView from './MyNFTView.vue'
+
 // 获取钱包实例
 const wallet = useWallet()
 
@@ -27,6 +30,9 @@ const loading = ref(false)
 const searchQuery = ref('')
 const sortBy = ref('newest') // 默认按最新排序
 const sortOrder = ref('desc') // 默认降序
+
+// 视图切换状态
+const currentView = ref<'projects' | 'myNfts'>('projects')
 
 // 项目详情相关状态
 const selectedProject = ref<any>(null)
@@ -682,99 +688,131 @@ onMounted(() => {
 <template>
   <div class="lunchpad-container">
     <div class="lunchpad-header">
-      <h1 class="lunchpad-title">
-        项目列表
-      </h1>
+      <div class="lunchpad-title-section">
+        <!-- 视图切换按钮移到标题旁边 -->
+        <a-button-group style="margin-right: 20px;">
+          <a-button 
+            :type="currentView === 'projects' ? 'primary' : 'default'" 
+            @click="currentView = 'projects'"
+            style="min-width: 80px;"
+          >
+            项目列表
+          </a-button>
+          <a-button 
+            :type="currentView === 'myNfts' ? 'primary' : 'default'" 
+            @click="currentView = 'myNfts'"
+            style="min-width: 80px;"
+          >
+            我的NFT
+          </a-button>
+        </a-button-group>
+        
+        <!-- <h1 class="lunchpad-title">
+          {{ currentView === 'projects' ? '项目列表' : '我的NFT' }}
+        </h1> -->
+      </div>
 
       <div class="lunchpad-actions">
-        <!-- 搜索框 -->
-        <div class="search-bar">
-          <SearchOutlined />
-          <input
-            v-model="searchQuery"
-            placeholder="Search ID or Project Name"
-            type="text"
-          >
-        </div>
+        <!-- 项目列表视图的操作按钮 -->
+        <template v-if="currentView === 'projects'">
+          <!-- 搜索框 -->
+          <div class="search-bar">
+            <SearchOutlined />
+            <input
+              v-model="searchQuery"
+              placeholder="Search ID or Project Name"
+              type="text"
+              style="width: 200px;"
+            >
+          </div>
 
-        <!-- 排序选择器 -->
-        <a-dropdown>
-          <a-button>
-            <template #icon>
-              <FilterOutlined />
+          <!-- 排序选择器 -->
+          <a-dropdown>
+            <a-button>
+              <template #icon>
+                <FilterOutlined />
+              </template>
+              {{ sortOptions.find(option => option.value === sortBy)?.label || '成交量' }}
+              <span v-if="sortOrder === 'asc'">↑</span>
+              <span v-else>↓</span>
+            </a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item
+                  v-for="option in sortOptions"
+                  :key="option.value"
+                  @click="toggleSort(option.value)"
+                >
+                  {{ option.label }}
+                  <span v-if="sortBy === option.value">
+                    {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                  </span>
+                </a-menu-item>
+              </a-menu>
             </template>
-            {{ sortOptions.find(option => option.value === sortBy)?.label || '成交量' }}
-            <span v-if="sortOrder === 'asc'">↑</span>
-            <span v-else>↓</span>
-          </a-button>
-          <template #overlay>
-            <a-menu>
-              <a-menu-item
-                v-for="option in sortOptions"
-                :key="option.value"
-                @click="toggleSort(option.value)"
-              >
-                {{ option.label }}
-                <span v-if="sortBy === option.value">
-                  {{ sortOrder === 'asc' ? '↑' : '↓' }}
-                </span>
-              </a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
+          </a-dropdown>
 
-        <!-- 筛选按钮 -->
-        <a-dropdown>
-          <a-button :class="{ active: filterActive }">
-            全部
-            <FilterOutlined />
-          </a-button>
-          <template #overlay>
-            <a-menu>
-              <a-menu-item>
-                <a-checkbox v-model:checked="showHot">
-                  热门项目
-                </a-checkbox>
-              </a-menu-item>
-              <a-menu-item @click="toggleFilter">
-                应用筛选
-              </a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
+          <!-- 筛选按钮 -->
+          <a-dropdown>
+            <a-button :class="{ active: filterActive }">
+              全部
+              <FilterOutlined />
+            </a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item>
+                  <a-checkbox v-model:checked="showHot">
+                    热门项目
+                  </a-checkbox>
+                </a-menu-item>
+                <a-menu-item @click="toggleFilter">
+                  应用筛选
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </template>
 
         <!-- 刷新按钮 -->
         <a-button
           :loading="loading"
-          @click="fetchProjects"
+          @click="currentView === 'projects' ? fetchProjects() : null"
         >
           <ReloadOutlined />
         </a-button>
       </div>
     </div>
 
-    <!-- 项目列表 -->
-    <div class="project-list">
-      <a-spin :spinning="loading">
-        <div
-          v-if="filteredProjects.length === 0"
-          class="no-projects"
-        >
-          <p>没有找到符合条件的项目</p>
-        </div>
+    <!-- 根据当前视图显示不同内容 -->
+    <div v-if="currentView === 'projects'">
+      <!-- 项目列表 -->
+      <div class="project-list">
+        <a-spin :spinning="loading">
+          <div
+            v-if="filteredProjects.length === 0"
+            class="no-projects"
+          >
+            <p>没有找到符合条件的项目</p>
+          </div>
 
-        <div
-          v-else
-          class="projects-grid"
-        >
-          <ProjectCard
-            v-for="project in filteredProjects"
-            :key="project.id"
-            :project="project"
-            @click="openProjectDetail(project)"
-          />
-        </div>
-      </a-spin>
+          <div
+            v-else
+            class="projects-grid"
+          >
+            <ProjectCard
+              v-for="project in filteredProjects"
+              :key="project.id"
+              :project="project"
+              @click="openProjectDetail(project)"
+            />
+          </div>
+        </a-spin>
+      </div>
+    </div>
+    
+    <!-- 我的NFT视图 -->
+    <div v-else>
+      <MyNFTView />
     </div>
     
     <!-- 使用抽离出的项目详情模态框组件 -->
@@ -821,6 +859,11 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.lunchpad-title-section {
+  display: flex;
+  align-items: center;
+}
+
 .lunchpad-title {
   font-size: 24px;
   color: #fff;
@@ -839,7 +882,7 @@ onMounted(() => {
   background: #111;
   border-radius: 20px;
   padding: 8px 16px;
-  width: 300px;
+  width: 200px;
 }
 
 .search-bar input {
