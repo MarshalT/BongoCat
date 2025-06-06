@@ -680,6 +680,23 @@ const refreshProjects = () => {
   fetchProjects();
 };
 
+// 统一刷新数据函数，根据当前视图刷新不同的数据
+const refreshData = () => {
+  if (currentView.value === 'projects') {
+    fetchProjects();
+  } else {
+    // 刷新我的NFT列表
+    message.info('刷新我的NFT列表');
+    // 触发MyNFTView组件的刷新
+    // 由于我们没有直接的ref引用，使用事件总线或者重新渲染组件的方式
+    const timestamp = Date.now(); // 生成时间戳强制组件重新渲染
+    currentView.value = 'projects';
+    setTimeout(() => {
+      currentView.value = 'myNfts';
+    }, 10);
+  }
+};
+
 onMounted(() => {
   fetchProjects()
 })
@@ -776,7 +793,7 @@ onMounted(() => {
         <!-- 刷新按钮 -->
         <a-button
           :loading="loading"
-          @click="currentView === 'projects' ? fetchProjects() : null"
+          @click="refreshData"
         >
           <ReloadOutlined />
         </a-button>
@@ -812,7 +829,7 @@ onMounted(() => {
     
     <!-- 我的NFT视图 -->
     <div v-else>
-      <MyNFTView />
+      <MyNFTView :key="Date.now()" />
     </div>
     
     <!-- 使用抽离出的项目详情模态框组件 -->

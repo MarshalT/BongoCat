@@ -15,10 +15,10 @@ const routes: Readonly<RouteRecordRaw[]> = [
     path: '/preference',
     component: Preference,
   },
-  {
-    path: '/lunchpad',
-    component: LunchpadView,
-  },
+  // {
+  //   path: '/lunchpad',
+  //   component: LunchpadView,
+  // },
 ]
 
 const router = createRouter({
