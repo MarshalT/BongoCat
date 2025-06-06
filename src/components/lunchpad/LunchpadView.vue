@@ -575,6 +575,21 @@ const toggleNftSelection = (id: number) => {
   }
 };
 
+// 批量购买相关状态
+const batchBuyInProgress = ref(false);
+const abortController = ref<AbortController | null>(null);
+
+// 停止批量购买
+const stopBatchBuy = () => {
+  if (abortController.value) {
+    abortController.value.abort();
+    abortController.value = null;
+    batchBuyInProgress.value = false;
+    message.warning({ content: '批量购买已停止', key: 'batch-buy' });
+    info('批量购买已被用户停止');
+  }
+};
+
 // 批量购买选中的NFT
 const batchBuySelectedNfts = async () => {
   try {
@@ -606,6 +621,10 @@ const batchBuySelectedNfts = async () => {
       return;
     }
     
+    // 创建取消控制器
+    abortController.value = new AbortController();
+    batchBuyInProgress.value = true;
+    
     message.loading({ content: `正在批量购买 ${ids.length} 个NFT...`, key: 'batch-buy' });
     info(`开始批量购买 ${ids.length} 个NFT`);
     
@@ -614,7 +633,8 @@ const batchBuySelectedNfts = async () => {
       wallet,
       ids,
       prices,
-      (msg, data) => info(msg)
+      (msg, data) => info(msg),
+      abortController.value.signal
     );
     
     message.success({ 
@@ -622,8 +642,10 @@ const batchBuySelectedNfts = async () => {
       key: 'batch-buy' 
     });
     
-    // 清空选择
+    // 清空选择和状态
     selectedNfts.value.clear();
+    batchBuyInProgress.value = false;
+    abortController.value = null;
     
     // 刷新项目详情
     if (selectedProject.value) {
@@ -631,9 +653,19 @@ const batchBuySelectedNfts = async () => {
     }
   } catch (error: any) {
     console.error('批量购买NFT失败:', error);
-    const errorMsg = `批量购买NFT失败: ${error.message || '未知错误'}`;
-    message.error({ content: errorMsg, key: 'batch-buy' });
-    info(errorMsg);
+    
+    // 检查是否是用户取消
+    if (error.message === '批量购买已被用户取消') {
+      message.warning({ content: '批量购买已被用户取消', key: 'batch-buy' });
+    } else {
+      const errorMsg = `批量购买NFT失败: ${error.message || '未知错误'}`;
+      message.error({ content: errorMsg, key: 'batch-buy' });
+      info(errorMsg);
+    }
+    
+    // 重置状态
+    batchBuyInProgress.value = false;
+    abortController.value = null;
   }
 };
 
@@ -751,6 +783,26 @@ onMounted(() => {
       :project="selectedProject"
       @refresh="refreshProjects"
     />
+
+    <!-- 批量购买状态浮动提示 -->
+    <div v-if="batchBuyInProgress" class="batch-buy-status">
+      <a-alert
+        type="info"
+        show-icon
+        :message="'批量购买进行中...'"
+        :description="'正在处理多个NFT购买请求，您可以随时停止操作。'"
+        class="status-alert"
+      >
+        <template #icon>
+          <a-spin />
+        </template>
+        <template #action>
+          <a-button type="primary" danger @click="stopBatchBuy">
+            停止
+          </a-button>
+        </template>
+      </a-alert>
+    </div>
   </div>
 </template>
 
@@ -814,5 +866,16 @@ onMounted(() => {
 .active {
   background: #1677ff;
   color: white;
+}
+
+.batch-buy-status {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.status-alert {
+  width: 300px;
 }
 </style>

@@ -35,6 +35,10 @@ const detailsLoading = ref(false);
 const projectDetails = ref<any[]>([]);
 const selectedNfts = ref<Set<number>>(new Set());
 
+// 批量购买状态
+const batchBuyInProgress = ref(false);
+const abortController = ref<AbortController | null>(null);
+
 // 监听项目变化，加载详情
 watch(() => props.project, async (newProject) => {
   if (newProject && props.visible) {
@@ -49,6 +53,9 @@ watch(() => props.visible, async (visible) => {
   } else {
     // 清空选择
     selectedNfts.value.clear();
+    
+    // 如果有正在进行的批量购买，取消它
+    stopBatchBuy();
   }
 });
 
@@ -176,6 +183,17 @@ const buyNft = async (id: string | number, price: string) => {
   }
 };
 
+// 停止批量购买
+const stopBatchBuy = () => {
+  if (abortController.value) {
+    abortController.value.abort();
+    abortController.value = null;
+    batchBuyInProgress.value = false;
+    message.warning({ content: '批量购买已停止', key: 'batch-buy' });
+    info('批量购买已被用户停止');
+  }
+};
+
 // 批量购买选中的NFT
 const batchBuySelectedNfts = async () => {
   try {
@@ -207,6 +225,10 @@ const batchBuySelectedNfts = async () => {
       return;
     }
     
+    // 创建取消控制器
+    abortController.value = new AbortController();
+    batchBuyInProgress.value = true;
+    
     message.loading({ content: `正在并发批量购买 ${ids.length} 个NFT (带重试功能)...`, key: 'batch-buy' });
     info(`开始并发批量购买 ${ids.length} 个NFT (带重试功能)`);
     
@@ -215,7 +237,8 @@ const batchBuySelectedNfts = async () => {
       wallet,
       ids,
       prices,
-      (msg, data) => info(msg)
+      (msg, data) => info(msg),
+      abortController.value.signal
     );
     
     message.success({ 
@@ -223,8 +246,10 @@ const batchBuySelectedNfts = async () => {
       key: 'batch-buy' 
     });
     
-    // 清空选择
+    // 清空选择和状态
     selectedNfts.value.clear();
+    batchBuyInProgress.value = false;
+    abortController.value = null;
     
     // 刷新项目详情
     if (props.project) {
@@ -233,14 +258,29 @@ const batchBuySelectedNfts = async () => {
     }
   } catch (error: any) {
     console.error('批量购买NFT失败:', error);
-    const errorMsg = `批量购买NFT失败: ${error.message || '未知错误'}`;
-    message.error({ content: errorMsg, key: 'batch-buy' });
-    info(errorMsg);
+    
+    // 检查是否是用户取消
+    if (error.message === '批量购买已被用户取消') {
+      message.warning({ content: '批量购买已被用户取消', key: 'batch-buy' });
+    } else {
+      const errorMsg = `批量购买NFT失败: ${error.message || '未知错误'}`;
+      message.error({ content: errorMsg, key: 'batch-buy' });
+      info(errorMsg);
+    }
+    
+    // 重置状态
+    batchBuyInProgress.value = false;
+    abortController.value = null;
   }
 };
 
 // 关闭模态框
 const closeModal = () => {
+  // 如果有正在进行的批量购买，先停止它
+  if (batchBuyInProgress.value) {
+    stopBatchBuy();
+  }
+  
   modalVisible.value = false;
 };
 </script>
@@ -352,7 +392,17 @@ const closeModal = () => {
       <div class="modal-footer">
         <a-button type="primary" @click="closeModal">关闭</a-button>
         <a-button @click="() => { console.log('详情数据:', projectDetails); message.info('请查看控制台输出'); }" style="margin-left: 10px;">调试</a-button>
-        <a-button @click="batchBuySelectedNfts" style="margin-left: 10px;">批量购买</a-button>
+        
+        <!-- 批量购买按钮组 -->
+        <div class="batch-buy-buttons" style="display: inline-block; margin-left: 10px;">
+          <a-button 
+            type="primary" 
+            :danger="batchBuyInProgress" 
+            @click="batchBuyInProgress ? stopBatchBuy() : batchBuySelectedNfts()"
+          >
+            {{ batchBuyInProgress ? '停止批量购买' : '批量购买' }}
+          </a-button>
+        </div>
       </div>
       
       <!-- 添加调试信息显示区域 -->

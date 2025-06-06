@@ -184,7 +184,7 @@ export const executeAutoBuy = async (
     }
 
     // 按价格降序排序
-    targetNfts.sort((a, b) => {
+    targetNfts.sort((a: any, b: any) => {
       const priceA = parseFloat(a.current_price.split(' ')[0]);
       const priceB = parseFloat(b.current_price.split(' ')[0]);
       return priceB - priceA; // 降序
@@ -351,13 +351,15 @@ export const recordTransaction = (
  * @param ids NFT ID数组
  * @param prices 价格数组
  * @param debugLog 调试日志函数
+ * @param abortSignal 取消信号
  * @returns 购买结果
  */
 export const executeBatchBuy = async (
   wallet: any,
   ids: (string | number)[],
   prices: string[],
-  debugLog?: (message: string, data?: any) => void
+  debugLog?: (message: string, data?: any) => void,
+  abortSignal?: AbortSignal
 ): Promise<{ success: number; failed: number; total: number }> => {
   try {
     if (!wallet) {
@@ -391,7 +393,7 @@ export const executeBatchBuy = async (
     // 创建购买任务数组
     const purchaseTasks = ids.map((id, index) => {
       const currentPrice = prices[index];
-      return buyNFTWithRetry(wallet, id, currentPrice, accountName, results, debugLog);
+      return buyNFTWithRetry(wallet, id, currentPrice, accountName, results, debugLog, abortSignal);
     });
 
     // 并发执行所有购买任务
@@ -400,6 +402,12 @@ export const executeBatchBuy = async (
     debugLog?.(`并发批量购买完成，成功: ${results.success}，失败: ${results.failed}，总计: ${results.total}`);
     return results;
   } catch (error) {
+    // 检查是否是取消操作
+    if ((error as Error).name === 'AbortError') {
+      debugLog?.('批量购买已被用户取消');
+      throw new Error('批量购买已被用户取消');
+    }
+    
     debugLog?.('批量购买失败:', error);
     throw error;
   }
@@ -413,6 +421,7 @@ export const executeBatchBuy = async (
  * @param accountName 账户名
  * @param results 结果统计对象
  * @param debugLog 调试日志函数
+ * @param abortSignal 取消信号
  * @returns 购买结果
  */
 const buyNFTWithRetry = async (
@@ -421,9 +430,17 @@ const buyNFTWithRetry = async (
   currentPrice: string,
   accountName: string,
   results: { success: number; failed: number; total: number },
-  debugLog?: (message: string, data?: any) => void
+  debugLog?: (message: string, data?: any) => void,
+  abortSignal?: AbortSignal
 ): Promise<void> => {
   try {
+    // 检查是否已取消
+    if (abortSignal?.aborted) {
+      debugLog?.(`NFT #${id} 购买已取消`);
+      results.failed++;
+      return;
+    }
+
     // 检查价格格式是否正确
     if (!currentPrice || typeof currentPrice !== 'string' || !currentPrice.includes(' ')) {
       debugLog?.(`NFT #${id} 价格格式不正确: ${currentPrice}，跳过`);
@@ -453,6 +470,13 @@ const buyNFTWithRetry = async (
 
     // 尝试执行交易，支持自动重试
     const attemptTransfer = async (startTime: number): Promise<void> => {
+      // 检查是否已取消
+      if (abortSignal?.aborted) {
+        debugLog?.(`NFT #${id} 购买已取消`);
+        throw new Error('操作已取消');
+        
+      }
+
       try {
         // 执行购买操作
         const result = await wallet.transact(transaction, { useFreeCpu: true });
@@ -475,6 +499,12 @@ const buyNFTWithRetry = async (
         
         results.success++;
       } catch (error: any) {
+        // 检查是否已取消
+        if (abortSignal?.aborted) {
+          debugLog?.(`NFT #${id} 购买已取消`);
+          throw new Error('操作已取消');
+        }
+
         // 检查是否需要重试
         const currentTime = new Date().getTime();
         const elapsedTime = currentTime - startTime;
@@ -484,7 +514,26 @@ const buyNFTWithRetry = async (
           debugLog?.(`购买 NFT #${id} 失败，尝试重试: ${error.message || '未知错误'}`);
           
           // 设置定时器再次尝试购买
-          await new Promise(resolve => setTimeout(resolve, 400)); // 400毫秒后重试
+          await new Promise(resolve => {
+            const timeoutId = setTimeout(() => {
+              resolve(null);
+            }, 400); // 400毫秒后重试
+            
+            // 如果取消，清除定时器
+            if (abortSignal) {
+              abortSignal.addEventListener('abort', () => {
+                clearTimeout(timeoutId);
+                resolve(null);
+              }, { once: true });
+            }
+          });
+          
+          // 再次检查是否已取消
+          if (abortSignal?.aborted) {
+            debugLog?.(`NFT #${id} 购买已取消`);
+            throw new Error('操作已取消');
+          }
+          
           return attemptTransfer(startTime);
         } else {
           // 超过重试时间，标记为失败
@@ -497,8 +546,14 @@ const buyNFTWithRetry = async (
     // 记录开始时间并尝试执行交易
     const startTime = new Date().getTime();
     await attemptTransfer(startTime);
-    
   } catch (error: any) {
+    // 检查是否是取消操作
+    if (error.message === '操作已取消' || abortSignal?.aborted) {
+      debugLog?.(`NFT #${id} 购买已取消`);
+      results.failed++;
+      return;
+    }
+    
     debugLog?.(`购买 NFT #${id} 异常: ${error.message || '未知错误'}`);
     results.failed++;
   }
