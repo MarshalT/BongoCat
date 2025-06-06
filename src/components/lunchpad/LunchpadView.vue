@@ -9,13 +9,14 @@ import { message } from 'ant-design-vue'
 import { computed, onMounted, ref, h } from 'vue'
 
 import ProjectCard from './ProjectCard.vue'
+import ProjectDetailModal from './ProjectDetailModal.vue'
 
 import { getAllProjects } from '@/utils/tokenPrice'
 // 导入钱包hook以使用getTableRows方法
 import { useWallet } from '@/composables/wallet/useWallet'
 import { info } from '@tauri-apps/plugin-log'
 // 导入购买NFT函数
-import { executeBuyNftByid } from '@/utils/buynft'
+import { executeBuyNftByid, executeBatchBuy } from '@/utils/buynft'
 
 // 获取钱包实例
 const wallet = useWallet()
@@ -339,6 +340,12 @@ function toggleFilter() {
   filterActive.value = !filterActive.value
 }
 
+// 打开项目详情
+function openProjectDetail(project: any) {
+  selectedProject.value = project;
+  showProjectDetail.value = true;
+}
+
 // 获取项目详情
 async function fetchProjectDetails(project: any) {
   if (!wallet) {
@@ -389,10 +396,11 @@ async function fetchProjectDetails(project: any) {
         message.success(`已获取项目 #${pid} 的详情数据，共 ${result.length} 条记录`);
       } else {
         message.warning(`未找到项目 #${pid} 的详情数据`);
+        projectDetails.value = []; // 只有在结果为空时才设置为空数组
       }
     } else {
-      projectDetails.value = []
-      message.warning('未找到项目详情数据')
+      projectDetails.value = [];
+      message.warning('未找到项目详情数据');
     }
   } catch (error) {
     console.error('获取项目详情失败:', error)
@@ -555,6 +563,85 @@ const buyNft = async (id: string | number, price: string) => {
   }
 };
 
+// 添加选中的NFT列表
+const selectedNfts = ref<Set<number>>(new Set());
+
+// 切换NFT选中状态
+const toggleNftSelection = (id: number) => {
+  if (selectedNfts.value.has(id)) {
+    selectedNfts.value.delete(id);
+  } else {
+    selectedNfts.value.add(id);
+  }
+};
+
+// 批量购买选中的NFT
+const batchBuySelectedNfts = async () => {
+  try {
+    if (selectedNfts.value.size === 0) {
+      message.warning('请先选择要购买的NFT');
+      return;
+    }
+    
+    if (!wallet) {
+      message.error('钱包未初始化');
+      info('批量购买NFT失败: 钱包未初始化');
+      return;
+    }
+    
+    // 准备ID和价格数组
+    const ids: number[] = [];
+    const prices: string[] = [];
+    
+    // 从项目详情中获取选中的NFT信息
+    projectDetails.value.forEach(nft => {
+      if (selectedNfts.value.has(nft.id)) {
+        ids.push(nft.id);
+        prices.push(nft.current_price);
+      }
+    });
+    
+    if (ids.length === 0) {
+      message.warning('未找到选中NFT的数据');
+      return;
+    }
+    
+    message.loading({ content: `正在批量购买 ${ids.length} 个NFT...`, key: 'batch-buy' });
+    info(`开始批量购买 ${ids.length} 个NFT`);
+    
+    // 调用批量购买函数
+    const result = await executeBatchBuy(
+      wallet,
+      ids,
+      prices,
+      (msg, data) => info(msg)
+    );
+    
+    message.success({ 
+      content: `批量购买完成，成功: ${result.success}，失败: ${result.failed}，总计: ${result.total}`, 
+      key: 'batch-buy' 
+    });
+    
+    // 清空选择
+    selectedNfts.value.clear();
+    
+    // 刷新项目详情
+    if (selectedProject.value) {
+      await fetchProjectDetails(selectedProject.value);
+    }
+  } catch (error: any) {
+    console.error('批量购买NFT失败:', error);
+    const errorMsg = `批量购买NFT失败: ${error.message || '未知错误'}`;
+    message.error({ content: errorMsg, key: 'batch-buy' });
+    info(errorMsg);
+  }
+};
+
+// 刷新项目列表
+const refreshProjects = () => {
+  fetchProjects();
+};
+
 onMounted(() => {
   fetchProjects()
 })
@@ -652,122 +739,18 @@ onMounted(() => {
             v-for="project in filteredProjects"
             :key="project.id"
             :project="project"
-            @click="fetchProjectDetails(project)"
+            @click="openProjectDetail(project)"
           />
         </div>
       </a-spin>
     </div>
     
-    <!-- 项目详情弹窗 -->
-    <a-modal
+    <!-- 使用抽离出的项目详情模态框组件 -->
+    <ProjectDetailModal
       v-model:visible="showProjectDetail"
-      :title="selectedProject ? `项目详情 #${selectedProject.id || ''}` : '项目详情'"
-      width="800px"
-      :footer="null"
-      :maskClosable="true"
-      class="project-detail-modal"
-    >
-      <a-spin :spinning="detailsLoading">
-        <div v-if="projectDetails.length > 0" class="project-detail-content">
-          <div class="project-header">
-            <div class="project-logo-large">
-              <img
-                v-if="selectedProject?.nft_img"
-                :src="selectedProject.nft_img"
-                alt="项目Logo"
-                class="logo-image"
-              />
-              <div v-else class="logo-placeholder-large">
-                {{ selectedProject?.tokenSymbol?.[0] || 'P' }}
-              </div>
-            </div>
-            <div class="project-info">
-              <h2>{{ selectedProject?.title || `项目 #${selectedProject?.id || ''}` }}</h2>
-              <p class="project-description">{{ selectedProject?.desc || '暂无描述' }}</p>
-              <div class="project-meta">
-                <span class="meta-item">
-                  <strong>创建者:</strong> {{ selectedProject?.creator || selectedProject?.owner || 'Unknown' }}
-                </span>
-                <span class="meta-item">
-                  <strong>代币:</strong> {{ selectedProject?.tokenSymbol || 'Unknown' }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <a-divider />
-          
-          <h3>NFT列表</h3>
-          <a-table
-            :dataSource="projectDetails"
-            :columns="[
-              {
-                title: 'ID',
-                dataIndex: 'id',
-                key: 'id',
-                customRender: ({ text }) => text || '无'
-              },            
-              {
-                title: '所有者',
-                dataIndex: 'owner',
-                key: 'owner',
-                customRender: ({ text }) => text || '无'
-              },
-              {
-                title: '轮次',
-                dataIndex: 'current_round',
-                key: 'current_round',
-                customRender: ({ text }) => text || '无'
-              },
-              {
-                title: '当前价格',
-                dataIndex: 'current_price',
-                key: 'current_price',
-                customRender: ({ text }) => text || '无'
-              },
-              {
-                title: '最后交易',
-                dataIndex: 'last_trade',
-                key: 'last_trade',
-                customRender: ({ text }) => text || '无'
-              },
-              {
-                title: '购买',
-                dataIndex: 'id',
-                key: 'buy',
-                customRender: ({ text, record }) => {
-                  return h('button', {
-                    class: 'ant-btn ant-btn-primary',
-                    onClick: () => buyNft(text, record.current_price)
-                  }, '购买');
-                }
-              }
-            ]"
-            :pagination="{ pageSize: 10 }"
-            :rowKey="record => String(record.id || Math.random())"
-          />
-        </div>
-        <a-empty v-else description="暂无项目详情数据" />
-        
-        <div class="modal-footer">
-          <a-button type="primary" @click="showProjectDetail = false">关闭</a-button>
-          <a-button @click="() => { console.log('详情数据:', projectDetails); message.info('请查看控制台输出'); }" style="margin-left: 10px;">调试</a-button>
-        </div>
-        
-        <!-- 添加调试信息显示区域 -->
-        <div v-if="projectDetails.length > 0" class="debug-info" style="margin-top: 20px; padding: 10px; background-color: rgba(0,0,0,0.5); border-radius: 8px;">
-          <h4>调试信息</h4>
-          <div v-for="(item, index) in projectDetails.slice(0, 2)" :key="index" style="margin-bottom: 10px; border-bottom: 1px solid #977171; padding-bottom: 10px;">
-            <div><strong>记录 #{{ index + 1 }}</strong></div>
-            <div v-for="(value, key) in item" :key="key" style="display: flex;">
-              <div style="width: 120px; font-weight: bold;">{{ key }}:</div>
-              <div>{{ typeof value === 'object' ? JSON.stringify(value) : value }}</div>
-            </div>
-          </div>
-          <div v-if="projectDetails.length > 2">... 更多记录 ...</div>
-        </div>
-      </a-spin>
-    </a-modal>
+      :project="selectedProject"
+      @refresh="refreshProjects"
+    />
   </div>
 </template>
 
@@ -831,194 +814,5 @@ onMounted(() => {
 .active {
   background: #1677ff;
   color: white;
-}
-
-/* 项目详情弹窗样式 */
-:deep(.project-detail-modal) {
-  width: 800px !important;
-}
-
-:deep(.project-detail-modal .ant-modal-content) {
-  background-color: #1a1a1a;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  border: 1px solid #333;
-}
-
-:deep(.project-detail-modal .ant-modal-header) {
-  background-color: #222;
-  border-bottom: 1px solid #333;
-  padding: 16px 24px;
-}
-
-:deep(.project-detail-modal .ant-modal-title) {
-  color: #fff;
-  font-weight: bold;
-  font-size: 18px;
-}
-
-:deep(.project-detail-modal .ant-modal-close) {
-  color: #999;
-}
-
-:deep(.project-detail-modal .ant-modal-close:hover) {
-  color: #fff;
-}
-
-:deep(.project-detail-modal .ant-modal-body) {
-  padding: 24px;
-  max-height: 70vh;
-  overflow-y: auto;
-  background-color: #1a1a1a;
-}
-
-.project-header {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.project-logo-large {
-  width: 100px;
-  height: 100px;
-  border-radius: 16px;
-  overflow: hidden;
-  background-color: #333;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border: 1px solid #444;
-}
-
-.logo-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.logo-placeholder-large {
-  font-size: 48px;
-  font-weight: bold;
-  color: #fff;
-}
-
-.project-info {
-  flex-grow: 1;
-}
-
-.project-info h2 {
-  margin: 0 0 8px 0;
-  color: #fff;
-  font-size: 24px;
-}
-
-.project-description {
-  color: #aaa;
-  margin-bottom: 16px;
-  font-size: 14px;
-}
-
-.project-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.meta-item {
-  color: #aaa;
-  font-size: 14px;
-}
-
-.meta-item strong {
-  color: #1677ff;
-}
-
-.modal-footer {
-  margin-top: 24px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* 表格样式 */
-:deep(.ant-table) {
-  background: transparent;
-  color: #fff;
-}
-
-:deep(.ant-table-thead > tr > th) {
-  background-color: #222;
-  color: #fff;
-  border-bottom: 1px solid #333;
-  font-weight: 600;
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  border-bottom: 1px solid #333;
-  color: #ddd;
-  background-color: #1a1a1a;
-}
-
-:deep(.ant-table-tbody > tr:hover > td) {
-  background-color: #2a2a2a;
-}
-
-:deep(.ant-table-tbody > tr:nth-child(odd) > td) {
-  background-color: #222;
-}
-
-:deep(.ant-empty-description) {
-  color: #999;
-}
-
-:deep(.ant-divider) {
-  border-color: #333;
-}
-
-:deep(.ant-pagination-item a) {
-  color: #ddd;
-}
-
-:deep(.ant-pagination-item-active) {
-  background-color: #1677ff;
-  border-color: #1677ff;
-}
-
-:deep(.ant-btn) {
-  background: #333;
-  border-color: #444;
-  color: #ddd;
-}
-
-:deep(.ant-btn:hover) {
-  background: #444;
-  border-color: #555;
-  color: #fff;
-}
-
-:deep(.ant-btn-primary) {
-  background: #1677ff;
-  border-color: #1677ff;
-}
-
-:deep(.ant-btn-primary:hover) {
-  background: #4096ff;
-  border-color: #4096ff;
-}
-
-/* 调试信息区域样式 */
-.debug-info {
-  margin-top: 20px;
-  padding: 15px;
-  background-color: rgba(0, 0, 0, 0.3);
-  border-radius: 8px;
-  border: 1px solid #333;
-}
-
-.debug-info h4 {
-  color: #1677ff;
-  margin-top: 0;
-  margin-bottom: 10px;
 }
 </style>

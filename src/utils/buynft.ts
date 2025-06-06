@@ -252,7 +252,7 @@ export const executeAutoBuy = async (
             currentPrice.split(' ')[1],
             accountName,
             'dfs3protocol',
-            id,
+            typeof id === 'number' ? id : parseInt(id),
             debugLog
           );
         } catch (error: any) {
@@ -342,6 +342,144 @@ export const recordTransaction = (
   } catch (error) {
     console.error('记录交易失败:', error);
     debugLog?.('记录交易失败:', error);
+  }
+};
+
+/**
+ * 批量购买NFT
+ * @param wallet 钱包实例
+ * @param ids NFT ID数组
+ * @param prices 价格数组
+ * @param debugLog 调试日志函数
+ * @returns 购买结果
+ */
+export const executeBatchBuy = async (
+  wallet: any,
+  ids: (string | number)[],
+  prices: string[],
+  debugLog?: (message: string, data?: any) => void
+): Promise<{ success: number; failed: number; total: number }> => {
+  try {
+    if (!wallet) {
+      throw new Error('钱包实例未初始化');
+    }
+
+    // 验证输入参数
+    if (!Array.isArray(ids) || !Array.isArray(prices) || ids.length !== prices.length) {
+      throw new Error('输入参数无效：ID数组和价格数组必须有相同的长度');
+    }
+
+    if (ids.length === 0) {
+      throw new Error('输入参数无效：ID数组不能为空');
+    }
+
+    // 获取当前用户账号
+    const accountName = wallet.currentWallet?.value?.address;
+    if (!accountName) {
+      throw new Error('未找到用户账号');
+    }
+
+    debugLog?.(`开始批量购买 ${ids.length} 个NFT`);
+
+    // 交易结果统计
+    const results = {
+      success: 0,
+      failed: 0,
+      total: ids.length
+    };
+
+    // 遍历数据并执行购买
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      const currentPrice = prices[i];
+      
+      debugLog?.(`尝试购买 NFT #${id}，当前价格: ${currentPrice}`);
+
+      // 检查价格格式是否正确
+      if (!currentPrice || typeof currentPrice !== 'string' || !currentPrice.includes(' ')) {
+        debugLog?.(`NFT #${id} 价格格式不正确: ${currentPrice}，跳过`);
+        results.failed++;
+        continue;
+      }
+
+      // 准备交易数据
+      const transaction = {
+        actions: [{
+          account: 'eosio.token',
+          name: 'transfer',
+          authorization: [{
+            actor: accountName,
+            permission: 'active',
+          }],
+          data: {
+            from: accountName,
+            to: 'dfs3protocol',
+            quantity: currentPrice,
+            memo: `buy:${id}`
+          }
+        }]
+      };
+
+      // 尝试执行交易，支持自动重试
+      const attemptTransfer = async (startTime: number) => {
+        try {
+          // 执行购买操作
+          const result = await wallet.transact(transaction, { useFreeCpu: true });
+          
+          // 购买成功
+          message.success(`成功购买 NFT #${id}，价格: ${currentPrice}`);
+          debugLog?.(`成功购买 NFT #${id}，价格: ${currentPrice}，交易ID: ${result?.transaction_id}`);
+          results.success++;
+          
+          // 记录交易到钱包历史
+          recordTransaction(
+            wallet,
+            result?.transaction_id || `buy-${Date.now()}`,
+            'buy',
+            currentPrice.split(' ')[0],
+            currentPrice.split(' ')[1],
+            accountName,
+            'dfs3protocol',
+            typeof id === 'number' ? id : parseInt(id),
+            debugLog
+          );
+          
+          return true;
+        } catch (error: any) {
+          // 检查是否需要重试
+          const currentTime = new Date().getTime();
+          const elapsedTime = currentTime - startTime;
+          
+          if (elapsedTime < 2 * 60 * 1000) { // 如果未超过2分钟
+            // 购买失败，记录错误
+            debugLog?.(`购买 NFT #${id} 失败，尝试重试: ${error.message || '未知错误'}`);
+            
+            // 设置定时器再次尝试购买
+            await new Promise(resolve => setTimeout(resolve, 400)); // 400毫秒后重试
+            return attemptTransfer(startTime);
+          } else {
+            // 超过重试时间，标记为失败
+            message.error(`购买 NFT #${id} 失败: ${error.message || '未知错误'}`);
+            debugLog?.(`购买 NFT #${id} 失败，已超过重试时间:`, error);
+            results.failed++;
+            return false;
+          }
+        }
+      };
+      
+      // 记录开始时间并尝试执行交易
+      const startTime = new Date().getTime();
+      await attemptTransfer(startTime);
+      
+      // 添加延迟，避免频繁请求
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    debugLog?.(`批量购买完成，成功: ${results.success}，失败: ${results.failed}，总计: ${results.total}`);
+    return results;
+  } catch (error) {
+    debugLog?.('批量购买失败:', error);
+    throw error;
   }
 };
 

@@ -340,25 +340,6 @@ const priceChangePercent = computed(() => {
         </div>
       </div>
     </div>
-
-    <!-- <div class="card-actions">
-      <a-button class="action-btn" @click.stop>
-        <TwitterOutlined />
-      </a-button>
-      <a-button class="action-btn" @click.stop>
-        <HeartOutlined />
-      </a-button>
-      <a-button class="action-btn" @click.stop>
-        <SendOutlined />
-      </a-button>
-      <a-button
-        class="action-btn"
-        type="primary"
-        @click.stop
-      >
-        购买
-      </a-button>
-    </div> -->
   </div>
 </template>
 
