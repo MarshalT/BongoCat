@@ -6,7 +6,7 @@ import {
   SearchOutlined,
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, h } from 'vue'
 
 import ProjectCard from './ProjectCard.vue'
 
@@ -14,6 +14,9 @@ import { getAllProjects } from '@/utils/tokenPrice'
 // 导入钱包hook以使用getTableRows方法
 import { useWallet } from '@/composables/wallet/useWallet'
 import { info } from '@tauri-apps/plugin-log'
+// 导入购买NFT函数
+import { executeBuyNftByid } from '@/utils/buynft'
+
 // 获取钱包实例
 const wallet = useWallet()
 
@@ -496,6 +499,62 @@ async function fetchFundingPoolsData() {
   }
 }
 
+// 添加购买NFT的方法
+const buyNft = async (id: string | number, price: string) => {
+  try {
+    if (!wallet) {
+      message.error('钱包未初始化');
+      info('购买NFT失败: 钱包未初始化');
+      return;
+    }
+    
+    // 检查价格格式是否正确
+    if (!price || typeof price !== 'string' || !price.includes(' ')) {
+      const errorMsg = `价格格式不正确: ${price}`;
+      message.error(errorMsg);
+      info(`购买NFT失败: ${errorMsg}`);
+      return;
+    }
+    
+    // 检查钱包是否连接
+    const currentWallet = wallet.currentWallet?.value;
+    if (!currentWallet || !currentWallet.address) {
+      const errorMsg = '钱包未连接或未找到用户账号';
+      message.error(errorMsg);
+      info(`购买NFT失败: ${errorMsg}`);
+      return;
+    }
+    
+    info(`开始购买NFT #${id}, 价格: ${price}, 账户: ${currentWallet.address}`);
+    message.loading({ content: `正在购买 NFT #${id}...`, key: `buy-${id}` });
+    
+    const txId = await executeBuyNftByid(
+      wallet, 
+      id, 
+      price, 
+      (msg, data) => info(msg)
+    );
+    
+    if (txId) {
+      message.success({ content: `成功购买 NFT #${id}`, key: `buy-${id}` });
+      info(`成功购买 NFT #${id}, 交易ID: ${txId}`);
+      // 刷新项目详情
+      if (selectedProject) {
+        await fetchProjectDetails(selectedProject);
+      }
+    } else {
+      const errorMsg = `购买 NFT #${id} 失败: 未返回交易ID`;
+      message.error({ content: errorMsg, key: `buy-${id}` });
+      info(errorMsg);
+    }
+  } catch (error: any) {
+    console.error('购买NFT失败:', error);
+    const errorMsg = `购买 NFT #${id} 失败: ${error.message || '未知错误'}`;
+    message.error({ content: errorMsg, key: `buy-${id}` });
+    info(`购买NFT失败: ${error.message || '未知错误'}`);
+  }
+};
+
 onMounted(() => {
   fetchProjects()
 })
@@ -673,10 +732,15 @@ onMounted(() => {
                 customRender: ({ text }) => text || '无'
               },
               {
-                title: '创建时间',
-                dataIndex: 'create_time',
-                key: 'create_time',
-                customRender: ({ text }) => text ? new Date(text).toLocaleString() : '无'
+                title: '购买',
+                dataIndex: 'id',
+                key: 'buy',
+                customRender: ({ text, record }) => {
+                  return h('button', {
+                    class: 'ant-btn ant-btn-primary',
+                    onClick: () => buyNft(text, record.current_price)
+                  }, '购买');
+                }
               }
             ]"
             :pagination="{ pageSize: 10 }"
