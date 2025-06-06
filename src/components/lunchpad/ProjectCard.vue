@@ -6,7 +6,8 @@ import {
   TwitterOutlined,
 } from '@ant-design/icons-vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-
+import { info } from '@tauri-apps/plugin-log'
+import { inf } from 'date-fns';
 const props = defineProps({
   project: {
     type: Object,
@@ -41,10 +42,17 @@ const progressPercent = computed(() => {
 // 使用响应式变量存储倒计时
 const countdown = ref('00 : 00 : 00');
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
+// 添加一个变量来跟踪项目是否已停止
+const isStopped = ref(false);
 
 // 计算下一轮时间
 function calculateNextRound() {
   try {
+    // 如果项目已经被标记为停止，直接返回停止状态
+    if (isStopped.value) {
+      return '已停止';
+    }
+    
     // 检查必要的属性是否存在
     if (!props.project.last_round || !props.project.sec_per_round) {
       return '00 : 00 : 00';
@@ -72,20 +80,18 @@ function calculateNextRound() {
       }
     }
     
+    if(props.project.isStop) {
+      isStopped.value = true;
+      return '已停止';
+    }else{
+      isStopped.value = false;
+      info(`项目 #${props.project.id} 的 isStop: ${props.project.isStop}`)
+    }
+
     // 计算下一轮时间 = 上一轮时间 + 轮次间隔秒数
     const nextRoundDate = new Date(lastRoundTimestamp + props.project.sec_per_round * 1000);
     
-    // 添加调试日志
-    console.log('时间计算信息:', {
-      projectId: props.project.id,
-      last_round: props.project.last_round,
-      last_round_type: typeof props.project.last_round,
-      lastRoundTimestamp,
-      sec_per_round: props.project.sec_per_round,
-      nextRoundDate: nextRoundDate.toISOString(),
-      localNextRound: nextRoundDate.toLocaleString()
-    });
-    
+ 
     // 计算当前时间到下一轮的剩余时间（毫秒）
     const now = new Date();
     let remainingTime = nextRoundDate.getTime() - now.getTime();
@@ -118,7 +124,23 @@ let isComponentUnmounted = false;
 // 更新倒计时
 function updateCountdown() {
   if (!isComponentUnmounted) {
-    countdown.value = calculateNextRound();
+    // 获取当前倒计时状态
+    const currentStatus = calculateNextRound();
+    
+    // 如果状态为"已停止"，则设置isStopped为true以确保状态持久化
+    if (currentStatus === '已停止') {
+      isStopped.value = true;
+    }
+    
+    // 更新倒计时显示
+    countdown.value = currentStatus;
+    
+    // 如果项目已停止，清除定时器
+    if (isStopped.value && countdownInterval) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      console.log(`项目 #${props.project.id} 倒计时已停止，清除定时器`);
+    }
   }
 }
 
@@ -215,7 +237,10 @@ const priceChangePercent = computed(() => {
         <div class="current-round">
           {{ project.round || 'Round#1' }} next round:
         </div>
-        <div class="countdown">
+        <div 
+          class="countdown" 
+          :class="{ 'countdown-stopped': formattedNextRound === '已停止' }"
+        >
           {{ formattedNextRound }}
         </div>
       </div>
@@ -453,6 +478,18 @@ const priceChangePercent = computed(() => {
 .countdown {
   color: #1677ff;
   font-weight: bold;
+}
+
+.countdown-stopped {
+  color: #ff4d4f;
+  font-weight: bold;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
 }
 
 .progress-bar {

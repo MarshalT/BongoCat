@@ -12,7 +12,7 @@ import ProjectCard from './ProjectCard.vue'
 import { getAllProjects } from '@/utils/tokenPrice'
 // 导入钱包hook以使用getTableRows方法
 import { useWallet } from '@/composables/wallet/useWallet'
-
+import { info } from '@tauri-apps/plugin-log'
 // 获取钱包实例
 const wallet = useWallet()
 
@@ -49,8 +49,16 @@ async function fetchProjects() {
   loading.value = true
   try {
     const projectList = await getAllProjects()
+    
     // 处理项目数据，添加所需字段
-    projects.value = projectList.map((project) => {
+    const processedProjects = []
+    
+    // 对每个项目获取 registry 表中的数据条数
+    for (const project of projectList) {
+
+      if(project.id != 244) {
+        continue
+      }
       // 解析token信息
       const tokenParts = project.token_per_nft ? project.token_per_nft.split(' ') : ['0', '']
       const tokenSymbol = tokenParts.length > 1 ? tokenParts[1] : ''
@@ -60,14 +68,78 @@ async function fetchProjects() {
       const randomVolume = Math.floor(Math.random() * 100000) / 100
       const randomVolume24h = Math.floor(Math.random() * 10000) / 100
 
-     // (new Date(log.create_time).getTime() / 1000) + 8 * 3600;
-
-
-      
+      // 处理时区问题
       const lastRoundDate = new Date(project.last_round);
       const lastRound = lastRoundDate.getTime() / 1000 + 8 * 3600;
+      
+      // 获取项目的 registry 数据条数作为发行量和最新的 last_trade 时间
+      let issuance = 0;
+      let isStop = false
+      let latestLastTrade = null;
+      
+      try {
+        if (wallet) {
+          const pid = project.id
+          // 调用区块链API获取项目详情
+          const result = await wallet.getTableRows(
+            'dfs3protocol',       // code: 合约账户名
+            'dfs3protocol',       // scope: 表的作用域
+            'registry',           // table: 表名
+            pid.toString(),       // lower_bound: 项目ID
+            pid.toString(),       // upper_bound: 项目ID
+            2,                    // index_position: 使用二级索引
+            'i64',                // key_type: 索引键类型
+            1000,                 // limit: 最大结果数 (增大以获取更多记录)
+            false                 // reverse: 不反转结果
+          )
 
-      return {
+          // 如果有数据，设置发行量为数据条数
+          if (result && Array.isArray(result)) {
+            issuance = result.length
+            console.log(`项目 #${pid} 的发行量: ${issuance}`)
+            
+            // 查找最新的 last_trade 时间
+            if (issuance > 0) {
+            
+           // info(`项目 #${pid} 的 last_round: ${new Date(project.last_round).getTime()+8*3600*1000}`)
+            //这里获取所有的last_trade 当前时间和last_trade 相差大于sec_per_round/3600 每个last_trade 和last_round 相差大于sec_per_round/3600 的 都算作是停止的
+            const lastTrade = result.map(item => item.last_trade)
+            // info(`项目 #${pid} 的 last_trade: ${JSON.stringify(lastTrade)}`)
+            // //输出 每个last_trade 和last_round 相差的时间
+            // info(`项目 #${pid} 的 last_round: ${project.last_round}`)
+            // lastTrade.forEach(item => {
+            //   // 输出每一个last_trade 的 时间
+            //   info(`项目 #${pid} 的 last_trade: ${item}`)
+            //   info(`项目 #${pid} 的 last_round: ${project.last_round}`)//小时
+            // })
+
+            const stopCount = lastTrade.filter(item => {
+              const lastRoundMs = new Date().getTime();
+              const lastTradeMs = new Date(item).getTime();
+              const diffMs = Math.abs(lastRoundMs - lastTradeMs);
+              const diffHours = diffMs / (3600 * 1000);
+              const hoursPerRound = project.sec_per_round / 3600;
+              
+              // 输出详细的时间差计算信息
+              info(`项目 #${pid} 的时间差计算: last_round=${lastRoundMs}, last_trade=${lastTradeMs}, 差值=${diffMs}毫秒, ${diffHours}小时, 阈值=${hoursPerRound}小时`);
+              
+              return diffHours > hoursPerRound;
+            }).length;
+            
+            info(`项目 #${pid} 的停止数量: ${stopCount}`)
+            if(stopCount == issuance) {
+              isStop = true
+              info(`项目 #${pid} 的 isStop: ${isStop}`)
+            }            
+            }
+          }
+        }
+      } catch (error) {
+        info(`获取项目 #${project.id} 的发行量和最新 last_trade 失败: ${JSON.stringify(error)}`)
+        console.error(`获取项目 #${project.id} 的发行量和最新 last_trade 失败:`, error)
+      }
+
+      processedProjects.push({
         ...project,
         tokenSymbol,
         marketCap: `$${randomMarketCap}`,
@@ -85,9 +157,16 @@ async function fetchProjects() {
         last_round: lastRound,
         // 确保 sec_per_round 字段存在，默认为12小时（43200秒）
         sec_per_round: project.sec_per_round || 43200,
+        // 设置发行量
+        issuance: issuance,
+        // 设置最新的 last_trade 时间
+        latest_last_trade: latestLastTrade,
+        isStop: isStop,
         isHot: Math.random() > 0.7, // 30%的项目标记为热门
-      }
-    })
+      })
+    }
+    
+    projects.value = processedProjects
 
     // 添加调试日志，输出项目数据结构
     console.log('项目列表数据结构示例:', projects.value.length > 0 ? projects.value[0] : '无数据')
