@@ -1474,9 +1474,10 @@ const openLunchpad = () => {
     <a-modal
       v-model:visible="showLunchpad"
       title="项目列表"
-      width="80%"
+      width="800px"
       :footer="null"
       :maskClosable="true"
+      class="lunchpad-modal"
     >
       <LunchpadView />
     </a-modal>
@@ -1675,5 +1676,30 @@ const openLunchpad = () => {
 .rank-3 {
   background-color: #faad14;
   box-shadow: 0 2px 4px rgba(250, 173, 20, 0.3);
+}
+
+/* Lunchpad模态框样式 */
+:deep(.lunchpad-modal) {
+  width: 800px !important;
+}
+
+:deep(.ant-modal-content) {
+  background-color: #a57a7a;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+:deep(.ant-modal-header) {
+  background-color: #b48585;
+  border-bottom: 1px solid #977171;
+}
+
+:deep(.ant-modal-title) {
+  color: #fff;
+  font-weight: bold;
+}
+
+:deep(.ant-modal-close) {
+  color: #fff;
 }
 </style>

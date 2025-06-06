@@ -5,7 +5,7 @@ import {
   SendOutlined,
   TwitterOutlined,
 } from '@ant-design/icons-vue'
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const props = defineProps({
   project: {
@@ -16,7 +16,11 @@ const props = defineProps({
 
 // 格式化项目编号为"#123"格式
 const projectId = computed(() => {
-  return `#${props.project.mid}`
+  // 优先显示pid，如果不存在则显示mid
+  if (props.project.id !== undefined) {
+    return `#${props.project.id}`
+  }
+  return '#?'
 })
 
 // 根据项目排名着色，前3名特殊颜色
@@ -34,41 +38,141 @@ const progressPercent = computed(() => {
   return `${Math.floor(Math.random() * 100)}%`
 })
 
-// 格式化下一轮时间
+// 使用响应式变量存储倒计时
+const countdown = ref('00 : 00 : 00');
+let countdownInterval: ReturnType<typeof setInterval> | null = null;
+
+// 计算下一轮时间
+function calculateNextRound() {
+  try {
+    // 检查必要的属性是否存在
+    if (!props.project.last_round || !props.project.sec_per_round) {
+      return '00 : 00 : 00';
+    }
+    
+    // 解析上一轮时间
+    // 检查 last_round 是否已经是时间戳（秒）
+    let lastRoundTimestamp;
+    
+    if (typeof props.project.last_round === 'number') {
+      // 如果是数字，则认为已经是时间戳（秒）
+      lastRoundTimestamp = props.project.last_round * 1000; // 转换为毫秒
+    } else {
+      // 如果是字符串，尝试解析为日期
+      try {
+        const lastRoundDate = new Date(props.project.last_round);
+        if (isNaN(lastRoundDate.getTime())) {
+          console.error('Invalid last_round date:', props.project.last_round);
+          return '00 : 00 : 00';
+        }
+        lastRoundTimestamp = lastRoundDate.getTime();
+      } catch (error) {
+        console.error('Error parsing last_round:', error);
+        return '00 : 00 : 00';
+      }
+    }
+    
+    // 计算下一轮时间 = 上一轮时间 + 轮次间隔秒数
+    const nextRoundDate = new Date(lastRoundTimestamp + props.project.sec_per_round * 1000);
+    
+    // 添加调试日志
+    console.log('时间计算信息:', {
+      projectId: props.project.id,
+      last_round: props.project.last_round,
+      last_round_type: typeof props.project.last_round,
+      lastRoundTimestamp,
+      sec_per_round: props.project.sec_per_round,
+      nextRoundDate: nextRoundDate.toISOString(),
+      localNextRound: nextRoundDate.toLocaleString()
+    });
+    
+    // 计算当前时间到下一轮的剩余时间（毫秒）
+    const now = new Date();
+    let remainingTime = nextRoundDate.getTime() - now.getTime();
+    
+    // 如果已经过了下一轮时间，则计算再下一轮
+    if (remainingTime < 0) {
+      // 计算已经过了多少个完整的轮次
+      const passedRounds = Math.ceil(Math.abs(remainingTime) / (props.project.sec_per_round * 1000));
+      // 计算实际的下一轮时间
+      const actualNextRound = new Date(nextRoundDate.getTime() + passedRounds * props.project.sec_per_round * 1000);
+      remainingTime = actualNextRound.getTime() - now.getTime();
+    }
+    
+    // 转换为小时、分钟、秒
+    const hours = Math.floor(remainingTime / (1000 * 60 * 60));
+    const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000);
+    
+    // 格式化输出
+    return `${String(hours).padStart(2, '0')} : ${String(minutes).padStart(2, '0')} : ${String(seconds).padStart(2, '0')}`;
+  } catch (error) {
+    console.error('Error calculating next round time:', error);
+    return '00 : 00 : 00';
+  }
+}
+
+// 标记组件是否已卸载
+let isComponentUnmounted = false;
+
+// 更新倒计时
+function updateCountdown() {
+  if (!isComponentUnmounted) {
+    countdown.value = calculateNextRound();
+  }
+}
+
+// 组件挂载时启动倒计时
+onMounted(() => {
+  // 立即执行一次
+  updateCountdown();
+  
+  // 设置定时器，每秒更新一次
+  countdownInterval = setInterval(updateCountdown, 1000);
+});
+
+// 组件卸载时清除定时器
+onUnmounted(() => {
+  isComponentUnmounted = true;
+  if (countdownInterval) {
+    console.log('清除倒计时定时器:', props.project.id);
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+});
+
+// 格式化的倒计时
 const formattedNextRound = computed(() => {
-  const { hours, minutes, seconds } = props.project.nextRound
-  return `${String(hours).padStart(2, '0')} : ${String(minutes).padStart(2, '0')} : ${String(seconds).padStart(2, '0')}`
+  return countdown.value;
 })
 
 // 格式化交易费用百分比
 const feePercent = computed(() => {
-  // 模拟随机费率，实际项目中应根据实际数据计算
-  return `${(Math.random() * 10).toFixed(2)}%`
+  return props.project.trade_fee_ratio/100 + '%'
 })
 
 // 格式化涨跌幅
 const priceChangePercent = computed(() => {
-  // 模拟随机涨跌幅，实际项目中应根据实际数据计算
-  const change = (Math.random() * 20 - 10).toFixed(0)
-  return `${change}%`
+  try {
+    const change = ((props.project.increase_per_round / 100) - 1) * 100
+      // 格式化为保留两位小数
+      return `${change.toFixed(2)}%`
+  } catch (error) {
+    return '0.00%'
+  }
 })
 
-// 判断涨跌色彩
-const priceChangeColor = computed(() => {
-  const change = Number.parseFloat(priceChangePercent.value)
-  return change >= 0 ? 'text-green-500' : 'text-red-500'
-})
 </script>
 
 <template>
-  <div class="project-card">
+  <div class="project-card" @click="$emit('click')">
     <div class="card-header">
       <div class="project-logo">
         <img
-          v-if="project.logo_ipfs"
+          v-if="project.nft_img"
           alt="Project Logo"
           class="logo-image"
-          :src="project.logo_ipfs"
+          :src="project.nft_img"
         >
         <div
           v-else
@@ -96,11 +200,12 @@ const priceChangeColor = computed(() => {
           创建者: <a
             class="creator-link"
             href="#"
+            @click.stop
           >{{ project.creator || project.owner || 'Unknown' }}</a>
         </div>
 
         <div class="description">
-          {{ project.description || '测试项目 BongoCat 是一个可爱的互动小游戏' }}
+          {{ project.desc || '' }}
         </div>
       </div>
     </div>
@@ -152,7 +257,7 @@ const priceChangeColor = computed(() => {
           发行量:
         </div>
         <div class="stat-value">
-          {{ project.issuance || 10 }}
+          {{ project.issuance || 0 }}
         </div>
 
         <div class="stat-label">
@@ -175,15 +280,13 @@ const priceChangeColor = computed(() => {
           每轮:
         </div>
         <div class="stat-value">
-          {{ project.roundInterval || '12 Hours' }}
+          {{ project.sec_per_round/3600 || '' }} Hours
         </div>
 
         <div class="stat-label">
           涨幅:
         </div>
         <div
-          class="stat-value"
-          :class="priceChangeColor"
         >
           {{ priceChangePercent }}
         </div>
@@ -213,23 +316,24 @@ const priceChangeColor = computed(() => {
       </div>
     </div>
 
-    <div class="card-actions">
-      <a-button class="action-btn">
+    <!-- <div class="card-actions">
+      <a-button class="action-btn" @click.stop>
         <TwitterOutlined />
       </a-button>
-      <a-button class="action-btn">
+      <a-button class="action-btn" @click.stop>
         <HeartOutlined />
       </a-button>
-      <a-button class="action-btn">
+      <a-button class="action-btn" @click.stop>
         <SendOutlined />
       </a-button>
       <a-button
         class="action-btn"
         type="primary"
+        @click.stop
       >
         购买
       </a-button>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -242,6 +346,7 @@ const priceChangeColor = computed(() => {
   padding: 16px;
   position: relative;
   transition: all 0.3s ease;
+  cursor: pointer; /* 添加指针样式，表示可点击 */
 }
 
 .project-card:hover {

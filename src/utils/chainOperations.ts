@@ -75,7 +75,7 @@ export const checkCatHasAvailableExp = async (
       // 检查是否有该用户在上次检查后的PPP相关操作记录
       const hasExpFromPpp = pppLogs.some(log => {
         // 检查是否是目标用户的记录（from或to字段）
-        if (log.from === owner || log.to === owner) {
+        if (log.from === owner) {
           // 检查是否是上次检查后的新记录
           const logTime = (new Date(log.create_time).getTime() / 1000) + 8 * 3600;
           if (logTime > lastCheckTime) {
