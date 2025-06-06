@@ -1,13 +1,9 @@
 <script setup lang="ts">
 import {
   FireOutlined,
-  HeartOutlined,
-  SendOutlined,
-  TwitterOutlined,
 } from '@ant-design/icons-vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { info } from '@tauri-apps/plugin-log'
-import { inf } from 'date-fns';
+
 const props = defineProps({
   project: {
     type: Object,
@@ -40,106 +36,105 @@ const progressPercent = computed(() => {
 })
 
 // 使用响应式变量存储倒计时
-const countdown = ref('00 : 00 : 00');
-let countdownInterval: ReturnType<typeof setInterval> | null = null;
+const countdown = ref('00 : 00 : 00')
+let countdownInterval: ReturnType<typeof setInterval> | null = null
 // 添加一个变量来跟踪项目是否已停止
-const isStopped = ref(false);
+const isStopped = ref(false)
 
 // 计算下一轮时间
 function calculateNextRound() {
   try {
     // 如果项目已经被标记为停止，直接返回停止状态
     if (isStopped.value) {
-      return '已停止';
+      return '已停止'
     }
-    
+
     // 检查必要的属性是否存在
     if (!props.project.last_round || !props.project.sec_per_round) {
-      return '00 : 00 : 00';
+      return '00 : 00 : 00'
     }
-    
+
     // 解析上一轮时间
     // 检查 last_round 是否已经是时间戳（秒）
-    let lastRoundTimestamp;
-    
+    let lastRoundTimestamp
+
     if (typeof props.project.last_round === 'number') {
       // 如果是数字，则认为已经是时间戳（秒）
-      lastRoundTimestamp = props.project.last_round * 1000; // 转换为毫秒
+      lastRoundTimestamp = props.project.last_round * 1000 // 转换为毫秒
     } else {
       // 如果是字符串，尝试解析为日期
       try {
-        const lastRoundDate = new Date(props.project.last_round);
+        const lastRoundDate = new Date(props.project.last_round)
         if (isNaN(lastRoundDate.getTime())) {
-          console.error('Invalid last_round date:', props.project.last_round);
-          return '00 : 00 : 00';
+          console.error('Invalid last_round date:', props.project.last_round)
+          return '00 : 00 : 00'
         }
-        lastRoundTimestamp = lastRoundDate.getTime();
+        lastRoundTimestamp = lastRoundDate.getTime()
       } catch (error) {
-        console.error('Error parsing last_round:', error);
-        return '00 : 00 : 00';
+        console.error('Error parsing last_round:', error)
+        return '00 : 00 : 00'
       }
     }
-    
-    if(props.project.isStop) {
-      isStopped.value = true;
-      return '已停止';
-    }else{
-      isStopped.value = false;
+
+    if (props.project.isStop) {
+      isStopped.value = true
+      return '已停止'
+    } else {
+      isStopped.value = false
       // info(`项目 #${props.project.id} 的 isStop: ${props.project.isStop}`)
     }
 
     // 计算下一轮时间 = 上一轮时间 + 轮次间隔秒数
-    const nextRoundDate = new Date(lastRoundTimestamp + props.project.sec_per_round * 1000);
-    
- 
+    const nextRoundDate = new Date(lastRoundTimestamp + props.project.sec_per_round * 1000)
+
     // 计算当前时间到下一轮的剩余时间（毫秒）
-    const now = new Date();
-    let remainingTime = nextRoundDate.getTime() - now.getTime();
-    
+    const now = new Date()
+    let remainingTime = nextRoundDate.getTime() - now.getTime()
+
     // 如果已经过了下一轮时间，则计算再下一轮
     if (remainingTime < 0) {
       // 计算已经过了多少个完整的轮次
-      const passedRounds = Math.ceil(Math.abs(remainingTime) / (props.project.sec_per_round * 1000));
+      const passedRounds = Math.ceil(Math.abs(remainingTime) / (props.project.sec_per_round * 1000))
       // 计算实际的下一轮时间
-      const actualNextRound = new Date(nextRoundDate.getTime() + passedRounds * props.project.sec_per_round * 1000);
-      remainingTime = actualNextRound.getTime() - now.getTime();
+      const actualNextRound = new Date(nextRoundDate.getTime() + passedRounds * props.project.sec_per_round * 1000)
+      remainingTime = actualNextRound.getTime() - now.getTime()
     }
-    
+
     // 转换为小时、分钟、秒
-    const hours = Math.floor(remainingTime / (1000 * 60 * 60));
-    const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000);
-    
+    const hours = Math.floor(remainingTime / (1000 * 60 * 60))
+    const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000)
+
     // 格式化输出
-    return `${String(hours).padStart(2, '0')} : ${String(minutes).padStart(2, '0')} : ${String(seconds).padStart(2, '0')}`;
+    return `${String(hours).padStart(2, '0')} : ${String(minutes).padStart(2, '0')} : ${String(seconds).padStart(2, '0')}`
   } catch (error) {
-    console.error('Error calculating next round time:', error);
-    return '00 : 00 : 00';
+    console.error('Error calculating next round time:', error)
+    return '00 : 00 : 00'
   }
 }
 
 // 标记组件是否已卸载
-let isComponentUnmounted = false;
+let isComponentUnmounted = false
 
 // 更新倒计时
 function updateCountdown() {
   if (!isComponentUnmounted) {
     // 获取当前倒计时状态
-    const currentStatus = calculateNextRound();
-    
+    const currentStatus = calculateNextRound()
+
     // 如果状态为"已停止"，则设置isStopped为true以确保状态持久化
     if (currentStatus === '已停止') {
-      isStopped.value = true;
+      isStopped.value = true
     }
-    
+
     // 更新倒计时显示
-    countdown.value = currentStatus;
-    
+    countdown.value = currentStatus
+
     // 如果项目已停止，清除定时器
     if (isStopped.value && countdownInterval) {
-      clearInterval(countdownInterval);
-      countdownInterval = null;
-      console.log(`项目 #${props.project.id} 倒计时已停止，清除定时器`);
+      clearInterval(countdownInterval)
+      countdownInterval = null
+      console.log(`项目 #${props.project.id} 倒计时已停止，清除定时器`)
     }
   }
 }
@@ -147,47 +142,49 @@ function updateCountdown() {
 // 组件挂载时启动倒计时
 onMounted(() => {
   // 立即执行一次
-  updateCountdown();
-  
+  updateCountdown()
+
   // 设置定时器，每秒更新一次
-  countdownInterval = setInterval(updateCountdown, 1000);
-});
+  countdownInterval = setInterval(updateCountdown, 1000)
+})
 
 // 组件卸载时清除定时器
 onUnmounted(() => {
-  isComponentUnmounted = true;
+  isComponentUnmounted = true
   if (countdownInterval) {
-    console.log('清除倒计时定时器:', props.project.id);
-    clearInterval(countdownInterval);
-    countdownInterval = null;
+    console.log('清除倒计时定时器:', props.project.id)
+    clearInterval(countdownInterval)
+    countdownInterval = null
   }
-});
+})
 
 // 格式化的倒计时
 const formattedNextRound = computed(() => {
-  return countdown.value;
+  return countdown.value
 })
 
 // 格式化交易费用百分比
 const feePercent = computed(() => {
-  return props.project.trade_fee_ratio/100 + '%'
+  return `${props.project.trade_fee_ratio / 100}%`
 })
 
 // 格式化涨跌幅
 const priceChangePercent = computed(() => {
   try {
     const change = ((props.project.increase_per_round / 100) - 1) * 100
-      // 格式化为保留两位小数
-      return `${change.toFixed(2)}%`
+    // 格式化为保留两位小数
+    return `${change.toFixed(2)}%`
   } catch (error) {
     return '0.00%'
   }
 })
-
 </script>
 
 <template>
-  <div class="project-card" @click="$emit('click')">
+  <div
+    class="project-card"
+    @click="$emit('click')"
+  >
     <div class="card-header">
       <div class="project-logo">
         <img
@@ -237,8 +234,8 @@ const priceChangePercent = computed(() => {
         <div class="current-round">
           {{ project.round || 'Round#1' }} next round:
         </div>
-        <div 
-          class="countdown" 
+        <div
+          class="countdown"
           :class="{ 'countdown-stopped': formattedNextRound === '已停止' }"
         >
           {{ formattedNextRound }}
@@ -305,14 +302,13 @@ const priceChangePercent = computed(() => {
           每轮:
         </div>
         <div class="stat-value">
-          {{ project.sec_per_round/3600 || '' }} Hours
+          {{ project.sec_per_round / 3600 || '' }} Hours
         </div>
 
         <div class="stat-label">
           涨幅:
         </div>
-        <div
-        >
+        <div>
           {{ priceChangePercent }}
         </div>
 
@@ -468,9 +464,15 @@ const priceChangePercent = computed(() => {
 }
 
 @keyframes blink {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .progress-bar {

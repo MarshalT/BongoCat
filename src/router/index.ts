@@ -4,7 +4,6 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 
 import Main from '../pages/main/index.vue'
 import Preference from '../pages/preference/index.vue'
-import LunchpadView from '../components/lunchpad/LunchpadView.vue'
 
 const routes: Readonly<RouteRecordRaw[]> = [
   {

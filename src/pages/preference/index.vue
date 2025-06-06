@@ -4,10 +4,11 @@ import { onMounted, ref } from 'vue'
 
 import About from './components/about/index.vue'
 import Cat from './components/cat/index.vue'
+import CatPlanet from './components/catPlanet/index.vue'
 import General from './components/general/index.vue'
 import Model from './components/model/index.vue'
 import Wallet from './components/wallet/index.vue'
-import CatPlanet from './components/catPlanet/index.vue'
+
 import UpdateApp from '@/components/update-app/index.vue'
 import { useTray } from '@/composables/useTray'
 import { useAppStore } from '@/stores/app'
@@ -29,7 +30,7 @@ const menus = [
   },
   {
     label: '猫星球',
-    icon: 'i-solar:planet-bold', 
+    icon: 'i-solar:planet-bold',
     component: CatPlanet,
   },
   {

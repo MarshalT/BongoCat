@@ -49,22 +49,27 @@ function handleCancel() {
 
 <template>
   <a-modal
-    :title="title || '请输入密码'"
-    :open="visible"
-    :confirm-loading="loading"
-    ok-text="确认"
     cancel-text="取消"
-    @ok="handleConfirm"
-    @cancel="handleCancel"
-    :z-index="200000"
-    :mask-style="{ zIndex: 199999 }"
+    :confirm-loading="loading"
     class="password-input-modal"
-    getContainer="body"
-    :destroyOnClose="true"
+    :mask-style="{ zIndex: 199999 }"
+    get-container="body"
+    ok-text="确认"
+    :destroy-on-close="true"
+    :open="visible"
+    :title="title || '请输入密码'"
+    :z-index="200000"
+    @cancel="handleCancel"
+    @ok="handleConfirm"
   >
     <div class="password-modal-content">
-      <p v-if="prompt" class="prompt-text">{{ prompt }}</p>
-      
+      <p
+        v-if="prompt"
+        class="prompt-text"
+      >
+        {{ prompt }}
+      </p>
+
       <a-input-password
         v-model:value="password"
         placeholder="请输入密码"
@@ -95,4 +100,4 @@ function handleCancel() {
 :deep(.ant-modal-wrap) {
   z-index: 200000 !important;
 }
-</style> 
+</style>

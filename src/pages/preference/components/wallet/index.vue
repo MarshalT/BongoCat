@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { 
+import {
   CopyOutlined,
   EyeOutlined,
   KeyOutlined,
-  UnlockOutlined,
   LockOutlined,
   PlusOutlined,
   ScanOutlined,
   SendOutlined,
   SettingOutlined,
+  UnlockOutlined,
   WalletOutlined,
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
@@ -76,7 +76,7 @@ async function handleCreateWallet() {
     walletUI.modals.passwordRequired = true
     return
   }
-  
+
   if (walletUI.forms.newWallet.isCreating) {
     walletUI.addDebugLog('钱包正在创建中，返回')
     return
@@ -110,7 +110,7 @@ async function handleSend() {
   // 获取表单数据
   const formData = sendFormRef.value.form
   walletUI.forms.send = { ...formData }
-  
+
   // 显示密码输入对话框
   passwordAction.value = 'send'
   passwordPrompt.value = '请输入钱包密码以完成交易'
@@ -144,9 +144,9 @@ async function handleImportWallet() {
 
   if (!walletUI.forms.importWallet.accountName) {
     message.error('请输入账户名')
-      return
-    }
-    
+    return
+  }
+
   // 显示密码输入对话框
   passwordAction.value = 'import'
   passwordPrompt.value = '请输入钱包密码以导入钱包'
@@ -184,7 +184,7 @@ async function handlePasswordConfirm(password: string) {
           privateKey,
           undefined,
           accountName,
-          password // 传递密码参数
+          password, // 传递密码参数
         )
 
         walletUI.modals.importWallet = false
@@ -209,10 +209,10 @@ async function handlePasswordConfirm(password: string) {
   } else if (passwordAction.value === 'send') {
     try {
       walletUI.addDebugLog('开始发送交易，使用密码验证')
-      
+
       // 执行发送交易，传入密码
       await walletUI.handleSendTokensWithPassword(password)
-      
+
       // 关闭密码输入对话框
       showPasswordInput.value = false
       walletUI.addDebugLog('发送交易密码验证成功')
@@ -224,21 +224,21 @@ async function handlePasswordConfirm(password: string) {
   } else if (passwordAction.value === 'export') {
     try {
       walletUI.addDebugLog('开始导出私钥，使用密码验证')
-      
+
       // 使用密码获取私钥
       const privateKey = await walletUI.exportPrivateKey(password)
-      
+
       if (!privateKey) {
         throw new Error('获取私钥失败')
       }
-      
+
       // 设置私钥到表单
       walletUI.forms.backup.privateKey = privateKey
-      
+
       // 关闭密码输入对话框，显示私钥对话框
       showPasswordInput.value = false
       walletUI.modals.exportPrivateKey = true
-      
+
       walletUI.addDebugLog('私钥导出成功')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
@@ -249,10 +249,10 @@ async function handlePasswordConfirm(password: string) {
     try {
       walletUI.forms.newWallet.isCreating = true
       walletUI.addDebugLog('开始创建钱包，使用密码验证')
-      
+
       // 执行创建钱包，传入密码
       const result = await walletUI.wallet.createWallet(walletUI.forms.newWallet.accountName || undefined, password, walletUI.forms.newWallet.code)
-      
+
       if (!result) {
         throw new Error('钱包创建失败：未返回结果')
       }
@@ -272,10 +272,9 @@ async function handlePasswordConfirm(password: string) {
 
       message.success('钱包创建成功！')
       await walletUI.refreshWalletBalance()
-      
+
       walletUI.addDebugLog('钱包创建成功')
     } catch (err) {
-
       const errorMessage = JSON.stringify(err)
       walletUI.addDebugLog(`创建钱包失败: ${errorMessage}`)
       message.error(`创建钱包失败: ${errorMessage}`)
@@ -301,11 +300,11 @@ async function handlePasswordConfirm(password: string) {
 function handlePasswordCancel() {
   // 保存当前操作类型
   const currentAction = passwordAction.value
-  
+
   // 关闭对话框并清空状态
   showPasswordInput.value = false
   passwordAction.value = null
-  
+
   // 如果是发送交易被取消，记录日志
   if (currentAction === 'send') {
     walletUI.addDebugLog('发送交易已取消')
@@ -328,7 +327,7 @@ onMounted(async () => {
   try {
     // 初始化钱包
     await walletUI.wallet.initWallet()
-    
+
     walletUI.addDebugLog('钱包初始化完成', { status: walletUI.wallet.walletStatus.value })
 
     // 如果钱包已连接，刷新余额和资产
@@ -400,23 +399,23 @@ onMounted(async () => {
               type="primary"
               @click="walletUI.modals.send = true"
             >
-            <SendOutlined />发送
-          </a-button>
+              <SendOutlined />发送
+            </a-button>
             <a-button @click="walletUI.modals.receive = true">
-            <ScanOutlined />接收
-          </a-button>
+              <ScanOutlined />接收
+            </a-button>
             <!-- <a-button @click="ui.refreshWalletBalance" :loading="loadingBalances">
             <SyncOutlined />刷新
             </a-button> -->
             <a-button @click="walletUI.handleLockWallet">
               <LockOutlined />锁定
-          </a-button>
+            </a-button>
             <a-button
               danger
               @click="handleDisconnectWallet"
             >
-            断开
-          </a-button>
+              断开
+            </a-button>
           </template>
         </template>
         <template v-else>
@@ -564,7 +563,7 @@ onMounted(async () => {
           </a-card> -->
         </div>
       </a-tab-pane>
-      
+
       <a-tab-pane
         v-if="isWalletConnected"
         key="activity"
@@ -613,7 +612,7 @@ onMounted(async () => {
     >
       <div class="text-center">
         <QRCodeView
-              :value="walletAddress"
+          :value="walletAddress"
           @copy="walletUI.copyToClipboard"
         />
       </div>
@@ -643,7 +642,6 @@ onMounted(async () => {
           class="form-input"
           placeholder="输入邀请码或留空"
         >
-
       </div>
 
       <div class="warning-box">
@@ -653,7 +651,7 @@ onMounted(async () => {
         <div class="warning-content">
           创建后，您将收到私钥，请务必安全保存。丢失私钥将无法恢复您的资产！
         </div>
-            </div>
+      </div>
     </WalletModal>
 
     <!-- 导入钱包模态框 -->
@@ -700,17 +698,17 @@ onMounted(async () => {
       v-model:visible="showPasswordInput"
       :prompt="passwordPrompt"
       :title="passwordAction === 'import' ? '导入钱包' : passwordAction === 'unlock' ? '解锁钱包' : passwordAction === 'export' ? '导出私钥' : '输入密码'"
-      @confirm="handlePasswordConfirm"
       @cancel="handlePasswordCancel"
+      @confirm="handlePasswordConfirm"
     />
 
     <!-- 备份私钥模态框 -->
     <WalletModal
       v-model:visible="walletUI.modals.backup"
-      confirm-text="我已安全备份私钥"
       cancel-text="稍后备份"
-      title="备份私钥"
       :confirm-disabled="!walletUI.forms.backup.backupConfirmed"
+      confirm-text="我已安全备份私钥"
+      title="备份私钥"
       @confirm="walletUI.completeBackup"
     >
       <div class="warning-box">
@@ -730,14 +728,14 @@ onMounted(async () => {
             @click="walletUI.togglePrivateKeyVisibility"
           >
             <span v-if="walletUI.forms.backup.showPrivateKey">
-                <LockOutlined /> 隐藏
+              <LockOutlined /> 隐藏
             </span>
             <span v-else>
-                <EyeOutlined /> 显示
+              <EyeOutlined /> 显示
             </span>
           </button>
-          </div>
-          
+        </div>
+
         <div class="key-value">
           <div
             v-if="walletUI.forms.backup.showPrivateKey"
@@ -752,7 +750,7 @@ onMounted(async () => {
             ***** 点击"显示"查看私钥 *****
           </div>
         </div>
-        
+
         <div class="key-actions">
           <button
             class="copy-btn"
@@ -766,13 +764,13 @@ onMounted(async () => {
       <div class="security-tips">
         <h4>安全提示：</h4>
         <ul>
-            <li>将私钥保存在安全的离线位置</li>
-            <li>永远不要分享私钥</li>
-            <li>任何人获得您的私钥都能控制您的资产</li>
-            <li>丢失私钥将导致资产永久丢失</li>
-          </ul>
-        </div>
-        
+          <li>将私钥保存在安全的离线位置</li>
+          <li>永远不要分享私钥</li>
+          <li>任何人获得您的私钥都能控制您的资产</li>
+          <li>丢失私钥将导致资产永久丢失</li>
+        </ul>
+      </div>
+
       <div class="checkbox-container">
         <label class="checkbox-label">
           <input
@@ -780,7 +778,7 @@ onMounted(async () => {
             class="checkbox-input"
             type="checkbox"
           >
-            我了解私钥的重要性，并已安全备份
+          我了解私钥的重要性，并已安全备份
         </label>
       </div>
     </WalletModal>
@@ -788,10 +786,10 @@ onMounted(async () => {
     <!-- 导出私钥模态框 -->
     <WalletModal
       v-model:visible="walletUI.modals.exportPrivateKey"
-      confirm-text="我已安全备份私钥"
       cancel-text="稍后备份"
-      title="导出私钥"
       :confirm-disabled="!walletUI.forms.backup.backupConfirmed"
+      confirm-text="我已安全备份私钥"
+      title="导出私钥"
       @confirm="walletUI.modals.exportPrivateKey = false"
     >
       <div class="warning-box">
@@ -862,7 +860,7 @@ onMounted(async () => {
           <li>永远不要与他人分享您的私钥</li>
         </ul>
       </div>
-      
+
       <div class="checkbox-container">
         <label class="checkbox-label">
           <input
@@ -870,7 +868,7 @@ onMounted(async () => {
             class="checkbox-input"
             type="checkbox"
           >
-            我了解私钥的重要性，并已安全备份
+          我了解私钥的重要性，并已安全备份
         </label>
       </div>
     </WalletModal>

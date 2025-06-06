@@ -77,9 +77,9 @@ function onRefresh() {
       <a-card
         v-for="asset in assets"
         :key="asset.key"
+        :body-style="{ padding: '12px' }"
         :bordered="false"
         class="currency-card mb-2"
-        :body-style="{ padding: '12px' }"
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center">
@@ -90,30 +90,30 @@ function onRefresh() {
               <!-- 显示 logo 图片 (如果有) -->
               <img
                 v-if="asset.logoUrl"
-                :src="asset.logoUrl"
                 :alt="`${asset.name} logo`"
                 class="token-logo"
+                :src="asset.logoUrl"
                 @error="handleImageError"
               >
               <!-- 备用显示：代币首字母 -->
-              <span 
-                :style="{ display: asset.logoUrl ? 'none' : 'block' }"
+              <span
                 class="token-letter"
+                :style="{ display: asset.logoUrl ? 'none' : 'block' }"
               >
                 {{ asset.key.charAt(0) }}
               </span>
             </div>
             <div class="asset-info">
-              <h3 class="font-medium text-sm mb-0">
+              <h3 class="mb-0 text-sm font-medium">
                 {{ asset.name }}
               </h3>
-              <p class="text-gray-500 text-xs mb-0">
+              <p class="mb-0 text-xs text-gray-500">
                 {{ asset.balance }} {{ asset.key }}
               </p>
             </div>
           </div>
           <div class="text-right">
-            <p class="font-bold mb-0">
+            <p class="mb-0 font-bold">
               ${{ asset.value.toFixed(2) }}
             </p>
           </div>

@@ -9,7 +9,7 @@ import { PasswordManager } from '@/utils/PasswordManager'
 
 // 获取钱包存储
 // 目前未使用，保留以便将来扩展功能
-const _walletStore = useWalletStore();
+const _walletStore = useWalletStore()
 // 获取钱包功能组合
 const wallet = useWallet()
 
@@ -46,7 +46,7 @@ const canSetPassword = computed(() => {
 onMounted(async () => {
   // 确保清除密码对话框不会显示
   showClearPassword.value = false
-  
+
   // 检查是否已设置密码
   const passwordHash = localStorage.getItem('bongo-cat-wallet-password-hash')
   if (passwordHash) {
@@ -84,7 +84,7 @@ async function handleSetPassword() {
 
     message.success('密码设置成功')
     hasPassword.value = true
-    
+
     // 确保清除密码对话框不会显示
     showClearPassword.value = false
 
@@ -142,7 +142,7 @@ async function handleChangePassword() {
 
     message.success('密码修改成功')
     showChangePassword.value = false
-    
+
     // 确保清除密码对话框不会显示
     showClearPassword.value = false
 
@@ -365,7 +365,7 @@ async function handleClearPassword() {
               >
                 修改密码
               </a-button>
-              <!-- 
+              <!--
               清除密码按钮已隐藏，防止用户误操作
               <a-button
                 danger

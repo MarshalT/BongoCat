@@ -191,7 +191,6 @@ function createWalletInstance() {
     // 初始化DfsWallet
     await dfsWallet.init(appName, nodeUrl ?? 'https://api.dfs.land', privateKey)
 
-
     // 使用随机值覆盖私钥内存
     // if (typeof privateKey === 'string') {
     //   const randomChars = Array.from({ length: privateKey.length }).fill(0).map(() => String.fromCharCode(Math.floor(Math.random() * 94) + 33)).join('')
@@ -204,7 +203,6 @@ function createWalletInstance() {
     // } else {
     //   logInfo(`useWallet.initDfsWallet: 未提供私钥`)
     // }
-
   }
 
   /**
@@ -229,7 +227,7 @@ function createWalletInstance() {
         await initDfsWallet('BongoCat')
         console.log('useWallet.createWallet: DfsWallet初始化成功')
       } catch (error) {
-        const errMsg = JSON.stringify(error);
+        const errMsg = JSON.stringify(error)
         console.error('useWallet.createWallet: DfsWallet初始化失败:', errMsg)
         throw new Error(`DfsWallet初始化失败: ${errMsg}`)
       }
@@ -309,8 +307,8 @@ function createWalletInstance() {
         address: result.accountName,
         privateKey: result.privateKey,
       }
-    } catch (err: any) {  
-      const errMsg = JSON.stringify(err);
+    } catch (err: any) {
+      const errMsg = JSON.stringify(err)
       console.error('useWallet.createWallet: 创建钱包过程失败:', errMsg)
       error.value = `创建钱包失败: ${errMsg}`
       walletStatus.value = WalletStatus.ERROR
@@ -471,7 +469,7 @@ function createWalletInstance() {
         await initDfsWallet('BongoCat', privateKey)
         console.log('API连接初始化成功')
       } catch (error) {
-        const errMsg = JSON.stringify(error);
+        const errMsg = JSON.stringify(error)
         console.error('API连接初始化失败:', errMsg)
         throw new Error(`API连接失败: ${errMsg}`)
       }
@@ -559,7 +557,7 @@ function createWalletInstance() {
         return
       }
       if (password) {
-        //验证密码是否正确
+        // 验证密码是否正确
         const isValid = await PasswordManager.verifyPassword(password)
         if (!isValid) {
           // walletStatus.value = WalletStatus.DISCONNECTED
@@ -601,14 +599,13 @@ function createWalletInstance() {
           walletStatus.value = WalletStatus.CONNECTED
           return
         } catch (err) {
-          const errMsg = JSON.stringify(err);
+          const errMsg = JSON.stringify(err)
           logError(`使用密码初始化钱包失败: ${errMsg}`)
           throw err
         }
       } else {
-        //如果没有提供密码，设置为锁定状态
+        // 如果没有提供密码，设置为锁定状态
         try {
-
           // 尝试使用localStorage中可能存在的钱包地址缓存
           const cachedWalletAddress = localStorage.getItem('bongo-cat-wallet-address')
           const cachedWalletName = localStorage.getItem('bongo-cat-wallet-name')
@@ -625,7 +622,7 @@ function createWalletInstance() {
               balance: '0.0000 DFS', // 锁定状态下无法获取真实余额
               publicKey: cachedWalletPublicKey || undefined,
               type: cachedWalletType || WalletType.DFS,
-              chainId: cachedWalletChainId || DFS_CHAIN_ID
+              chainId: cachedWalletChainId || DFS_CHAIN_ID,
             }
 
             // 初始化DfsWallet，不提供私钥，仅用于显示界面
@@ -648,7 +645,7 @@ function createWalletInstance() {
       isWalletLocked.value = true
       logInfo('钱包初始化完成，处于锁定状态，需要手动解锁')
     } catch (err: any) {
-      const errMsg = JSON.stringify(err);
+      const errMsg = JSON.stringify(err)
       console.error('初始化钱包失败:', errMsg)
       error.value = `初始化钱包失败: ${errMsg}`
       walletStatus.value = WalletStatus.ERROR
@@ -742,7 +739,7 @@ function createWalletInstance() {
       console.log('钱包断开连接成功')
       return true // 返回成功状态
     } catch (err: any) {
-      const errMsg = JSON.stringify(err);
+      const errMsg = JSON.stringify(err)
       console.error('断开钱包失败:', errMsg)
       error.value = `断开钱包失败: ${errMsg}`
       // 即使发生错误，也强制重置状态
@@ -751,7 +748,6 @@ function createWalletInstance() {
       return false
     }
   }
-
 
   /**
    * 获取表数据
@@ -833,31 +829,31 @@ function createWalletInstance() {
         }
       } else {
         // 为其他代币类型检查余额和确定合约
-        let tokenBalance = 0;
-        let tokenContract = '';
-        
+        let tokenBalance = 0
+        let tokenContract = ''
+
         // 首先刷新余额以获取最新的资产列表
-        const balanceResult = await refreshBalance();
+        const balanceResult = await refreshBalance()
         if (!balanceResult || !balanceResult.assetsList) {
-          throw new Error('无法获取资产列表');
+          throw new Error('无法获取资产列表')
         }
-        
+
         // 在资产列表中查找对应的代币
-        const tokenAsset = balanceResult.assetsList.find(asset => asset.key === currency);
+        const tokenAsset = balanceResult.assetsList.find(asset => asset.key === currency)
         if (!tokenAsset) {
-          throw new Error(`找不到${currency}代币信息`);
+          throw new Error(`找不到${currency}代币信息`)
         }
-        
+
         // 获取代币合约和余额
-        tokenContract = tokenAsset.contract;
-        tokenBalance = Number.parseFloat(tokenAsset.balance);
-        
+        tokenContract = tokenAsset.contract
+        tokenBalance = Number.parseFloat(tokenAsset.balance)
+
         if (amountNum > tokenBalance) {
-          throw new Error('余额不足');
+          throw new Error('余额不足')
         }
-        
+
         // 记录日志
-        logInfo(`发送${currency}代币，合约: ${tokenContract}, 余额: ${tokenBalance}`);
+        logInfo(`发送${currency}代币，合约: ${tokenContract}, 余额: ${tokenBalance}`)
       }
 
       // 获取交易密码 - 现在支持外部传入密码
@@ -889,7 +885,7 @@ function createWalletInstance() {
 
       try {
         // 构建发送代币的交易
-        let transaction;
+        let transaction
 
         if (currency === 'DFS') {
           // 发送DFS代币
@@ -911,20 +907,20 @@ function createWalletInstance() {
           }
         } else {
           // 获取代币合约
-          const balanceResult = await refreshBalance();
+          const balanceResult = await refreshBalance()
           if (!balanceResult || !balanceResult.assetsList) {
-            throw new Error('无法获取资产列表');
+            throw new Error('无法获取资产列表')
           }
-          
+
           // 在资产列表中查找对应的代币
-          const tokenAsset = balanceResult.assetsList.find(asset => asset.key === currency);
+          const tokenAsset = balanceResult.assetsList.find(asset => asset.key === currency)
           if (!tokenAsset) {
-            throw new Error(`找不到${currency}代币信息`);
+            throw new Error(`找不到${currency}代币信息`)
           }
-          
+
           // 获取代币合约
-          const tokenContract = tokenAsset.contract;
-          
+          const tokenContract = tokenAsset.contract
+
           // 发送代币交易
           transaction = {
             actions: [{
@@ -1048,7 +1044,6 @@ function createWalletInstance() {
 
       // 使用DfsWallet获取DFS余额
       const balance = await dfsWallet.getbalance('eosio.token', currentWallet.value.address, 'DFS')
-
 
       // 获取所有其他代币余额
       const allTokens = await dfsWallet.get_currency_balance('dfsppptokens', currentWallet.value.address)
@@ -1188,13 +1183,13 @@ function createWalletInstance() {
           if (parts.length === 2) {
             const tokenBalance = parts[0]
             const symbol = parts[1]
-            
+
             // 跳过已添加的标准USDT
             if (symbol === 'USDT') return
-            
+
             const randomPrice = (Math.random() * 10).toFixed(2)
             const value = Number.parseFloat(tokenBalance) * Number.parseFloat(randomPrice)
-            
+
             // 使用循环颜色系统
             const colorIndex = (index + allTokens.length) % colorClasses.length
 

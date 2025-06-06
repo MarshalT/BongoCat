@@ -3,8 +3,8 @@ import { message } from 'ant-design-vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 
 import { useWallet, WalletStatus, WalletType } from './useWallet'
-import { PasswordManager } from '@/utils/PasswordManager'
 
+import { PasswordManager } from '@/utils/PasswordManager'
 import { getDFSPriceFromAPI, getTokenPrice } from '@/utils/tokenPrice'
 
 // 用于管理钱包UI状态的composable
@@ -55,11 +55,11 @@ export function useWalletUI() {
     // 新钱包表单
     newWallet: {
       accountName: '',
-      code: "",
+      code: '',
       isCreating: false,
       reset() {
         this.accountName = ''
-        this.code = ""
+        this.code = ''
         this.isCreating = false
       },
     },
@@ -113,7 +113,7 @@ export function useWalletUI() {
       value: 0,
       color: 'bg-green-500',
       logoUrl: 'https://dfs.land/assets/tokens/usdtusdtusdt-USDT.png',
-    }
+    },
   ])
 
   // 计算属性
@@ -302,7 +302,7 @@ export function useWalletUI() {
             ...asset,
             value: calculatedValue,
             // 如果资产中有 logoUrl 则使用，否则保持现有的 logoUrl（如果存在）
-            logoUrl: asset.logoUrl || assetList.value.find(a => a.key === asset.key)?.logoUrl
+            logoUrl: asset.logoUrl || assetList.value.find(a => a.key === asset.key)?.logoUrl,
           }
         })
 
@@ -357,8 +357,6 @@ export function useWalletUI() {
     }
   }
 
- 
-
   // 断开钱包连接
   const handleDisconnectWallet = async () => {
     if (!isWalletConnected.value) {
@@ -409,7 +407,7 @@ export function useWalletUI() {
         forms.send.amount,
         forms.send.currency,
         forms.send.memo,
-        password // 传递密码参数
+        password, // 传递密码参数
       )
 
       modals.send = false
@@ -419,7 +417,7 @@ export function useWalletUI() {
       message.success('交易发送成功')
       return true
     } catch (err) {
-      const errMsg = JSON.stringify(err);
+      const errMsg = JSON.stringify(err)
       addDebugLog(`交易发送失败: ${errMsg}`)
       message.error(`交易发送失败: ${errMsg}`)
       throw err
@@ -430,7 +428,7 @@ export function useWalletUI() {
   const completeBackup = () => {
     modals.backup = false
     forms.backup.reset()
-    //锁定钱包
+    // 锁定钱包
     handleLockWallet()
     addDebugLog('备份过程完成')
   }
@@ -467,10 +465,10 @@ export function useWalletUI() {
 
         // 解密获取完整的钱包数据
         const walletData = await PasswordManager.decryptData(encryptedWallet, password)
-        
+
         // 重置自动锁定计时器
         resetWalletLockTimer()
-        
+
         // 获取真实的私钥
         return walletData.privateKey
       }
@@ -478,7 +476,7 @@ export function useWalletUI() {
       // 如果没有提供密码，返回null (UI层需要处理密码输入)
       return null
     } catch (error) {
-      const errMsg = JSON.stringify(error);
+      const errMsg = JSON.stringify(error)
       addDebugLog(`获取私钥失败: ${errMsg}`)
       message.error(`获取私钥失败: ${errMsg}`)
       return null
@@ -539,14 +537,14 @@ export function useWalletUI() {
     try {
       addDebugLog('尝试解锁钱包')
       const success = await wallet.unlockWallet(password)
-      
+
       if (success) {
         addDebugLog('钱包解锁成功')
         message.success('钱包解锁成功')
-        
+
         // 关闭解锁对话框
         modals.unlockWallet = false
-        
+
         // 刷新钱包余额
         await refreshWalletBalance()
         return true
@@ -556,7 +554,7 @@ export function useWalletUI() {
         return false
       }
     } catch (err) {
-      const errMsg = JSON.stringify(err);
+      const errMsg = JSON.stringify(err)
       addDebugLog(`解锁钱包出错: ${errMsg}`)
       message.error(`解锁钱包失败: ${errMsg}`)
       throw err

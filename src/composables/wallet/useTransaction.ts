@@ -126,7 +126,7 @@ export function useTransaction() {
         throw new Error('交易创建失败')
       }
     } catch (err: any) {
-      const errMsg = JSON.stringify(err);
+      const errMsg = JSON.stringify(err)
       console.error('交易发送失败:', errMsg)
       transactionError.value = errMsg
       transactionStatus.value = TransactionStatus.FAILED

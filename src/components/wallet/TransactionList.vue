@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Transaction } from '@/composables/wallet/useWallet'
 
-import { PlusOutlined, SwapOutlined, HeartOutlined, GiftOutlined } from '@ant-design/icons-vue'
+import { GiftOutlined, HeartOutlined, PlusOutlined, SwapOutlined } from '@ant-design/icons-vue'
 
 // 组件属性
 interface Props {
@@ -41,43 +41,43 @@ function openTransaction(id: string) {
 }
 
 // 添加一个函数来获取交易图标和颜色
-const getTransactionIconAndColor = (transaction) => {
+function getTransactionIconAndColor(transaction) {
   // 根据交易类型和备注确定图标和颜色
   if (transaction.memo?.includes('铸造猫咪')) {
     return {
       icon: 'gift',
       color: '#722ed1', // 紫色
-    };
+    }
   } else if (transaction.memo?.includes('喂养猫咪')) {
     return {
       icon: 'heart',
       color: '#eb2f96', // 粉色
-    };
+    }
   } else if (transaction.type === 'send') {
     return {
       icon: 'arrow-up',
       color: '#f5222d', // 红色
-    };
+    }
   } else {
     return {
       icon: 'arrow-down',
       color: '#52c41a', // 绿色
-    };
+    }
   }
-};
+}
 
 // 获取交易类型显示文本
-const getTransactionTypeText = (transaction) => {
+function getTransactionTypeText(transaction) {
   if (transaction.memo?.includes('铸造猫咪')) {
-    return '铸造猫咪';
+    return '铸造猫咪'
   } else if (transaction.memo?.includes('喂养猫咪')) {
-    return '喂养猫咪';
+    return '喂养猫咪'
   } else if (transaction.type === 'send') {
-    return '发送';
+    return '发送'
   } else {
-    return '接收';
+    return '接收'
   }
-};
+}
 </script>
 
 <template>

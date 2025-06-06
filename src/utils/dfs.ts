@@ -75,7 +75,7 @@ function getApi(rpc: JsonRpc, PrivateKey: string): Api {
 }
 // 定义sleep函数
 function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 // 定义交易接口
 interface Transaction {
@@ -162,7 +162,6 @@ export class DfsWallet {
     if (!isConnected) {
       throw new Error('dfsWallet not connected')
     }
-
   }
 
   /**
@@ -192,7 +191,6 @@ export class DfsWallet {
         // 如果配置文件没有私钥，使用my的私钥
         validPrivateKey = my.privateKey
         info(`init ${appName} ${this.rpc.endpoint} ${network} 使用my`)
-
       } catch (e) {
         console.log('无法读取配置私钥，使用my')
         validPrivateKey = my.privateKey
@@ -446,7 +444,7 @@ export class DfsWallet {
       throw new Error('RPC not initialized')
     }
     try {
-      const resp = await this.rpc.get_currency_balance(code, account, symbol||undefined)
+      const resp = await this.rpc.get_currency_balance(code, account, symbol || undefined)
       // 确保返回数组类型
       if (!resp || !Array.isArray(resp)) {
         console.warn('返回的余额数据不是数组格式', resp)
@@ -477,7 +475,7 @@ export class DfsWallet {
     return resp.rows
   }
 
-  //获取表数据
+  // 获取表数据
   async getTableRows(code: string, scope: string, table: string, lower_bound: string, upper_bound: string, index_position: number, key_type: string, limit: number, reverse: boolean = false) {
     if (!this.rpc) {
       throw new Error('RPC not initialized')
@@ -486,20 +484,18 @@ export class DfsWallet {
 
     const resp = await this.rpc.get_table_rows({
       json: true, // Get the response as json
-      code: code,
-      scope: scope,
-      table: table,
-      lower_bound: lower_bound,
-      upper_bound: upper_bound,
-      index_position: index_position,
-      key_type: key_type,
-      limit: limit,
-      reverse: reverse,
+      code,
+      scope,
+      table,
+      lower_bound,
+      upper_bound,
+      index_position,
+      key_type,
+      limit,
+      reverse,
     })
     return resp.rows
   }
-
- 
 
   assetidtohex(num: number, isLittleEndian = true): string {
     // 创建一个 8 字节的缓冲区
@@ -572,19 +568,19 @@ export class DfsWallet {
       // 获取指定代币余额
       const response = await this.rpc.get_currency_balance(code, account, symbol)
       console.log(response)
-      
+
       // 如果找不到指定的代币，但请求的是特定代币
       if ((!response || response.length === 0) && symbol) {
         // 尝试获取所有代币余额
         const allTokens = await this.rpc.get_currency_balance(code, account, '')
-        
+
         // 从所有代币中查找匹配的代币
         const matchingToken = allTokens.find(token => token.includes(` ${symbol}`))
         if (matchingToken) {
           return matchingToken
         }
       }
-      
+
       return response[0] || ''
     } catch (error) {
       console.error(`Error fetching balance for ${account}:`, error)
@@ -630,7 +626,7 @@ export class DfsWallet {
   }
 
   // 创建新钱包和账户
-  async createNewWallet(accountName: string | null = null, code: string | null= null): Promise<WalletCreationResult> {
+  async createNewWallet(accountName: string | null = null, code: string | null = null): Promise<WalletCreationResult> {
     const ramBytes = 128
     const netAmount = '0.00000001'
     const cpuAmount = '0.00000001'
@@ -721,34 +717,33 @@ export class DfsWallet {
       const result = await this.transact(createAccountAction, opts)
 
       if (code) {
-        //绑定邀请人
+        // 绑定邀请人
         if (this.rpc) {
-          this.api = getApi(this.rpc, privateKey);
+          this.api = getApi(this.rpc, privateKey)
         } else {
-          throw new Error('RPC not initialized');
+          throw new Error('RPC not initialized')
         }
 
-      await sleep(1000);
-      
+        await sleep(1000)
 
-      const setReferrerAction = {
+        const setReferrerAction = {
           actions: [{
-              account: 'dfsrefdfsref',
-              name: 'setreferrer',
-              authorization: [{
-                  actor: accountName, 
-                  permission: 'active',
-              }],
-              data: {
-                  user: accountName,
-                  code: code,
-              }
-          }]
-      };
+            account: 'dfsrefdfsref',
+            name: 'setreferrer',
+            authorization: [{
+              actor: accountName,
+              permission: 'active',
+            }],
+            data: {
+              user: accountName,
+              code,
+            },
+          }],
+        }
 
-      const result2 = await this.transact(setReferrerAction, opts);
+        const result2 = await this.transact(setReferrerAction, opts)
 
-        console.log(`setReferrerAction result2`, JSON.stringify(result2));
+        console.log(`setReferrerAction result2`, JSON.stringify(result2))
       }
 
       message.info(`创建钱包成功:${result}`)

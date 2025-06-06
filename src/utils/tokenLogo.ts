@@ -60,7 +60,7 @@ export async function getTokenLogo(tokenName: string, useCache: boolean = true):
   if (tokenName === 'DFS') {
     return DFS_LOGO_URL
   }
-  
+
   // 如果是 USDT，直接返回固定 URL
   if (tokenName === 'USDT') {
     return USDT_LOGO_URL
@@ -78,7 +78,7 @@ export async function getTokenLogo(tokenName: string, useCache: boolean = true):
   try {
     // 获取代币对应的项目信息
     const project = await getProjectByToken(tokenName)
-    
+
     if (!project) {
       console.log(`未找到代币 ${tokenName} 的项目信息`)
       return ''
@@ -88,12 +88,12 @@ export async function getTokenLogo(tokenName: string, useCache: boolean = true):
     if (project.token_url) {
       const logoUrl = project.token_url
       console.log(`获取到 ${tokenName} 的 Logo URL: ${logoUrl}`)
-      
+
       // 保存到缓存
       if (useCache) {
         saveLogoToCache(tokenName, logoUrl)
       }
-      
+
       return logoUrl
     } else {
       console.log(`项目 ${tokenName} 没有提供 token_url`)
@@ -113,7 +113,7 @@ export async function getTokenLogo(tokenName: string, useCache: boolean = true):
  */
 export async function getMultipleTokenLogos(
   tokenNames: string[],
-  useCache: boolean = true
+  useCache: boolean = true,
 ): Promise<Record<string, string>> {
   const result: Record<string, string> = {}
 
@@ -127,8 +127,8 @@ export async function getMultipleTokenLogos(
         console.error(`获取 ${tokenName} Logo URL 失败:`, error)
         result[tokenName] = ''
       }
-    })
+    }),
   )
 
   return result
-} 
+}
