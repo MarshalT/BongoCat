@@ -11,7 +11,8 @@ import {
   HeartOutlined,
   GiftOutlined,
   QuestionCircleOutlined,
-  TrophyOutlined
+  TrophyOutlined,
+  RocketOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { computed, onMounted, ref, onUnmounted, watch } from 'vue'
@@ -43,6 +44,8 @@ import {
   getCatInteractions as chainGetCatInteractions,
   getAllCats
 } from '@/utils/chainOperations'
+// 导入Lunchpad组件
+import LunchpadView from '@/components/lunchpad/LunchpadView.vue'
 
 // 猫咪数据结构接口
 interface CatInfo {
@@ -90,6 +93,8 @@ const showHelpModal = ref(false)
 const showRankingModal = ref(false)
 const rankingList = ref<CatInfo[]>([])
 const rankingLoading = ref(false)
+// 添加Lunchpad状态变量
+const showLunchpad = ref(false)
 
 // 猫咪互动响应语句数组
 const catResponses = [
@@ -675,6 +680,11 @@ onMounted(async () => {
     walletUI.addDebugLog('钱包组件挂载时出错', err)
   }
 })
+
+// 打开Lunchpad
+const openLunchpad = () => {
+  showLunchpad.value = true;
+}
 </script>
 
 <template>
@@ -693,6 +703,9 @@ onMounted(async () => {
       <div class="flex gap-2">
         <a-button @click="refreshData" :loading="loading">
           <ReloadOutlined /> 刷新数据
+        </a-button>
+        <a-button @click="openLunchpad" :loading="rankingLoading">
+          <RocketOutlined /> lunchpad
         </a-button>
         <a-button @click="fetchRankingData" :loading="rankingLoading">
           <TrophyOutlined /> 排行榜
@@ -1455,6 +1468,17 @@ onMounted(async () => {
           </a-button>
         </div>
       </div>
+    </a-modal>
+
+    <!-- Lunchpad模态框 -->
+    <a-modal
+      v-model:visible="showLunchpad"
+      title="项目列表"
+      width="80%"
+      :footer="null"
+      :maskClosable="true"
+    >
+      <LunchpadView />
     </a-modal>
   </div>
 </template>
