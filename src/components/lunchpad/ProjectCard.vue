@@ -31,8 +31,71 @@ const rankColor = computed(() => {
 
 // 计算进度条宽度百分比
 const progressPercent = computed(() => {
-  // 模拟随机进度，实际项目中应根据实际数据计算
-  return `${Math.floor(Math.random() * 100)}%`
+  try {
+    // 如果项目已停止，进度条显示为满的（100%）
+    if (isStopped.value || props.project.isStop) {
+      return '100%'
+    }
+
+    // 检查必要的属性是否存在
+    if (!props.project.last_round || !props.project.sec_per_round) {
+      return '0%'
+    }
+
+    // 解析上一轮时间
+    let lastRoundTimestamp
+    if (typeof props.project.last_round === 'number') {
+      // 如果是数字，则认为已经是时间戳（秒）
+      lastRoundTimestamp = props.project.last_round * 1000 // 转换为毫秒
+    } else {
+      // 如果是字符串，尝试解析为日期
+      try {
+        const lastRoundDate = new Date(props.project.last_round)
+        if (isNaN(lastRoundDate.getTime())) {
+          console.error('Invalid last_round date:', props.project.last_round)
+          return '0%'
+        }
+        lastRoundTimestamp = lastRoundDate.getTime()
+      } catch (error) {
+        console.error('Error parsing last_round:', error)
+        return '0%'
+      }
+    }
+
+    // 计算轮次周期（毫秒）
+    const roundDurationMs = props.project.sec_per_round * 1000
+    
+    // 计算下一轮时间 = 上一轮时间 + 轮次间隔秒数
+    const nextRoundTimestamp = lastRoundTimestamp + roundDurationMs
+    
+    // 获取当前时间
+    const now = new Date().getTime()
+    
+    // 计算当前时间到下一轮的剩余时间（毫秒）
+    let remainingTime = nextRoundTimestamp - now
+    
+    // 如果已经过了下一轮时间，则计算再下一轮
+    if (remainingTime < 0) {
+      // 计算已经过了多少个完整的轮次
+      const passedRounds = Math.ceil(Math.abs(remainingTime) / roundDurationMs)
+      // 计算实际的下一轮时间
+      const actualNextRoundTimestamp = nextRoundTimestamp + passedRounds * roundDurationMs
+      remainingTime = actualNextRoundTimestamp - now
+    }
+    
+    // 计算已经过去的时间 = 总轮次时间 - 剩余时间
+    const elapsedTime = roundDurationMs - remainingTime
+    
+    // 计算进度百分比 = 已过去时间 / 总轮次时间 * 100%
+    const percent = Math.min(100, Math.max(0, Math.floor((elapsedTime / roundDurationMs) * 100)))
+    
+    console.log(`进度条计算: 总时长=${roundDurationMs}ms, 剩余=${remainingTime}ms, 已过=${elapsedTime}ms, 百分比=${percent}%`)
+    
+    return `${percent}%`
+  } catch (error) {
+    console.error('Error calculating progress percent:', error)
+    return '0%'
+  }
 })
 
 // 使用响应式变量存储倒计时
@@ -308,7 +371,7 @@ const priceChangePercent = computed(() => {
         <div class="stat-label">
           涨幅:
         </div>
-        <div>
+        <div class="stat-value">
           {{ priceChangePercent }}
         </div>
 
@@ -494,7 +557,7 @@ const priceChangePercent = computed(() => {
 
 .stat-row {
   display: grid;
-  grid-template-columns: auto 1fr auto 1fr auto 1fr;
+  grid-template-columns: auto minmax(50px, 1fr) auto minmax(60px, 1fr) auto minmax(50px, 1fr);
   gap: 8px;
   align-items: center;
   margin-bottom: 4px;
