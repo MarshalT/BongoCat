@@ -387,8 +387,8 @@ async function handlePasswordConfirm() {
         abortController.value = new AbortController()
         batchBuyInProgress.value = true
 
-        message.loading({ content: `正在并发批量购买 ${ids.length} 个NFT (带重试功能)...`, key: 'batch-buy' })
-        info(`开始并发批量购买 ${ids.length} 个NFT (带重试功能)`)
+        message.loading({ content: `正在并发批量购买 ${ids.length} 个NFT (带提前购买功能)...`, key: 'batch-buy' })
+        info(`开始并发批量购买 ${ids.length} 个NFT (带提前购买功能)`)
         
         // 调用批量购买函数
         const result = await executeBatchBuy(

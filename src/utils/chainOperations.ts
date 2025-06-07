@@ -38,9 +38,9 @@ export async function checkCatHasAvailableExp(wallet: any, owner: string, catId:
           // 检查是否是上次检查后的新记录
           const logTime = (new Date(log.create_time).getTime() / 1000) + 8 * 3600
           if (logTime > lastCheckTime) {
-            // 检查是否有USDT交易
+            // 检查是否有USDT交易 或者包含 DFS
             const inAmount = log.in || ''
-            return inAmount.includes('USDT')
+            return inAmount.includes('USDT') || inAmount.includes('DFS')
           }
         }
         return false

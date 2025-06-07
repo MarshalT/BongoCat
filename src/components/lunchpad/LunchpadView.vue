@@ -146,7 +146,7 @@ async function fetchProjects() {
       // 获取项目的 registry 数据条数作为发行量和最新的 last_trade 时间
       let issuance = 0
       let isStop = false
-      const latestLastTrade = null
+   
 
       try {
         if (wallet) {
@@ -197,7 +197,7 @@ async function fetchProjects() {
               }).length
 
               info(`项目 #${pid} 的停止数量: ${stopCount}`)
-              if (stopCount == issuance) {
+              if (stopCount == issuance||issuance==0) {
                 isStop = true
               }
             }
