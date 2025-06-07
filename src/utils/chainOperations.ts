@@ -37,7 +37,7 @@ export async function checkCatHasAvailableExp(wallet: any, owner: string, catId:
         if (log.user === owner) {
           // 检查是否是上次检查后的新记录
           const logTime = (new Date(log.create_time).getTime() / 1000) + 8 * 3600
-          
+
           if (logTime > lastCheckTime) {
             // 检查是否有USDT交易 或者包含 DFS
             const inAmount = log.in || ''
@@ -312,6 +312,7 @@ export async function getUserCats(wallet: any, accountName: string, debugLog?: (
     )
 
     debugLog?.('获取猫咪API调用结果:', result)
+    // debugLog?.(`获取猫咪API调用结果: ${JSON.stringify(result)}`)
 
     if (result && Array.isArray(result)) {
       // 过滤出属于当前用户的猫

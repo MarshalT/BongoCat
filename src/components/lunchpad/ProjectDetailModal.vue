@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { info } from '@tauri-apps/plugin-log'
 import { message } from 'ant-design-vue'
-import { computed, h, nextTick, ref, watch } from 'vue'
+import { computed, h, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
 
 import { useWallet } from '@/composables/wallet/useWallet'
 import { checkBatchBuyEligibility } from '@/utils/batchBuyEligibility'
 import { executeBatchBuy, executeBuyNftByid } from '@/utils/buynft'
 import { PasswordManager } from '@/utils/PasswordManager'
+// 导入时间工具函数
+import { calculateNextRound, calculateCountdown, formatTimeRemaining, parseTime } from '@/utils/timetool'
 
 // Props
 const props = defineProps({
@@ -37,6 +39,10 @@ const detailsLoading = ref(false)
 const projectDetails = ref<any[]>([])
 const selectedNfts = ref<Set<number>>(new Set())
 
+// 倒计时相关状态
+const countdowns = ref<Map<number, string>>(new Map())
+let countdownInterval: ReturnType<typeof setInterval> | null = null
+
 // 批量购买状态
 const batchBuyInProgress = ref(false)
 const abortController = ref<AbortController | null>(null)
@@ -63,6 +69,17 @@ interface TableColumnRenderProps {
   text: any
   record: any
   index: number
+}
+
+// 假设NFT的接口定义
+interface NFT {
+  id: number;
+  owner?: string;
+  current_round?: number;
+  current_price?: number;
+  last_round?: string;
+  sec_per_round?: number;
+  [key: string]: any; // 其他可能的属性
 }
 
 // 监听项目变化，加载详情
@@ -505,6 +522,103 @@ async function handlePasswordConfirm() {
     }, 500)
   }
 }
+
+// 判断NFT是否可购买（只有当下一轮已经开始时才能购买）
+function canBuyNft(nft: any): boolean {
+  try {
+    if (!props.project || !props.project.last_round || !props.project.sec_per_round) {
+      return false
+    }
+    
+    // 解析上一轮时间
+    const lastRoundTimestamp = parseTime(props.project.last_round)
+    
+    // 计算轮次周期（毫秒）
+    const roundDurationMs = props.project.sec_per_round * 1000
+    
+    // 计算下一轮时间
+    const nextRoundTimestamp = calculateNextRound(lastRoundTimestamp, roundDurationMs)
+    
+    // 如果当前时间已经超过下一轮开始时间，则可以购买
+    return Date.now() >= nextRoundTimestamp
+  } catch (error) {
+    console.error('Error checking if NFT can be bought:', error)
+    return false
+  }
+}
+
+// 获取NFT的下一轮倒计时
+function getNftNextRoundCountdown(nft: any): string {
+  try {
+    if (!props.project || !props.project.last_round || !props.project.sec_per_round) {
+      return '计算中...'
+    }
+    
+    // 从缓存中获取倒计时
+    if (countdowns.value.has(nft.id)) {
+      return countdowns.value.get(nft.id) || '计算中...'
+    }
+    
+    return '计算中...'
+  } catch (error) {
+    console.error('Error getting NFT countdown:', error)
+    return '计算错误'
+  }
+}
+
+// 更新所有NFT的倒计时
+function updateCountdowns() {
+  if (!props.project || !props.project.last_round || !props.project.sec_per_round) {
+    return
+  }
+  
+  try {
+    // 解析上一轮时间
+    const lastRoundTimestamp = parseTime(props.project.last_round)
+    
+    // 计算轮次周期（毫秒）
+    const roundDurationMs = props.project.sec_per_round * 1000
+    
+    // 计算下一轮时间
+    const nextRoundTimestamp = calculateNextRound(lastRoundTimestamp, roundDurationMs)
+    
+    // 计算当前时间到下一轮的剩余时间（毫秒）
+    const now = Date.now()
+    const remainingTime = nextRoundTimestamp - now
+    
+    // 已开始新一轮
+    if (remainingTime <= 0) {
+      projectDetails.value.forEach(nft => {
+        countdowns.value.set(nft.id, '已开始')
+      })
+      return
+    }
+    
+    // 格式化剩余时间
+    const formattedTime = formatTimeRemaining(remainingTime)
+    
+    // 更新每个NFT的倒计时
+    projectDetails.value.forEach(nft => {
+      countdowns.value.set(nft.id, formattedTime)
+    })
+  } catch (error) {
+    console.error('Error updating countdowns:', error)
+  }
+}
+
+// 组件挂载时启动倒计时
+onMounted(() => {
+  // 设置定时器，每秒更新一次倒计时
+  countdownInterval = setInterval(updateCountdowns, 1000)
+})
+
+// 组件卸载时清除定时器
+onUnmounted(() => {
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+    countdownInterval = null
+  }
+})
 </script>
 
 <template>
@@ -595,20 +709,26 @@ async function handlePasswordConfirm() {
               customRender: ({ text }: TableColumnRenderProps) => text || '无',
             },
             {
-              title: '最后交易',
-              dataIndex: 'last_trade',
-              key: 'last_trade',
-              customRender: ({ text }: TableColumnRenderProps) => text || '无',
+              title: '下一轮倒计时',
+              dataIndex: 'id',
+              key: 'countdown',
+              customRender: ({ text, record }: TableColumnRenderProps) => getNftNextRoundCountdown(record) || '无',
             },
             {
               title: '购买',
               dataIndex: 'id',
               key: 'buy',
               customRender: ({ text, record }: TableColumnRenderProps) => {
+                const canBuy = canBuyNft(record);
                 return h('button', {
-                  class: 'ant-btn ant-btn-primary',
+                  class: `ant-btn ${canBuy ? 'ant-btn-primary' : 'ant-btn-default'}`,
+                  disabled: !canBuy,
                   onClick: () => buyNft(text, record.current_price),
-                }, '购买');
+                  style: canBuy ? {} : { 
+                    opacity: '0.5',
+                    cursor: 'not-allowed'
+                  },
+                }, canBuy ? '购买' : '等待下一轮');
               },
             },
           ]"
