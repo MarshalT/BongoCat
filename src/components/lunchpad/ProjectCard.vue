@@ -241,6 +241,16 @@ const priceChangePercent = computed(() => {
     return '0.00%'
   }
 })
+
+const formatNumber = (value: number) => {
+  if (!value) return '0'
+  return value.toLocaleString('en-US', {
+    maximumFractionDigits: 0,
+    style: 'currency',
+    currency: 'USD',
+    currencyDisplay: 'narrowSymbol'
+  }).replace('$', '') // 显示为纯数字格式
+}
 </script>
 
 <template>
@@ -313,91 +323,34 @@ const priceChangePercent = computed(() => {
       </div>
     </div>
 
-    <div class="card-stats">
-      <div class="stat-row">
-        <div class="stat-label">
-          市值:
-        </div>
-        <div class="stat-value">
-          {{ project.marketCap || '$0.00' }}
-        </div>
+    <div class="stats-grid">
+      <div class="stat-label">市值:</div>
+      <div class="stat-value">{{ project.marketCap || '$0.00' }}</div>
+      <div class="stat-label">成交量:</div>
+      <div class="stat-value">{{ formatNumber(project.volume || 0) }}</div>
+      <div class="stat-label">TXS:</div>
+      <div class="stat-value">{{ formatNumber(project.transactions || 0) }}</div>
 
-        <div class="stat-label">
-          成交量:
-        </div>
-        <div class="stat-value">
-          {{ project.volume || '$0.00' }}
-        </div>
+      <div class="stat-label">发行量:</div>
+      <div class="stat-value">{{ project.issuance || 0 }}</div>
+      <div class="stat-label">成交量(24H):</div>
+      <div class="stat-value">{{ project.volume24h || '$0.00' }}</div>
+      <div class="stat-label">24H TXS:</div>
+      <div class="stat-value">{{ project.transactions24h || 0 }}</div>
 
-        <div class="stat-label">
-          TXS:
-        </div>
-        <div class="stat-value">
-          {{ project.transactions || 0 }}
-        </div>
-      </div>
+      <div class="stat-label">每轮:</div>
+      <div class="stat-value">{{ project.sec_per_round / 3600 || '' }} Hours</div>
+      <div class="stat-label">涨幅:</div>
+      <div class="stat-value">{{ priceChangePercent }}</div>
+      <div class="stat-label">手续费:</div>
+      <div class="stat-value">{{ feePercent }}</div>
 
-      <div class="stat-row">
-        <div class="stat-label">
-          发行量:
-        </div>
-        <div class="stat-value">
-          {{ project.issuance || 0 }}
-        </div>
-
-        <div class="stat-label">
-          成交量(24H):
-        </div>
-        <div class="stat-value">
-          {{ project.volume24h || '$0.00' }}
-        </div>
-
-        <div class="stat-label">
-          24H TXS:
-        </div>
-        <div class="stat-value">
-          {{ project.transactions24h || 0 }}
-        </div>
-      </div>
-
-      <div class="stat-row">
-        <div class="stat-label">
-          每轮:
-        </div>
-        <div class="stat-value">
-          {{ project.sec_per_round / 3600 || '' }} Hours
-        </div>
-
-        <div class="stat-label">
-          涨幅:
-        </div>
-        <div class="stat-value">
-          {{ priceChangePercent }}
-        </div>
-
-        <div class="stat-label">
-          手续费:
-        </div>
-        <div class="stat-value">
-          {{ feePercent }}
-        </div>
-      </div>
-
-      <div class="stat-row">
-        <div class="stat-label">
-          奖池:
-        </div>
-        <div class="stat-value">
-          {{ project.rewardPool || '$0' }}
-        </div>
-
-        <div class="stat-label">
-          资金池:
-        </div>
-        <div class="stat-value">
-          {{ project.fundingPool || '0.00 / 0.00' }}
-        </div>
-      </div>
+      <div class="stat-label">奖池:</div>
+      <div class="stat-value">{{ project.rewardPool || '$0' }}</div>
+      <div class="stat-label">资金池:</div>
+      <div class="stat-value">{{ project.fundingPool || '0.00 / 0.00' }}</div>
+      <div class="stat-label"></div>
+      <div class="stat-value"></div>
     </div>
   </div>
 </template>
@@ -551,26 +504,28 @@ const priceChangePercent = computed(() => {
   border-radius: 3px;
 }
 
-.card-stats {
-  margin-bottom: 16px;
-}
-
-.stat-row {
+/* 新的网格布局统计样式 */
+.stats-grid {
   display: grid;
-  grid-template-columns: auto minmax(50px, 1fr) auto minmax(60px, 1fr) auto minmax(50px, 1fr);
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 4px;
-  font-size: 12px;
+  grid-template-columns: auto minmax(40px, 70px) auto minmax(40px, 70px) auto minmax(40px, 70px);
+  grid-gap: 4px 8px;
+  margin-bottom: 16px;
+  align-items: baseline;
+  font-size: 13px;
 }
 
 .stat-label {
   color: #999;
+  white-space: nowrap;
+  justify-self: end;
 }
 
 .stat-value {
   color: #fff;
   font-weight: 500;
+  justify-self: start;
+  font-family: 'Roboto Mono', monospace;
+  white-space: nowrap;
 }
 
 .card-actions {

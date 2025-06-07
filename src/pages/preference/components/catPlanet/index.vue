@@ -1302,7 +1302,7 @@ function openLunchpad() {
                         <span class="cat-id-number-large">#{{ selectedCatId }}</span>
                       </div>
                     </div>
-                    <div>
+  <div>
                       <!-- <h3 class="text-lg font-medium">猫咪 #{{ selectedCatId }}</h3> -->
                       <h3 class="text-lg font-medium">
                         猫咪 #{{ selectedCatId }}
@@ -1310,7 +1310,7 @@ function openLunchpad() {
                       <p class="text-sm text-gray-500">
                         出生于 {{ formatTime(catsList.find(c => c.id === selectedCatId)?.birth_time || 0) }}
                       </p>
-                    </div>
+  </div>
                   </div>
 
                   <a-button
@@ -1603,7 +1603,7 @@ function openLunchpad() {
       <div class="mt-2 text-sm text-gray-500">
         <template v-if="actionType === 'upgrade'">
           升级将提升猫咪等级，消耗经验值
-        </template>
+</template>
         <template v-else-if="actionType === 'mint'">
           铸造猫咪将从您的钱包中扣除 <span class="text-red-500 font-bold">1.0000 DFS</span>
         </template>
