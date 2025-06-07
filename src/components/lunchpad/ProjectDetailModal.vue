@@ -619,6 +619,17 @@ onUnmounted(() => {
     countdownInterval = null
   }
 })
+
+// 处理创建者链接点击
+function handleCreatorClick(event: MouseEvent) {
+  // 获取创建者地址
+  const creatorAddress = props.project?.creator || props.project?.owner || ''
+  
+  // 如果有创建者地址，打开新窗口
+  if (creatorAddress) {
+    window.open(`https://www.dfsmoon.com/account/${creatorAddress}`, '_blank')
+  }
+}
 </script>
 
 <template>
@@ -658,7 +669,12 @@ onUnmounted(() => {
             </p>
             <div class="project-meta">
               <span class="meta-item">
-                <strong>创建者:</strong> {{ project?.creator || project?.owner || 'Unknown' }}
+                <strong>创建者:</strong> <a
+                  class="creator-link"
+                  :href="`https://www.dfsmoon.com/account/${project?.creator || project?.owner || ''}`"
+                  target="_blank"
+                  @click="handleCreatorClick"
+                >{{ project?.creator || project?.owner || 'Unknown' }}</a>
               </span>
               <span class="meta-item">
                 <strong>代币:</strong> {{ project?.tokenSymbol || 'Unknown' }}
@@ -749,12 +765,12 @@ onUnmounted(() => {
         >
           关闭
         </a-button>
-        <a-button
+        <!-- <a-button
           style="margin-left: 10px;"
           @click="() => { console.log('详情数据:', projectDetails); message.info('请查看控制台输出'); }"
         >
           调试
-        </a-button>
+        </a-button> -->
 
         <!-- 批量购买按钮组 -->
         <div
@@ -792,7 +808,7 @@ onUnmounted(() => {
       </div>
 
       <!-- 添加调试信息显示区域 -->
-      <div
+      <!-- <div
         v-if="projectDetails.length > 0"
         class="debug-info"
         style="margin-top: 20px; padding: 10px; background-color: rgba(0,0,0,0.5); border-radius: 8px;"
@@ -818,7 +834,7 @@ onUnmounted(() => {
         <div v-if="projectDetails.length > 2">
           ... 更多记录 ...
         </div>
-      </div>
+      </div> -->
     </a-spin>
   </a-modal>
 
@@ -951,6 +967,16 @@ onUnmounted(() => {
 
 .meta-item strong {
   color: #1677ff;
+}
+
+.creator-link {
+  color: #1677ff;
+  text-decoration: none;
+}
+
+.creator-link:hover {
+  text-decoration: underline;
+  opacity: 0.8;
 }
 
 .modal-footer {

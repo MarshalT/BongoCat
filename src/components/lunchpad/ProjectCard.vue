@@ -172,6 +172,20 @@ const priceChangePercent = computed(() => {
   }
 })
 
+// 处理创建者链接点击
+function handleCreatorClick(event: MouseEvent) {
+  // 阻止事件冒泡，防止触发卡片的点击事件
+  event.stopPropagation()
+  
+  // 获取创建者地址
+  const creatorAddress = props.project.creator || props.project.owner || ''
+  
+  // 如果有创建者地址，打开新窗口
+  if (creatorAddress) {
+    window.open(`https://www.dfsmoon.com/account/${creatorAddress}`, '_blank')
+  }
+}
+
 const formatNumber = (value: number) => {
   if (!value) return '0'
   return value.toLocaleString('en-US', {
@@ -221,8 +235,9 @@ const formatNumber = (value: number) => {
         <div class="creator">
           创建者: <a
             class="creator-link"
-            href="#"
-            @click.stop
+            :href="`https://www.dfsmoon.com/account/${project.creator || project.owner || ''}`"
+            target="_blank"
+            @click.stop="handleCreatorClick"
           >{{ project.creator || project.owner || 'Unknown' }}</a>
         </div>
 

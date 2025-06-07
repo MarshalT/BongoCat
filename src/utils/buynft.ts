@@ -515,7 +515,7 @@ async function buyNFTWithRetry(wallet: any, id: string | number, currentPrice: s
         const currentTime = new Date().getTime()
         const elapsedTime = currentTime - startTime
 
-        if (elapsedTime < 30* 1000) { // 如果未超过2分钟
+        if (elapsedTime <2* 60* 1000) { // 如果未超过2分钟
           // 购买失败，记录错误
           debugLog?.(`购买 NFT #${id} 失败，尝试重试: ${error.message || '未知错误'}`)
 
