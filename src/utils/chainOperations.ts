@@ -315,7 +315,7 @@ export async function getUserCats(wallet: any, accountName: string, debugLog?: (
     if (result && Array.isArray(result)) {
       // 过滤出属于当前用户的猫
       const userCats = result.filter(cat => cat.owner === accountName)
-      debugLog?.(`过滤后的用户猫咪列表: ${JSON.stringify(userCats)}`)
+      // debugLog?.(`过滤后的用户猫咪列表: ${JSON.stringify(userCats)}`)
       return userCats
     } else {
       debugLog?.('获取猫咪数据返回格式不正确:', result)
@@ -353,7 +353,7 @@ export async function getCatInteractions(wallet: any, catId: number, debugLog?: 
         .filter(interaction => Number(interaction.cat_id) === catId)
         .sort((a, b) => b.timestamp - a.timestamp)
         .slice(-5)
-      debugLog?.(`获取互动记录: ${JSON.stringify(interactions)}`)
+      // debugLog?.(`获取互动记录: ${JSON.stringify(interactions)}`)
       return interactions
     } else {
       debugLog?.('获取互动记录数据返回格式不正确:', result)

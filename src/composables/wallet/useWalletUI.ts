@@ -176,7 +176,11 @@ export function useWalletUI() {
 
   // 添加调试日志
   const addDebugLog = (message: string, data?: any) => {
-    info(message, data)
+    let logMessage = `[${message}]`
+    if (data) {
+      logMessage += ` ${JSON.stringify(data)}`
+    }
+    info(logMessage)
     // const timestamp = new Date().toLocaleTimeString()
     // const logMessage = data ? `${timestamp} - ${message}: ${JSON.stringify(data)}` : `${timestamp} - ${message}`
     // debugLogs.value.push(logMessage)
