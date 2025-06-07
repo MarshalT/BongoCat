@@ -7,6 +7,8 @@ import { useWallet } from '@/composables/wallet/useWallet'
 // 销毁或拆分NFT
 import { executeburnorsplieNftByid } from '@/utils/buynft'
 import { PasswordManager } from '@/utils/PasswordManager'
+// 导入时间工具函数
+import { formatISODate, formatTimeRemaining, isTimePassed, calculateProgress, parseTime } from '@/utils/timetool'
 // 获取钱包实例
 const wallet = useWallet()
 
@@ -40,21 +42,27 @@ const filteredNfts = computed(() => {
 function formatDate(timestamp: number | string) {
   if (!timestamp) return '-'
   const date = new Date(timestamp)
-  return date.toISOString().replace('T', ' ').substring(0, 19)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
 }
 
 // 判断NFT是否可以销毁
 function canBurnNft(nft: any): boolean {
   if (!nft || !nft.last_trade || !nft.project_info) return false
   
-  // 获取当前时间和最后交易时间
-  const currentTime = new Date().getTime()
+  // 获取最后交易时间
   const lastTradeTime = new Date(nft.last_trade).getTime()
   
-  // 当前时间减去最后一次购买时间超过 sec_to_burn_nft 时可以销毁
+  // 使用isTimePassed函数判断是否已过销毁所需时间
   const secToBurnNft = nft.project_info.sec_to_burn_nft * 1000 // 转换为毫秒
-  // return true
-  return (currentTime - lastTradeTime) > secToBurnNft
+  return isTimePassed(lastTradeTime, secToBurnNft)
 }
 
 // 判断NFT是否可以拆分
@@ -67,7 +75,7 @@ function canSplitNft(nft: any): boolean {
   
   // 获取当前价格
   const currentPrice = parseFloat(nft.current_price)
-  // return true
+  
   // 当前价格超过初始价格的200%时可以拆分
   return currentPrice > (initPrice * 2)
 }
@@ -91,12 +99,8 @@ function getRemainingBurnTime(nft: any): string {
     return '可销毁'
   }
   
-  // 转换为时:分:秒格式
-  const hours = Math.floor(remainingTime / (1000 * 60 * 60))
-  const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60))
-  const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000)
-  
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  // 使用formatTimeRemaining函数格式化剩余时间
+  return formatTimeRemaining(remainingTime)
 }
 
 // 获取拆分进度百分比

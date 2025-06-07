@@ -4,6 +4,9 @@ import {
 } from '@ant-design/icons-vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
+// 导入时间工具函数
+import { calculateProgress, calculateNextRound, formatTimeRemaining, parseTime } from '@/utils/timetool'
+
 const props = defineProps({
   project: {
     type: Object,
@@ -42,56 +45,14 @@ const progressPercent = computed(() => {
       return '0%'
     }
 
-    // 解析上一轮时间
-    let lastRoundTimestamp
-    if (typeof props.project.last_round === 'number') {
-      // 如果是数字，则认为已经是时间戳（秒）
-      lastRoundTimestamp = props.project.last_round * 1000 // 转换为毫秒
-    } else {
-      // 如果是字符串，尝试解析为日期
-      try {
-        const lastRoundDate = new Date(props.project.last_round)
-        if (isNaN(lastRoundDate.getTime())) {
-          console.error('Invalid last_round date:', props.project.last_round)
-          return '0%'
-        }
-        lastRoundTimestamp = lastRoundDate.getTime()
-      } catch (error) {
-        console.error('Error parsing last_round:', error)
-        return '0%'
-      }
-    }
-
+    // 解析上一轮时间，使用parseTime函数统一处理
+    const lastRoundTimestamp = parseTime(props.project.last_round)
+    
     // 计算轮次周期（毫秒）
     const roundDurationMs = props.project.sec_per_round * 1000
     
-    // 计算下一轮时间 = 上一轮时间 + 轮次间隔秒数
-    const nextRoundTimestamp = lastRoundTimestamp + roundDurationMs
-    
-    // 获取当前时间
-    const now = new Date().getTime()
-    
-    // 计算当前时间到下一轮的剩余时间（毫秒）
-    let remainingTime = nextRoundTimestamp - now
-    
-    // 如果已经过了下一轮时间，则计算再下一轮
-    if (remainingTime < 0) {
-      // 计算已经过了多少个完整的轮次
-      const passedRounds = Math.ceil(Math.abs(remainingTime) / roundDurationMs)
-      // 计算实际的下一轮时间
-      const actualNextRoundTimestamp = nextRoundTimestamp + passedRounds * roundDurationMs
-      remainingTime = actualNextRoundTimestamp - now
-    }
-    
-    // 计算已经过去的时间 = 总轮次时间 - 剩余时间
-    const elapsedTime = roundDurationMs - remainingTime
-    
-    // 计算进度百分比 = 已过去时间 / 总轮次时间 * 100%
-    const percent = Math.min(100, Math.max(0, Math.floor((elapsedTime / roundDurationMs) * 100)))
-    
-    console.log(`进度条计算: 总时长=${roundDurationMs}ms, 剩余=${remainingTime}ms, 已过=${elapsedTime}ms, 百分比=${percent}%`)
-    
-    return `${percent}%`
+    // 使用calculateProgress计算进度百分比
+    return calculateProgress(lastRoundTimestamp, roundDurationMs)
   } catch (error) {
     console.error('Error calculating progress percent:', error)
     return '0%'
@@ -105,7 +66,7 @@ let countdownInterval: ReturnType<typeof setInterval> | null = null
 const isStopped = ref(false)
 
 // 计算下一轮时间
-function calculateNextRound() {
+function calculateNextRoundTime() {
   try {
     // 如果项目已经被标记为停止，直接返回停止状态
     if (isStopped.value) {
@@ -117,59 +78,28 @@ function calculateNextRound() {
       return '00 : 00 : 00'
     }
 
-    // 解析上一轮时间
-    // 检查 last_round 是否已经是时间戳（秒）
-    let lastRoundTimestamp
-
-    if (typeof props.project.last_round === 'number') {
-      // 如果是数字，则认为已经是时间戳（秒）
-      lastRoundTimestamp = props.project.last_round * 1000 // 转换为毫秒
-    } else {
-      // 如果是字符串，尝试解析为日期
-      try {
-        const lastRoundDate = new Date(props.project.last_round)
-        if (isNaN(lastRoundDate.getTime())) {
-          console.error('Invalid last_round date:', props.project.last_round)
-          return '00 : 00 : 00'
-        }
-        lastRoundTimestamp = lastRoundDate.getTime()
-      } catch (error) {
-        console.error('Error parsing last_round:', error)
-        return '00 : 00 : 00'
-      }
-    }
+    // 解析上一轮时间，使用parseTime函数统一处理
+    const lastRoundTimestamp = parseTime(props.project.last_round)
 
     if (props.project.isStop) {
       isStopped.value = true
       return '已停止'
     } else {
       isStopped.value = false
-      // info(`项目 #${props.project.id} 的 isStop: ${props.project.isStop}`)
     }
 
-    // 计算下一轮时间 = 上一轮时间 + 轮次间隔秒数
-    const nextRoundDate = new Date(lastRoundTimestamp + props.project.sec_per_round * 1000)
+    // 计算轮次周期（毫秒）
+    const roundDurationMs = props.project.sec_per_round * 1000
 
+    // 使用calculateNextRound计算下一轮时间
+    const nextRoundTimestamp = calculateNextRound(lastRoundTimestamp, roundDurationMs)
+    
     // 计算当前时间到下一轮的剩余时间（毫秒）
-    const now = new Date()
-    let remainingTime = nextRoundDate.getTime() - now.getTime()
-
-    // 如果已经过了下一轮时间，则计算再下一轮
-    if (remainingTime < 0) {
-      // 计算已经过了多少个完整的轮次
-      const passedRounds = Math.ceil(Math.abs(remainingTime) / (props.project.sec_per_round * 1000))
-      // 计算实际的下一轮时间
-      const actualNextRound = new Date(nextRoundDate.getTime() + passedRounds * props.project.sec_per_round * 1000)
-      remainingTime = actualNextRound.getTime() - now.getTime()
-    }
-
-    // 转换为小时、分钟、秒
-    const hours = Math.floor(remainingTime / (1000 * 60 * 60))
-    const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60))
-    const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000)
-
-    // 格式化输出
-    return `${String(hours).padStart(2, '0')} : ${String(minutes).padStart(2, '0')} : ${String(seconds).padStart(2, '0')}`
+    const now = Date.now()
+    const remainingTime = nextRoundTimestamp - now
+    
+    // 使用formatTimeRemaining格式化剩余时间
+    return formatTimeRemaining(remainingTime)
   } catch (error) {
     console.error('Error calculating next round time:', error)
     return '00 : 00 : 00'
@@ -183,7 +113,7 @@ let isComponentUnmounted = false
 function updateCountdown() {
   if (!isComponentUnmounted) {
     // 获取当前倒计时状态
-    const currentStatus = calculateNextRound()
+    const currentStatus = calculateNextRoundTime()
 
     // 如果状态为"已停止"，则设置isStopped为true以确保状态持久化
     if (currentStatus === '已停止') {

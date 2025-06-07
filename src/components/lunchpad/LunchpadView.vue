@@ -18,6 +18,7 @@ import { useWallet } from '@/composables/wallet/useWallet'
 // 导入购买NFT函数
 import { executeBatchBuy, executeBuyNftByid } from '@/utils/buynft'
 import { getAllProjects } from '@/utils/tokenPrice'
+import { calculateProgress, parseTime, isTimePassed } from '@/utils/timetool'
 
 // 导入我的NFT视图组件
 
@@ -100,10 +101,14 @@ async function fetchProjects() {
     // 对每个项目获取 registry 表中的数据条数
     for (const project of projectList) {
 
+      
       //只显示 244  1 2 66 115   109
       if (project.id != 244 && project.id != 1 && project.id != 2 && project.id != 66 && project.id != 115 && project.id != 109) {
         continue
       }
+      // if(project.id != 244){
+      //   continue
+      // }
       // 解析token信息
       const tokenParts = project.token_per_nft ? project.token_per_nft.split(' ') : ['0', '']
       const tokenSymbol = tokenParts.length > 1 ? tokenParts[1] : ''
@@ -139,14 +144,12 @@ async function fetchProjects() {
         fundingPoolFormatted = `${Number(reserve0).toFixed(2)} ${symbol0} / ${Number(reserve1).toFixed(2)} ${symbol1}`
       }
 
-      // 处理时区问题
-      const lastRoundDate = new Date(project.last_round)
-      const lastRound = lastRoundDate.getTime() / 1000 + 8 * 3600
+      // 处理时区问题，使用parseTime函数统一处理时间
+      const lastRound = parseTime(project.last_round)
 
       // 获取项目的 registry 数据条数作为发行量和最新的 last_trade 时间
       let issuance = 0
       let isStop = false
-   
 
       try {
         if (wallet) {
@@ -171,33 +174,21 @@ async function fetchProjects() {
 
             // 查找最新的 last_trade 时间
             if (issuance > 0) {
-              // info(`项目 #${pid} 的 last_round: ${new Date(project.last_round).getTime()+8*3600*1000}`)
-              // 这里获取所有的last_trade 当前时间和last_trade 相差大于sec_per_round/3600 每个last_trade 和last_round 相差大于sec_per_round/3600 的 都算作是停止的
               const lastTrade = result.map(item => item.last_trade)
-              // info(`项目 #${pid} 的 last_trade: ${JSON.stringify(lastTrade)}`)
-              // //输出 每个last_trade 和last_round 相差的时间
-              // info(`项目 #${pid} 的 last_round: ${project.last_round}`)
-              // lastTrade.forEach(item => {
-              //   // 输出每一个last_trade 的 时间
-              //   info(`项目 #${pid} 的 last_trade: ${item}`)
-              //   info(`项目 #${pid} 的 last_round: ${project.last_round}`)//小时
-              // })
-
+              
               const stopCount = lastTrade.filter((item) => {
-                const lastRoundMs = new Date().getTime()
-                const lastTradeMs = new Date(item).getTime() + 8 * 3600 * 1000
-                const diffMs = Math.abs(lastRoundMs - lastTradeMs)
-                const diffHours = diffMs / (3600 * 1000)
+                const lastTradeMs = parseTime(item)
+                const currentTimeMs = Date.now()
                 const hoursPerRound = project.sec_per_round / 3600
 
-                // // 输出详细的时间差计算信息
-                // info(`项目 #${pid} 的时间差计算: last_round=${lastRoundMs}, last_trade=${lastTradeMs}, 差值=${diffMs}毫秒, ${diffHours}小时, 阈值=${hoursPerRound}小时`);
+                // 计算时间差（小时）
+                const diffHours = Math.abs(currentTimeMs - lastTradeMs) / (3600 * 1000)
 
                 return diffHours > hoursPerRound
               }).length
 
               info(`项目 #${pid} 的停止数量: ${stopCount}`)
-              if (stopCount == issuance||issuance==0) {
+              if (stopCount == issuance || issuance == 0) {
                 isStop = true
               }
             }
