@@ -1712,7 +1712,7 @@ function openLunchpad() {
       :footer="null"
       :mask-closable="true"
       title="猫咪排行榜"
-      width="800px"
+      width="900px"
     >
       <div class="ranking-content">
         <a-spin :spinning="rankingLoading">
@@ -1826,7 +1826,7 @@ function openLunchpad() {
       :footer="null"
       :mask-closable="true"
       title="项目列表"
-      width="800px"
+      width="900px"
     >
       <LunchpadView />
     </a-modal>
@@ -2057,7 +2057,7 @@ function openLunchpad() {
 
 /* Lunchpad模态框样式 */
 :deep(.lunchpad-modal) {
-  width: 800px !important;
+  width: 900px !important;
 }
 
 :deep(.ant-modal-content) {

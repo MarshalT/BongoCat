@@ -53,7 +53,7 @@ function canBurnNft(nft: any): boolean {
   
   // 当前时间减去最后一次购买时间超过 sec_to_burn_nft 时可以销毁
   const secToBurnNft = nft.project_info.sec_to_burn_nft * 1000 // 转换为毫秒
-  return true
+  // return true
   return (currentTime - lastTradeTime) > secToBurnNft
 }
 
@@ -67,7 +67,7 @@ function canSplitNft(nft: any): boolean {
   
   // 获取当前价格
   const currentPrice = parseFloat(nft.current_price)
-  return true
+  // return true
   // 当前价格超过初始价格的200%时可以拆分
   return currentPrice > (initPrice * 2)
 }

@@ -28,10 +28,14 @@
         "title": "偏好设置",
         "url": "index.html/#/preference",
         "visible": false,
-        "resizable": false,
+        "resizable": true,
         "maximizable": false,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true
+        "hiddenTitle": true,
+        "width": 900,
+        "height": 650,
+        "minWidth": 900,
+        "minHeight": 650
       }
     ],
     "security": {

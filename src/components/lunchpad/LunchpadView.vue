@@ -99,7 +99,9 @@ async function fetchProjects() {
 
     // 对每个项目获取 registry 表中的数据条数
     for (const project of projectList) {
-      if (project.id != 244) {
+
+      //只显示 244  1 2 66 115   109
+      if (project.id != 244 && project.id != 1 && project.id != 2 && project.id != 66 && project.id != 115 && project.id != 109) {
         continue
       }
       // 解析token信息

@@ -58,7 +58,7 @@ const menus = [
 </script>
 
 <template>
-  <Flex class="h-screen">
+  <Flex class="h-screen preference-container">
     <div
       class="h-full w-30 flex flex-col items-center gap-4 bg-gradient-from-primary-1 bg-gradient-to-black/1 bg-gradient-linear"
       :class="[isMac ? 'pt-8' : 'pt-4']"
@@ -97,7 +97,7 @@ const menus = [
       v-for="(item, index) in menus"
       v-show="current === index"
       :key="item.label"
-      class="flex-1 overflow-auto bg-color-8 p-4"
+      class="flex-1 overflow-auto bg-color-8 p-4 content-area"
       data-tauri-drag-region
     >
       <component :is="item.component" />
@@ -106,3 +106,17 @@ const menus = [
 
   <UpdateApp />
 </template>
+
+<style scoped>
+.preference-container {
+  width: 100%;
+  height: 100%;
+  min-width: 800px;
+  min-height: 600px;
+}
+
+.content-area {
+  max-height: 100vh;
+  overflow-y: auto;
+}
+</style>
