@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Spin, Tag, Typography, message, Tooltip } from 'antd';
+import { Table, Card, Button, Spin, Tag, Typography, message, Tooltip, Modal } from 'antd';
 import { TrophyOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getAllCats } from '../utils/chainOperations';
 import { getCatColorClass } from '../utils/catGeneParser';
+import CatRenderer from './CatRenderer';
 import './RankingList.css';
 
 const { Title } = Typography;
@@ -15,6 +16,8 @@ const RankingList = ({ DFSWallet }) => {
     pageSize: 10,
     total: 0,
   });
+  const [selectedCat, setSelectedCat] = useState(null);
+  const [catModalVisible, setCatModalVisible] = useState(false);
 
   // 获取排行榜数据
   const fetchRankingData = async () => {
@@ -51,6 +54,17 @@ const RankingList = ({ DFSWallet }) => {
   const handleRefresh = () => {
     fetchRankingData();
   };
+  
+  // 处理猫咪点击，显示猫咪详情
+  const handleCatClick = (cat) => {
+    setSelectedCat(cat);
+    setCatModalVisible(true);
+  };
+  
+  // 关闭猫咪详情Modal
+  const handleCloseModal = () => {
+    setCatModalVisible(false);
+  };
 
   // 定义表格列
   const columns = [
@@ -86,10 +100,17 @@ const RankingList = ({ DFSWallet }) => {
       title: '猫咪ID',
       dataIndex: 'id',
       key: 'id',
-      width: 100, // 增加列宽
+      width: 180, // 增加列宽
       render: (id, record) => (
-        <div className="cat-id">
-             #{id}
+        <div 
+          className="cat-id clickable" 
+          onClick={() => handleCatClick(record)}
+        >
+          <Tooltip title="点击查看猫咪" placement="topLeft">
+            <span className={`cat-badge ${getCatColorClass(record.gene)}`}>
+              {id}
+            </span>
+          </Tooltip>
         </div>
       ),
     },
@@ -164,6 +185,30 @@ const RankingList = ({ DFSWallet }) => {
           />
         </Spin>
       </Card>
+      
+      {/* 猫咪详情Modal */}
+      <Modal
+        title={selectedCat ? `猫咪 #${selectedCat.id} 详情` : '猫咪详情'}
+        open={catModalVisible}
+        onCancel={handleCloseModal}
+        footer={null}
+        width={400}
+        centered
+      >
+        {selectedCat && (
+          <div className="cat-modal-content">
+            <div className="cat-modal-info">
+              <p><strong>所有者:</strong> {selectedCat.owner}</p>
+              <p><strong>等级:</strong> {selectedCat.level}</p>
+              <p><strong>经验:</strong> {selectedCat.experience || 0}</p>
+              {/* <p><strong>基因:</strong> {selectedCat.genes || 0}</p> */}
+            </div>
+            <div className="cat-modal-renderer">
+              <CatRenderer gene={selectedCat.genes} />
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

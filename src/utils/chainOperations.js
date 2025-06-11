@@ -505,7 +505,7 @@ async function getAllCats(wallet, limit = 50) {
         const cats = rows.map(cat => ({
           id: cat.id,
           owner: cat.owner,
-          gene: cat.gene,
+          genes: cat.genes,
           level: cat.level,
           experience: cat.experience,
           stamina: cat.stamina,
