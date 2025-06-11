@@ -5,7 +5,9 @@ import { message } from 'antd';
 import { getTableRows, getAccountBalance, sendTransaction, buildTransferAction } from './eosUtils';
 
 // 常量定义
-const CONTRACT = 'ifwzjalq2lg1'; // 猫咪合约账户名
+// const CONTRACT = 'ifwzjalq2lg1'; // 猫咪合约账户名
+const CONTRACT = 'bongocatgame'; // 猫咪合约账户名
+const CATTABLE = 'cats';
 const LOCAL_STORAGE_KEY = 'dfs_cat_transactions';
 
 // 检查猫咪是否有可用经验
@@ -184,7 +186,7 @@ async function feedCat(wallet, accountName, catId) {
     const transferAction = buildTransferAction(
       accountName,
       CONTRACT,
-      '1.0000 BGFISH',
+      '1.00000000 BGFISH',
       `feed:${catId}` // 特定备注，标识为喂养操作
     );
     
@@ -355,7 +357,7 @@ async function getUserCats(wallet, accountName) {
         wallet,
         CONTRACT,
         CONTRACT,
-        'cat1s',
+        CATTABLE,
         accountName, // lower_bound
         accountName, // upper_bound
         2, // index_position - 按所有者索引
@@ -488,7 +490,7 @@ async function getAllCats(wallet, limit = 50) {
         wallet,
         CONTRACT,
         CONTRACT,
-        'cats',
+        CATTABLE,
         '', // lower_bound
         '', // upper_bound
         1, // index_position - 主键索引
@@ -505,7 +507,7 @@ async function getAllCats(wallet, limit = 50) {
           owner: cat.owner,
           gene: cat.gene,
           level: cat.level,
-          exp: cat.exp,
+          experience: cat.experience,
           stamina: cat.stamina,
           maxStamina: cat.max_stamina || 100,
           createdAt: cat.created_at,
@@ -516,7 +518,7 @@ async function getAllCats(wallet, limit = 50) {
           if (a.level !== b.level) {
             return b.level - a.level; // 级别降序
           }
-          return b.exp - a.exp; // 同级别下，经验降序
+          return b.experience - a.experience; // 同级别下，经验降序
         });
         
         return cats;

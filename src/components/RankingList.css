@@ -1,0 +1,113 @@
+.ranking-list-container {
+  width: 100%;
+  padding: 16px 0;
+}
+
+.ranking-card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ranking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.ranking-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+}
+
+.ranking-badge.gold {
+  background-color: #ffd700;
+  color: #5c3c00;
+}
+
+.ranking-badge.silver {
+  background-color: #c0c0c0;
+  color: #494949;
+}
+
+.ranking-badge.bronze {
+  background-color: #cd7f32;
+  color: #3e2a13;
+}
+
+.ranking-number {
+  text-align: center;
+  font-weight: bold;
+}
+
+.cat-id {
+  display: flex;
+  align-items: center;
+}
+
+.cat-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: bold;
+  color: white;
+}
+
+/* 背景颜色类 */
+.bg-orange-500 {
+  background-color: #f97316;
+}
+
+.bg-blue-400 {
+  background-color: #60a5fa;
+}
+
+.bg-yellow-500 {
+  background-color: #eab308;
+}
+
+.bg-purple-400 {
+  background-color: #a78bfa;
+}
+
+.bg-green-500 {
+  background-color: #22c55e;
+}
+
+.bg-red-400 {
+  background-color: #f87171;
+}
+
+.bg-indigo-500 {
+  background-color: #6366f1;
+}
+
+/* 表格样式 */
+.ranking-table .ant-table-thead > tr > th {
+  background-color: #f0f5ff;
+  font-weight: bold;
+}
+
+.ranking-table .ant-table-tbody > tr:hover > td {
+  background-color: #e6f7ff;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .ranking-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .ranking-table .ant-table {
+    font-size: 12px;
+  }
+} 

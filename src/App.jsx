@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { Button, message, Layout, Typography, Tabs, Modal, Tag } from 'antd'
-import { 
-  WalletOutlined, 
-  LogoutOutlined, 
+import {
+  WalletOutlined,
+  LogoutOutlined,
   HomeOutlined,
-  ShopOutlined
+  ShopOutlined,
+  TrophyOutlined
 } from '@ant-design/icons'
 import Wallet from 'dfssdk'
+import { WalletType } from 'dfssdk/dist/types'
 import CatList from './components/CatList'
 import CatDetail from './components/CatDetail'
+import RankingList from './components/RankingList'
 import { getUserCats, mintCat } from './utils/chainOperations'
 import { getAccountBalance } from './utils/eosUtils'
 import './App.css'
@@ -23,7 +26,7 @@ function App() {
   const [connected, setConnected] = useState(false)
   const [account, setAccount] = useState(null)
   const [balance, setBalance] = useState(null)
-  
+
   // Cat functionality state
   const [catList, setCatList] = useState([])
   const [selectedCat, setSelectedCat] = useState(null)
@@ -32,7 +35,7 @@ function App() {
   const [catDetailsVisible, setCatDetailsVisible] = useState(false)
   const [mintingCat, setMintingCat] = useState(false)
 
-  // Initialize DFS wallet
+    // Initialize DFS wallet
   useEffect(() => {
     // Initialize wallet per README example
     const wallet = new Wallet({
@@ -42,44 +45,7 @@ function App() {
     })
     setDfsWallet(wallet)
     console.log('钱包对象已初始化', wallet);
-
-    // Check if already connected
-    const checkConnection = async () => {
-      try {
-        // First initialize plugin wallet
-        await wallet.init('plugin');
-        console.log('插件钱包已初始化');
-        
-        try {
-          // Try to login directly, if successful means already connected
-          const userInfo = await wallet.login();
-          console.log('登录成功，用户信息:', userInfo);
-          if (userInfo) {
-            setAccount(userInfo);
-            setConnected(true);
-            
-            // Get balance
-            if (userInfo && userInfo.name) {
-              try {
-                console.log('尝试获取余额...');
-                const balanceStr = await getAccountBalance(wallet, 'eosio.token', userInfo.name, 'DFS');
-                setBalance({ balance: balanceStr });
-              } catch (balanceError) {
-                console.error('获取余额失败:', balanceError);
-                setBalance({ balance: '获取失败' });
-              }
-            }
-          }
-        } catch (loginError) {
-          console.error('检查登录状态失败:', loginError);
-          // Login failure doesn't affect program continuation
-        }
-      } catch (error) {
-        console.error('检查钱包连接状态失败:', error);
-      }
-    };
-    
-    checkConnection();
+    // 不再自动尝试连接钱包，只在用户点击连接按钮时连接
   }, []);
 
   // Get account information
@@ -88,7 +54,7 @@ function App() {
       // Use login method to get user info
       const userInfo = await wallet.login()
       setAccount(userInfo)
-      
+
       // Get balance information
       if (userInfo && userInfo.name) {
         try {
@@ -108,19 +74,19 @@ function App() {
   // Connect wallet
   const connectWallet = async () => {
     if (!dfsWallet) return
-    
+
     try {
       setConnecting(true)
       console.log('开始连接钱包...');
-      // First initialize wallet type
-      await dfsWallet.init('plugin') 
-      console.log('插件钱包已初始化');
+      // Initialize DFSAPP wallet
+      await dfsWallet.init(WalletType.DFSWALLET)
+      console.log('DFSAPP钱包已初始化');
       // Login to get user info
       const userInfo = await dfsWallet.login()
       console.log('登录成功，用户信息:', userInfo);
       setAccount(userInfo)
       setConnected(true)
-      
+
       // Get balance
       if (userInfo && userInfo.name) {
         try {
@@ -132,7 +98,7 @@ function App() {
           setBalance({ balance: '获取失败' });
         }
       }
-      
+
       message.success('钱包连接成功')
     } catch (error) {
       console.error('钱包连接失败:', error)
@@ -145,7 +111,7 @@ function App() {
   // Disconnect wallet
   const disconnectWallet = async () => {
     if (!dfsWallet) return
-    
+
     try {
       // Call logout method
       dfsWallet.logout()
@@ -178,12 +144,12 @@ function App() {
       message.warning('请先连接钱包');
       return;
     }
-    
+
     try {
       setMintingCat(true);
       const newCat = await mintCat(dfsWallet, account.name);
       message.success('猫咪铸造成功！');
-      
+
       // Refresh cat list
       setRefreshCats(prev => prev + 1);
     } catch (error) {
@@ -198,11 +164,11 @@ function App() {
   useEffect(() => {
     const fetchCats = async () => {
       if (!dfsWallet || !account || !connected) return;
-      
+
       try {
         const cats = await getUserCats(dfsWallet, account.name);
         setCatList(cats);
-        
+
         // If there are cats but none selected, default select first one
         if (cats.length > 0 && !selectedCat) {
           setSelectedCat(cats[0]);
@@ -211,7 +177,7 @@ function App() {
         console.error('获取猫咪列表失败:', error);
       }
     };
-    
+
     fetchCats();
   }, [dfsWallet, account, connected, refreshCats]);
 
@@ -227,7 +193,7 @@ function App() {
       ),
       children: (
         <div className="tab-content">
-          <CatList 
+          <CatList
             DFSWallet={dfsWallet}
             userInfo={account}
             onSelectCat={handleCatSelect}
@@ -239,6 +205,21 @@ function App() {
         </div>
       )
     },
+          {
+        key: 'ranking',
+        label: (
+          <span>
+            <TrophyOutlined />
+            排行榜
+          </span>
+        ),
+        children: (
+          <div className="tab-content">
+            <RankingList DFSWallet={dfsWallet} />
+          </div>
+        )
+      }
+      ,
     {
       key: 'market',
       label: (
@@ -254,7 +235,7 @@ function App() {
       )
     }
   ];
-  
+
   return (
     <Layout className="app-layout">
       <Header className="app-header">
@@ -262,10 +243,10 @@ function App() {
           {/* Logo和标题区域 */}
           <div className="logo-section">
             <div className="logo">
-              <img 
-                src="/bogocat/src/img/logo.png" 
-                alt="猫星球" 
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+              <img
+                src="https://s1.imagehub.cc/images/2025/06/11/c34dd32ef2c2206b6a77cd970cd5818b.png"
+                alt="猫星球"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
             </div>
             <Title level={4} style={{ margin: 0, color: 'white' }}>
@@ -285,7 +266,7 @@ function App() {
                     <Tag color="gold">{balance.balance}</Tag>
                   )}
                 </div>
-                <Button 
+                <Button
                   danger
                   icon={<LogoutOutlined />}
                   onClick={disconnectWallet}
@@ -294,8 +275,8 @@ function App() {
                 </Button>
               </>
             ) : (
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<WalletOutlined />}
                 onClick={connectWallet}
                 loading={connecting}
@@ -310,8 +291,8 @@ function App() {
       <Content className="app-content">
         {connected ? (
           <div className="content-container">
-            <Tabs 
-              activeKey={activeTab} 
+            <Tabs
+              activeKey={activeTab}
               onChange={setActiveTab}
               className="main-tabs"
               tabBarStyle={{ marginBottom: 16 }}
@@ -322,8 +303,8 @@ function App() {
           <div className="connect-prompt">
             <WalletOutlined style={{ fontSize: 48, marginBottom: 16 }} />
             <p>请连接DFS钱包开始</p>
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               size="large"
               onClick={connectWallet}
               loading={connecting}
@@ -343,8 +324,8 @@ function App() {
         width={700}
       >
         {selectedCat && (
-          <CatDetail 
-            DFSWallet={dfsWallet} 
+          <CatDetail
+            DFSWallet={dfsWallet}
             userInfo={account}
             selectedCat={selectedCat}
             refreshCats={handleCatActionComplete}
