@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import './CatRenderer.css';
 import { getCatAppearanceStyle } from '../utils/catGeneParser';
 
@@ -6,13 +6,28 @@ import { getCatAppearanceStyle } from '../utils/catGeneParser';
  * Cat Renderer Component
  * Renders a cat SVG based on genes
  */
-const CatRenderer = ({ gene, onClick }) => {
+const CatRenderer = ({parent, gene, onClick }) => {
   const [isPatting, setIsPatting] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
 
-  // Parse cat appearance from genes
-  const catAppearance = getCatAppearanceStyle(gene || 0);
+  // 为每个实例生成唯一的ID
+  const uniqueId = useMemo(() => {
+    // 使用parent参数和gene值的组合作为唯一标识
+    return `${parent || 'cat'}-${gene || 0}`;
+  }, [parent, gene]);
 
+  // Parse cat appearance from genes - use useMemo to ensure consistent rendering
+  const catAppearance = useMemo(() => {
+    // 确保 gene 是数字类型
+    const geneValue = Number(gene || 0);
+    return getCatAppearanceStyle(geneValue);
+  }, [gene]); // 只依赖于 gene 参数，不依赖于 parent
+  
+  console.log(`详细信息 - parent: ${parent}, gene: ${gene}, 颜色方案:`, 
+              catAppearance?.colors, 
+              '耳朵形状:', catAppearance?.ears,
+              '眼睛颜色:', catAppearance?.eyes);
+ 
   // Handle pat animation
   const handlePat = () => {
     if (isPatting) return;
@@ -50,7 +65,7 @@ const CatRenderer = ({ gene, onClick }) => {
           {/* Gradient definitions */}
           <defs>
             <linearGradient
-              id="cat-body-gradient"
+              id={`cat-body-gradient-${uniqueId}`}
               x1="0%"
               y1="0%"
               x2="100%"
@@ -73,7 +88,7 @@ const CatRenderer = ({ gene, onClick }) => {
             </linearGradient>
 
             <linearGradient
-              id="cat-head-gradient"
+              id={`cat-head-gradient-${uniqueId}`}
               x1="0%"
               y1="0%"
               x2="100%"
@@ -98,7 +113,7 @@ const CatRenderer = ({ gene, onClick }) => {
             {/* Pattern definition */}
             {catAppearance?.pattern?.hasPattern && (
               <pattern
-                id="cat-pattern"
+                id={`cat-pattern-${uniqueId}`}
                 width="20"
                 height="20"
                 patternUnits="userSpaceOnUse"
@@ -161,7 +176,7 @@ const CatRenderer = ({ gene, onClick }) => {
             cy="95"
             rx="55"
             ry="40"
-            fill={catAppearance?.pattern?.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'}
+            fill={catAppearance?.pattern?.hasPattern ? `url(#cat-pattern-${uniqueId})` : `url(#cat-body-gradient-${uniqueId})`}
             stroke={catAppearance?.colors?.stroke || '#e09112'}
             strokeWidth={catAppearance?.fur?.strokeWidth || 2}
           />
@@ -172,7 +187,7 @@ const CatRenderer = ({ gene, onClick }) => {
             cx="90"
             cy="60"
             r="38"
-            fill={catAppearance?.pattern?.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-head-gradient)'}
+            fill={catAppearance?.pattern?.hasPattern ? `url(#cat-pattern-${uniqueId})` : `url(#cat-head-gradient-${uniqueId})`}
             stroke={catAppearance?.colors?.stroke || '#e09112'}
             strokeWidth={catAppearance?.fur?.strokeWidth || 2}
           />
@@ -181,7 +196,7 @@ const CatRenderer = ({ gene, onClick }) => {
           <path
             className="cat-tail"
             d="M30,90 Q35,60 45,80 Q55,95 40,105"
-            fill={catAppearance?.pattern?.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'}
+            fill={catAppearance?.pattern?.hasPattern ? `url(#cat-pattern-${uniqueId})` : `url(#cat-body-gradient-${uniqueId})`}
             stroke={catAppearance?.colors?.stroke || '#e09112'}
             strokeWidth={catAppearance?.fur?.strokeWidth || 2}
             strokeLinecap="round"
@@ -191,14 +206,14 @@ const CatRenderer = ({ gene, onClick }) => {
           <path
             className="cat-body"
             d={catAppearance?.ears?.left || 'M65,35 L60,10 Q75,15 85,30'}
-            fill={catAppearance?.pattern?.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'}
+            fill={catAppearance?.pattern?.hasPattern ? `url(#cat-pattern-${uniqueId})` : `url(#cat-body-gradient-${uniqueId})`}
             stroke={catAppearance?.colors?.stroke || '#e09112'}
             strokeWidth={catAppearance?.fur?.strokeWidth || 2}
           />
           <path
             className="cat-body"
             d={catAppearance?.ears?.right || 'M115,35 L120,10 Q105,15 95,30'}
-            fill={catAppearance?.pattern?.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'}
+            fill={catAppearance?.pattern?.hasPattern ? `url(#cat-pattern-${uniqueId})` : `url(#cat-body-gradient-${uniqueId})`}
             stroke={catAppearance?.colors?.stroke || '#e09112'}
             strokeWidth={catAppearance?.fur?.strokeWidth || 2}
           />
@@ -357,14 +372,14 @@ const CatRenderer = ({ gene, onClick }) => {
           <path
             className="cat-body"
             d="M65,110 C60,115 62,125 70,125 Q72,120 70,115"
-            fill={catAppearance?.pattern?.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'}
+            fill={catAppearance?.pattern?.hasPattern ? `url(#cat-pattern-${uniqueId})` : `url(#cat-body-gradient-${uniqueId})`}
             stroke={catAppearance?.colors?.stroke || '#e09112'}
             strokeWidth={catAppearance?.fur?.strokeWidth || 2}
           />
           <path
             className="cat-body"
             d="M115,110 C120,115 118,125 110,125 Q108,120 110,115"
-            fill={catAppearance?.pattern?.hasPattern ? 'url(#cat-pattern)' : 'url(#cat-body-gradient)'}
+            fill={catAppearance?.pattern?.hasPattern ? `url(#cat-pattern-${uniqueId})` : `url(#cat-body-gradient-${uniqueId})`}
             stroke={catAppearance?.colors?.stroke || '#e09112'}
             strokeWidth={catAppearance?.fur?.strokeWidth || 2}
           />

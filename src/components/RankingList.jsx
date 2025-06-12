@@ -201,10 +201,10 @@ const RankingList = ({ DFSWallet }) => {
               <p><strong>所有者:</strong> {selectedCat.owner}</p>
               <p><strong>等级:</strong> {selectedCat.level}</p>
               <p><strong>经验:</strong> {selectedCat.experience || 0}</p>
-              {/* <p><strong>基因:</strong> {selectedCat.genes || 0}</p> */}
+              <p><strong>基因:</strong> {selectedCat.genes || 0}</p>
             </div>
             <div className="cat-modal-renderer">
-              <CatRenderer gene={selectedCat.genes} />
+              <CatRenderer parent="ranking" gene={selectedCat.genes} />
             </div>
           </div>
         )}

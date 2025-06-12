@@ -256,7 +256,9 @@ export function getCatGeneDetails(gene) {
  * @returns {object} - Cat appearance styles
  */
 export function getCatAppearanceStyle(gene) {
-  const parsedGene = parseGene(gene);
+  // 确保 gene 是数字类型
+  const geneValue = Number(gene || 0);
+  const parsedGene = parseGene(geneValue);
   
   // Base color
   const baseColorIndex = parsedGene.appearance.baseColor;
@@ -304,7 +306,9 @@ export function getCatAppearanceStyle(gene) {
       stroke: '#3399ff',
     },
   ];
-  const colorScheme = colorSchemes[baseColorIndex] || colorSchemes[0];
+  // 使用模运算确保索引在有效范围内
+  const safeBaseColorIndex = baseColorIndex % colorSchemes.length;
+  const colorScheme = colorSchemes[safeBaseColorIndex];
 
   // Ear shape
   const earShapeIndex = parsedGene.appearance.earShape;
@@ -334,7 +338,9 @@ export function getCatAppearanceStyle(gene) {
       rightInner: 'M113,30 Q120,20 118,15 Q110,10 105,18 Q102,25 100,28',
     },
   ];
-  const earShape = earShapes[earShapeIndex] || earShapes[0];
+  // 使用模运算确保索引在有效范围内
+  const safeEarShapeIndex = earShapeIndex % earShapes.length;
+  const earShape = earShapes[safeEarShapeIndex];
 
   // Eye color
   const eyeColorIndex = parsedGene.appearance.eyeColor;
@@ -349,14 +355,19 @@ export function getCatAppearanceStyle(gene) {
     '#673AB7', // Purple
   ];
   
+  // 使用模运算确保索引在有效范围内
+  const safeEyeColorIndex = eyeColorIndex % eyeColors.length;
+  
   // Special handling for odd-eyed cats
-  const leftEyeColor = eyeColorIndex === 5 ? eyeColors[5] : eyeColors[eyeColorIndex] || eyeColors[0];
-  const rightEyeColor = eyeColorIndex === 5 ? eyeColors[0] : eyeColors[eyeColorIndex] || eyeColors[0];
+  const leftEyeColor = safeEyeColorIndex === 5 ? eyeColors[5] : eyeColors[safeEyeColorIndex];
+  const rightEyeColor = safeEyeColorIndex === 5 ? eyeColors[0] : eyeColors[safeEyeColorIndex];
 
   // Fur length
   const furLengthIndex = parsedGene.appearance.furLength;
   const furTypes = ['short', 'medium', 'long', 'curly'];
-  const furType = furTypes[furLengthIndex] || furTypes[0];
+  // 使用模运算确保索引在有效范围内
+  const safeFurLengthIndex = furLengthIndex % furTypes.length;
+  const furType = furTypes[safeFurLengthIndex];
 
   // Pattern
   const patternIndex = parsedGene.appearance.pattern;
@@ -371,11 +382,11 @@ export function getCatAppearanceStyle(gene) {
     },
     fur: {
       type: furType,
-      strokeWidth: furLengthIndex === 0
+      strokeWidth: safeFurLengthIndex === 0
         ? 1.5
-        : furLengthIndex === 1
+        : safeFurLengthIndex === 1
           ? 2
-          : furLengthIndex === 2 ? 2.5 : 3,
+          : safeFurLengthIndex === 2 ? 2.5 : 3,
     },
     pattern: {
       type: patternIndex,
