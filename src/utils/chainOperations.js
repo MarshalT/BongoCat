@@ -5,9 +5,9 @@ import { message } from 'antd';
 import { getTableRows, getAccountBalance, sendTransaction, buildTransferAction } from './eosUtils';
 
 // 常量定义
-// const CONTRACT = 'ifwzjalq2lg1'; // 猫咪合约账户名
-const CONTRACT = 'bongocatgame'; // 猫咪合约账户名
-const CATTABLE = 'cats';
+const CONTRACT = 'ifwzjalq2lg1'; // 猫咪合约账户名
+// const CONTRACT = 'bongocatgame'; // 猫咪合约账户名
+const CATTABLE = 'cat1s';
 const LOCAL_STORAGE_KEY = 'dfs_cat_transactions';
 
 // 检查猫咪是否有可用经验
@@ -538,9 +538,9 @@ async function getAllCats(wallet, limit = 50) {
       testCats.push({
         id: `${1000 + i}`,
         owner: owners[i % owners.length],
-        gene: Math.floor(Math.random() * 2147483647),
+        genes: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), // 使用 genes 而不是 gene，确保属性名称一致
         level: level,
-        exp: Math.floor(Math.random() * 100) * level,
+        experience: Math.floor(Math.random() * 100) * level, // 使用 experience 而不是 exp，与链上数据保持一致
         stamina: Math.floor(Math.random() * 50) + 50, // 50-100的体力
         maxStamina: 100,
         createdAt: Date.now() - Math.floor(Math.random() * 30) * 86400000, // 1-30天前创建
@@ -552,7 +552,7 @@ async function getAllCats(wallet, limit = 50) {
       if (a.level !== b.level) {
         return b.level - a.level; // 级别降序
       }
-      return b.exp - a.exp; // 同级别下，经验降序
+      return b.experience - a.experience; // 同级别下，经验降序，使用 experience 而不是 exp
     });
     
     return testCats;

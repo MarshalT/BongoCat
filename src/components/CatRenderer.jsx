@@ -16,11 +16,39 @@ const CatRenderer = ({parent, gene, onClick }) => {
     return `${parent || 'cat'}-${gene || 0}`;
   }, [parent, gene]);
 
+  // 输出基因值的原始值和 BigInt 转换后的值
+  console.log(`基因值调试信息 - parent: ${parent}, gene: ${gene}, gene类型: ${typeof gene}`);
+  // try {
+  //   const geneBigInt = BigInt(gene || 0);
+  //   console.log(`BigInt转换后: ${geneBigInt}, BigInt类型: ${typeof geneBigInt}`);
+    
+  //   // 测试基本位运算
+  //   console.log(`基本位运算测试 - baseColor: ${geneBigInt % 7n}, furLength: ${(geneBigInt >> 4n) & 0x3n}, earShape: ${(geneBigInt >> 6n) & 0x3n}`);
+    
+  //   // 测试额外特征的计算
+  //   const extraFeature1 = (geneBigInt >> 15n) & 0xFFn;
+  //   const extraFeature2 = (geneBigInt >> 23n) & 0xFFn;
+  //   console.log(`额外特征测试 - extraFeature1: ${extraFeature1}, extraFeature2: ${extraFeature2}`);
+    
+  //   // 测试完整的位运算
+  //   const appearance = {
+  //     baseColor: Number(geneBigInt % 7n),
+  //     furLength: Number((geneBigInt >> 4n) & 0x3n),
+  //     earShape: Number((geneBigInt >> 6n) & 0x3n),
+  //     eyeColor: Number((geneBigInt >> 8n) & 0x7n),
+  //     pattern: Number((geneBigInt >> 11n) & 0xFn),
+  //     extraFeature1: Number((geneBigInt >> 15n) & 0xFFn),
+  //     extraFeature2: Number((geneBigInt >> 23n) & 0xFFn),
+  //   };
+  //   console.log('解析后的外观对象:', appearance);
+  // } catch (error) {
+  //   console.error('BigInt转换错误:', error);
+  // }
+
   // Parse cat appearance from genes - use useMemo to ensure consistent rendering
   const catAppearance = useMemo(() => {
-    // 确保 gene 是数字类型
-    const geneValue = Number(gene || 0);
-    return getCatAppearanceStyle(geneValue);
+    // 直接传递基因值，不进行类型转换
+    return getCatAppearanceStyle(gene);
   }, [gene]); // 只依赖于 gene 参数，不依赖于 parent
   
   console.log(`详细信息 - parent: ${parent}, gene: ${gene}, 颜色方案:`, 
