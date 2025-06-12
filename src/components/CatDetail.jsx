@@ -111,7 +111,7 @@ const CatDetail = ({ DFSWallet, userInfo, selectedCat, refreshCats }) => {
           );
           setHasAvailableExp(hasExp);
           console.log('初始检查经验结果:', hasExp);
-          console.log('基因', selectedCat.genes);
+          // console.log('基因', selectedCat.genes);
         }
       } catch (error) {
         console.error('初始检查可获取经验出错:', error);

@@ -90,28 +90,83 @@
 /* Color classes for cat badges */
 .bg-orange-500 {
   background-color: #fa8c16;
+  color: white;
 }
 
-.bg-blue-400 {
+.bg-gray-400 {
+  background-color: #bfbfbf;
+  color: white;
+}
+
+.bg-amber-700 {
+  background-color: #d48806;
+  color: white;
+}
+
+.bg-white {
+  background-color: #ffffff;
+  color: #333333;
+  border: 1px solid #e8e8e8;
+}
+
+.bg-yellow-300 {
+  background-color: #fadb14;
+  color: #333333;
+}
+
+.bg-gray-800 {
+  background-color: #262626;
+  color: white;
+}
+
+.bg-blue-300 {
+  background-color: #91d5ff;
+  color: #333333;
+}
+
+/* 新增颜色 */
+.bg-pink-400 {
+  background-color: #ff85c0;
+  color: white;
+}
+
+.bg-amber-100 {
+  background-color: #fff7e6;
+  color: #333333;
+  border: 1px solid #e8e8e8;
+}
+
+.bg-purple-200 {
+  background-color: #d3adf7;
+  color: #333333;
+}
+
+.bg-amber-600 {
+  background-color: #d46b08;
+  color: white;
+}
+
+.bg-gray-300 {
+  background-color: #d9d9d9;
+  color: #333333;
+}
+
+.bg-amber-400 {
+  background-color: #ffc53d;
+  color: #333333;
+}
+
+.bg-green-400 {
+  background-color: #73d13d;
+  color: white;
+}
+
+.bg-blue-500 {
   background-color: #1890ff;
+  color: white;
 }
 
-.bg-yellow-500 {
-  background-color: #faad14;
-}
-
-.bg-purple-400 {
+.bg-purple-500 {
   background-color: #722ed1;
-}
-
-.bg-green-500 {
-  background-color: #52c41a;
-}
-
-.bg-red-400 {
-  background-color: #f5222d;
-}
-
-.bg-indigo-500 {
-  background-color: #2f54eb;
+  color: white;
 } 

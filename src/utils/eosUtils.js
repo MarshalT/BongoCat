@@ -33,7 +33,7 @@ export async function tryAllNodes(rpcCallFunction) {
   
   for (const nodeUrl of nodes) {
     try {
-      console.log(`尝试使用RPC节点: ${nodeUrl}`);
+      // console.log(`尝试使用RPC节点: ${nodeUrl}`);
       
       // 创建JsonRpc实例
       const rpc = createRpc(nodeUrl);
@@ -43,7 +43,7 @@ export async function tryAllNodes(rpcCallFunction) {
       
       // 如果成功，保存此节点
       localStorage.setItem('dfs-last-successful-node', nodeUrl);
-      console.log(`节点 ${nodeUrl} 调用成功`);
+      // console.log(`节点 ${nodeUrl} 调用成功`);
       
       return result;
     } catch (error) {
@@ -86,7 +86,7 @@ export async function getTableRows(
   try {
     // 使用tryAllNodes尝试所有节点
     return await tryAllNodes(async (rpc) => {
-      console.log(`使用JsonRpc获取表数据: ${table} from ${code}`);
+      // console.log(`使用JsonRpc获取表数据: ${table} from ${code}`);
       
       const result = await rpc.get_table_rows({
         json: true,
@@ -101,7 +101,7 @@ export async function getTableRows(
         reverse
       });
       
-      console.log(`JsonRpc获取表数据成功, 返回 ${result.rows ? result.rows.length : 0} 行`);
+      // console.log(`JsonRpc获取表数据成功, 返回 ${result.rows ? result.rows.length : 0} 行`);
       return result.rows || [];
     });
   } catch (error) {
