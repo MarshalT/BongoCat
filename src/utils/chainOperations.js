@@ -5,9 +5,9 @@ import { message } from 'antd';
 import { getTableRows, getAccountBalance, sendTransaction, buildTransferAction } from './eosUtils';
 
 // 常量定义
-const CONTRACT = 'ifwzjalq2lg1'; // 猫咪合约账户名
-// const CONTRACT = 'bongocatgame'; // 猫咪合约账户名
-const CATTABLE = 'cat1s';
+// const CONTRACT = 'ifwzjalq2lg1'; // 猫咪合约账户名
+const CONTRACT = 'bongocatgame'; // 猫咪合约账户名
+const CATTABLE = 'cats';
 const LOCAL_STORAGE_KEY = 'dfs_cat_transactions';
 
 // 检查猫咪是否有可用经验
