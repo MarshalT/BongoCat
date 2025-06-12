@@ -341,13 +341,14 @@ export function getSpecialAbilities(abilities) {
  */
 export function getCatGeneDetails(gene) {
   const parsedGene = parseGene(gene);
+  const appearance = getCatAppearanceStyle(gene);
   
   return {
     // Appearance
-    baseColor: getColorName(parsedGene.appearance.baseColor),
+    baseColor: getColorName(gene),
     furLength: getFurLengthName(parsedGene.appearance.furLength),
     earShape: getEarShapeName(parsedGene.appearance.earShape),
-    eyeColor: getEyeColorName(parsedGene.appearance.eyeColor),
+    eyeColor: appearance.eyeColorName,
     pattern: getPatternName(parsedGene.appearance.pattern),
 
     // Personality and abilities
@@ -579,6 +580,9 @@ export function getCatAppearanceStyle(gene) {
     // 使用模运算确保索引在有效范围内
     const safeEyeColorIndex = eyeColorIndex % eyeColors.length;
     
+    // 获取眼睛颜色名称
+    const eyeColorName = getEyeColorName(safeEyeColorIndex);
+    
     // Special handling for odd-eyed cats - 使用额外特征2和字符串特征来决定是否为异瞳猫
     const isOddEyed = (extraFactor2 + strFactor2 + highFactor2) % 4 === 3; // 25%的概率为异瞳猫
     const leftEyeColor = isOddEyed ? eyeColors[5] : eyeColors[safeEyeColorIndex];
@@ -623,6 +627,7 @@ export function getCatAppearanceStyle(gene) {
         type: patternIndex,
         hasPattern,
       },
+      eyeColorName: isOddEyed ? 'Odd-eyed' : eyeColorName,
     };
   } catch (error) {
     console.error('getCatAppearanceStyle 错误:', error);
@@ -652,6 +657,7 @@ export function getCatAppearanceStyle(gene) {
         type: 0,
         hasPattern: false,
       },
+      eyeColorName: 'Green',
     };
   }
 }

@@ -99,6 +99,8 @@ function generate_multiple_genes(count) {
 function createCatSvg(gene, id) {
   // 获取猫咪外观 - 使用导入的函数
   const catAppearance = getCatAppearanceStyle(gene);
+
+  console.log('catAppearance', JSON.stringify(catAppearance, null, 2));
   const uniqueId = `cat-${id}`;
   
   // 构建SVG
