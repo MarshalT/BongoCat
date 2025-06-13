@@ -72,6 +72,7 @@ const RankingList = ({ DFSWallet }) => {
       title: '排名',
       key: 'ranking',
       width: 80,
+      align: 'center',
       render: (_, __, index) => {
         const rank = (pagination.current - 1) * pagination.pageSize + index + 1;
         if (rank === 1) {
@@ -100,15 +101,16 @@ const RankingList = ({ DFSWallet }) => {
       title: '猫咪ID',
       dataIndex: 'id',
       key: 'id',
-      width: 180, // 增加列宽
+      width: 120,
+      align: 'center',
       render: (id, record) => (
-        <div 
-          className="cat-id clickable" 
-          onClick={() => handleCatClick(record)}
-        >
-          <Tooltip title="点击查看猫咪" placement="topLeft">
-            <span className={`cat-badge ${getCatColorClass(record.gene)}`}>
-              {id}
+        <div className="cat-id">
+          <Tooltip title="点击查看猫咪详情" placement="top">
+            <span
+              className={`cat-badge clickable ${getCatColorClass(record.genes || record.gene)}`}
+              onClick={() => handleCatClick(record)}
+            >
+              #{id}
             </span>
           </Tooltip>
         </div>

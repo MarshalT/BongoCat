@@ -3,6 +3,18 @@
  * Based on the TypeScript implementation
  */
 
+import { calculateRarityWithStrategy, RARITY_STRATEGIES } from './rarityController.js';
+
+/**
+ * Calculate rarity from gene using configurable probability distribution
+ * @param {BigInt} geneBigInt - The cat gene value as BigInt
+ * @param {string} strategy - Rarity distribution strategy
+ * @returns {number} - Rarity index (0-15)
+ */
+function calculateRarityFromGene(geneBigInt, strategy = RARITY_STRATEGIES.REALISTIC) {
+  return calculateRarityWithStrategy(geneBigInt, strategy);
+}
+
 /**
  * Parse gene into appearance and attributes
  * @param {number|string|BigInt} gene - The cat gene value
@@ -70,7 +82,7 @@ export function parseGene(gene) {
       personality: Number((geneBigInt >> 15n) & 0x7n),
 
       // Rarity (0-15: common, uncommon, rare, super rare...)
-      rarity: Number((geneBigInt >> 18n) & 0xFn),
+      rarity: calculateRarityFromGene(geneBigInt),
 
       // Growth potential (50-150 value, affects XP gain rate)
       growthPotential: 50 + (Number((geneBigInt >> 22n) & 0x3Fn) * 100 / 63),
@@ -270,26 +282,36 @@ export function getPersonalityName(personalityIndex) {
  * @param {number} rarityIndex - Rarity index
  * @returns {string} - Rarity name
  */
-export function getRarityName(rarityIndex) {
-  const rarityNames = [
-    'Common',
-    'Ordinary',
-    'Uncommon',
-    'Interesting',
-    'Unusual',
-    'Rare',
-    'Scarce',
-    'Curious',
-    'Very Rare',
-    'Ultra Rare',
-    'Legendary',
-    'Mythical',
-    'Epic',
-    'Unique',
-    'Limited',
-    'Exclusive',
+/**
+ * Get rarity configuration with probability and color
+ * @param {number} rarityIndex - Rarity index
+ * @returns {object} - Rarity configuration
+ */
+export function getRarityConfig(rarityIndex) {
+  const rarityConfigs = [
+    { name: 'Common', probability: 30.0, color: '#9E9E9E', tier: 'common' },
+    { name: 'Ordinary', probability: 20.0, color: '#8BC34A', tier: 'common' },
+    { name: 'Uncommon', probability: 15.0, color: '#4CAF50', tier: 'uncommon' },
+    { name: 'Interesting', probability: 10.0, color: '#2196F3', tier: 'uncommon' },
+    { name: 'Unusual', probability: 7.0, color: '#03A9F4', tier: 'rare' },
+    { name: 'Rare', probability: 5.0, color: '#9C27B0', tier: 'rare' },
+    { name: 'Scarce', probability: 4.0, color: '#673AB7', tier: 'rare' },
+    { name: 'Curious', probability: 3.0, color: '#3F51B5', tier: 'epic' },
+    { name: 'Very Rare', probability: 2.5, color: '#FF9800', tier: 'epic' },
+    { name: 'Ultra Rare', probability: 1.5, color: '#FF5722', tier: 'epic' },
+    { name: 'Legendary', probability: 1.0, color: '#F44336', tier: 'legendary' },
+    { name: 'Mythical', probability: 0.5, color: '#E91E63', tier: 'legendary' },
+    { name: 'Epic', probability: 0.3, color: '#9C27B0', tier: 'legendary' },
+    { name: 'Unique', probability: 0.1, color: '#FFD700', tier: 'mythical' },
+    { name: 'Limited', probability: 0.05, color: '#FF6B35', tier: 'mythical' },
+    { name: 'Exclusive', probability: 0.05, color: '#FF1744', tier: 'mythical' },
   ];
-  return rarityNames[rarityIndex] || 'Unknown';
+
+  return rarityConfigs[rarityIndex] || { name: 'Unknown', probability: 0, color: '#000000', tier: 'unknown' };
+}
+
+export function getRarityName(rarityIndex) {
+  return getRarityConfig(rarityIndex).name;
 }
 
 /**

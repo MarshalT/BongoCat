@@ -9,6 +9,8 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 // 导入基因解析函数
 import { parseGene, getCatGeneDetails, getCatAppearanceStyle, getColorName } from '../src/utils/catGeneParser.js';
+// 导入稀有度统计工具
+import { printRarityStatistics, generateRarityCSV, getRarityJSON } from '../src/utils/rarityStatistics.js';
 
 // 获取当前文件的目录
 const __filename = fileURLToPath(import.meta.url);
@@ -430,7 +432,40 @@ async function main() {
     console.log(`稀有度: ${cat.details.rarity}`);
     console.log(`文件路径: ${cat.filePath}`);
   });
-  
+  // 使用新的统计工具生成详细的稀有度报告
+  const statistics = printRarityStatistics(catsInfo, {
+    showHeader: true,
+    showDetailed: true,
+    showTierSummary: true,
+    showEconomicAnalysis: true,
+    useEmojis: true
+  });
+
+  // 生成 CSV 和 JSON 数据文件（可选）
+  try {
+    const csvData = generateRarityCSV(statistics);
+    const jsonData = getRarityJSON(statistics);
+
+    // 保存统计数据到文件
+    const statsDir = path.join(OUTPUT_DIR, 'statistics');
+    if (!fs.existsSync(statsDir)) {
+      fs.mkdirSync(statsDir, { recursive: true });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const csvPath = path.join(statsDir, `rarity-distribution-${timestamp}.csv`);
+    const jsonPath = path.join(statsDir, `rarity-distribution-${timestamp}.json`);
+
+    fs.writeFileSync(csvPath, csvData, 'utf8');
+    fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
+
+    console.log(`\n� 统计数据已保存:`);
+    console.log(`CSV: ${csvPath}`);
+    console.log(`JSON: ${jsonPath}`);
+  } catch (error) {
+    console.warn('保存统计数据时出错:', error.message);
+  }
+
   console.log(`\n成功生成 ${catsInfo.length} 只猫咪，保存在 ${OUTPUT_DIR} 目录`);
 }
 
