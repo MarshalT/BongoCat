@@ -1,0 +1,58 @@
+.wallets {
+  padding: 10px;
+  border-radius: 12px;
+  background: #000;
+  width: 300px;
+  color: #fff;
+  z-index: 1001;
+  position: relative;
+}
+
+.wallets .title {
+  font-size: 22px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.wallets .item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  height: 60px;
+  border-bottom: 1px solid #333;
+  border-radius: 5px;
+  padding: 0 15px;
+  transition: all 0.2s ease;
+  margin-bottom: 5px;
+}
+
+.wallets .item:last-child {
+  border: none;
+  margin-bottom: 0;
+}
+
+.wallets .item:hover {
+  background: #333;
+}
+
+.wallets .item:active {
+  background: #555;
+  transform: scale(0.98);
+}
+
+.wallets .item .icon {
+  width: 32px;
+  height: 32px;
+  margin-right: 15px;
+  object-fit: contain;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.wallets .item .label {
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+} 

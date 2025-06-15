@@ -14,6 +14,7 @@ import CatDetail from './components/CatDetail'
 import RankingList from './components/RankingList'
 import { getUserCats, mintCat } from './utils/chainOperations'
 import { getAccountBalance } from './utils/eosUtils'
+import WalletList from './components/WalletList'
 import './App.css'
 
 const { Header, Content } = Layout
@@ -34,6 +35,9 @@ function App() {
   const [activeTab, setActiveTab] = useState('home')
   const [catDetailsVisible, setCatDetailsVisible] = useState(false)
   const [mintingCat, setMintingCat] = useState(false)
+
+  // WalletList state
+  const [showWalletList, setShowWalletList] = useState(false)
 
     // Initialize DFS wallet
   useEffect(() => {
@@ -71,21 +75,48 @@ function App() {
     }
   }
 
+  // Handle wallet selection
+  const handleWalletSelect = (walletType) => {
+    console.log('App.jsx - handleWalletSelect 被调用，钱包类型:', walletType);
+    connectWallet(walletType);
+  };
+
+  // Show wallet selector
+  const showWalletSelector = () => {
+    console.log('显示钱包选择列表');
+    setShowWalletList(true);
+  };
+
   // Connect wallet
-  const connectWallet = async () => {
-    if (!dfsWallet) return
+  const connectWallet = async (walletType = WalletType.DFSWALLET) => {
+    if (!dfsWallet) {
+      console.error('钱包对象未初始化');
+      return;
+    }
 
     try {
-      setConnecting(true)
-      console.log('开始连接钱包...');
-      // Initialize DFSAPP wallet
-      await dfsWallet.init(WalletType.DFSWALLET)
-      console.log('DFSAPP钱包已初始化');
+      setConnecting(true);
+      console.log('开始连接钱包...类型:', walletType);
+      
+      // 输出钱包对象信息，用于调试
+      console.log('钱包对象:', dfsWallet);
+      console.log('WalletType 值:', { 
+        WEB: WalletType.WEB, 
+        DFSWALLET: WalletType.DFSWALLET, 
+        TELEGRAMAPP: WalletType.TELEGRAMAPP 
+      });
+      
+      // 使用传入的钱包类型初始化
+      await dfsWallet.init(walletType);
+      console.log(`${walletType === WalletType.DFSWALLET ? 'DFSAPP' : walletType === WalletType.WEB ? 'Passkey' : 'Telegram'}钱包已初始化`);
+      
       // Login to get user info
-      const userInfo = await dfsWallet.login()
+      const userInfo = await dfsWallet.login();
       console.log('登录成功，用户信息:', userInfo);
-      setAccount(userInfo)
-      setConnected(true)
+      setAccount(userInfo);
+      setConnected(true);
+      // 隐藏钱包列表
+      setShowWalletList(false);
 
       // Get balance
       if (userInfo && userInfo.name) {
@@ -99,14 +130,14 @@ function App() {
         }
       }
 
-      message.success('钱包连接成功')
+      message.success('钱包连接成功');
     } catch (error) {
-      console.error('钱包连接失败:', error)
-      message.error('钱包连接失败: ' + (error.message || String(error)))
+      console.error('连接钱包失败:', error);
+      message.error('连接钱包失败: ' + (error.message || String(error)));
     } finally {
-      setConnecting(false)
+      setConnecting(false);
     }
-  }
+  };
 
   // Disconnect wallet
   const disconnectWallet = async () => {
@@ -277,9 +308,9 @@ function App() {
             ) : (
               <Button
                 type="primary"
-                icon={<WalletOutlined />}
-                onClick={connectWallet}
+                onClick={showWalletSelector}
                 loading={connecting}
+                disabled={connecting}
               >
                 连接钱包
               </Button>
@@ -306,7 +337,7 @@ function App() {
             <Button
               type="primary"
               size="large"
-              onClick={connectWallet}
+              onClick={showWalletSelector}
               loading={connecting}
             >
               连接DFS钱包
@@ -332,6 +363,17 @@ function App() {
           />
         )}
       </Modal>
+
+      {/* WalletList modal */}
+      {showWalletList && !connected && (
+        <div className="wallet-list-modal">
+          <div className="wallet-list-backdrop" onClick={() => {
+            console.log('背景被点击，关闭钱包列表');
+            setShowWalletList(false);
+          }}></div>
+          <WalletList onWalletSelect={handleWalletSelect} />
+        </div>
+      )}
     </Layout>
   )
 }
